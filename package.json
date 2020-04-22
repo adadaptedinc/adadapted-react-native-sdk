@@ -1,0 +1,112 @@
+{
+    "name": "adadapted-react-native-sdk",
+    "version": "0.1.0",
+    "description": "Allows for use of the AdAdapted SDK through react-native.",
+    "main": "lib/commonjs/index.js",
+    "module": "lib/module/index.js",
+    "types": "lib/typescript/src/index.d.ts",
+    "react-native": "src/index.tsx",
+    "files": [
+        "src",
+        "lib",
+        "android",
+        "ios",
+        "adadapted-react-native-sdk.podspec"
+    ],
+    "scripts": {
+        "prettier-fix": "prettier --write \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\" \"example/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
+        "compile": "tsc --version && tsc --project tsconfig.json --noEmit --noErrorTruncation --pretty",
+        "lint": "tslint --version && tslint --project tsconfig.json --config tslint.json",
+        "test-coverage": "rm -rf coverage && jest --version && jest --coverage",
+        "test": "jest --version && jest",
+        "install-pods": "cd example/ios && pod install",
+        "prepare-build": "bob build",
+        "release": "release-it"
+    },
+    "keywords": [
+        "react-native",
+        "ios",
+        "android"
+    ],
+    "repository": "https://gitlab.com/adadapted/adadapted-react-native-sdk",
+    "author": "Jeramy Usher <jusher@adadapted.com> (https://gitlab.com/adadapted/adadapted-react-native-sdk)",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://gitlab.com/adadapted/adadapted-react-native-sdk/issues"
+    },
+    "homepage": "https://gitlab.com/adadapted/adadapted-react-native-sdk#readme",
+    "dependencies": {
+        "axios": "^0.19.2"
+    },
+    "peerDependencies": {
+        "react": "*",
+        "react-native": "*"
+    },
+    "devDependencies": {
+        "@babel/plugin-transform-typescript": "^7.9.4",
+        "@commitlint/config-conventional": "^8.3.4",
+        "@react-native-community/bob": "^0.10.1",
+        "@react-native-community/eslint-config": "^0.0.7",
+        "@release-it/conventional-changelog": "^1.1.0",
+        "@types/axios": "^0.14.0",
+        "@types/jest": "^25.1.2",
+        "@types/react": "^16.9.19",
+        "@types/react-native": "0.61.10",
+        "commitlint": "^8.3.4",
+        "husky": "^4.0.1",
+        "jest": "^25.1.0",
+        "prettier": "^1.19.1",
+        "react": "~16.9.0",
+        "react-native": "^0.62.2",
+        "release-it": "^12.6.3",
+        "tslint": "^6.1.1",
+        "tslint-config-prettier": "^1.18.0",
+        "tslint-eslint-rules": "^5.4.0",
+        "tslint-plugin-prettier": "^2.3.0",
+        "tslint-react-native": "0.0.7",
+        "typescript": "^3.7.5"
+    },
+    "jest": {
+        "preset": "react-native",
+        "modulePathIgnorePatterns": [
+            "<rootDir>/example/node_modules",
+            "<rootDir>/lib/"
+        ]
+    },
+    "husky": {
+        "hooks": {
+            "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
+            "pre-commit": "npm lint && npm typescript"
+        }
+    },
+    "tslintIgnore": [
+        "node_modules/",
+        "lib/"
+    ],
+    "release-it": {
+        "git": {
+            "commitMessage": "chore: release %s",
+            "tagName": "v%s"
+        },
+        "npm": {
+            "publish": true
+        },
+        "github": {
+            "release": false
+        },
+        "plugins": {
+            "@release-it/conventional-changelog": {
+                "preset": "angular"
+            }
+        }
+    },
+    "@react-native-community/bob": {
+        "source": "src",
+        "output": "lib",
+        "targets": [
+            "commonjs",
+            "module",
+            "typescript"
+        ]
+    }
+}
