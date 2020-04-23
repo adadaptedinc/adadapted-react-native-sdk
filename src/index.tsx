@@ -4,17 +4,33 @@
 import { NativeModules } from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import { ApiEnv, DeviceInfo, DeviceOS } from "./types";
+import { adadaptedApiTypes } from "./api/adadaptedApiTypes";
 
+/**
+ * Class that acts as the AdAdapted SDK for react-native.
+ */
 export class AdadaptedReactNativeSdk {
     /**
      * The API environment to use when making API calls.
      */
     private apiEnv: ApiEnv;
-
+    /**
+     * The device operating system.
+     */
+    private deviceOs: DeviceOS | undefined;
     /**
      * The session ID used for the API to properly identify a user.
      */
     private sessionId: string | undefined;
+    /**
+     * All device data gathered when "initialize" is called.
+     */
+    private deviceInfo: DeviceInfo | undefined;
+    /**
+     * All current Session/Ad info.
+     * This info can be refreshed based on the set interval.
+     */
+    private sessionInfo: adadaptedApiTypes.models.AdSession | undefined;
 
     /**
      * Gets the Session ID.
@@ -22,6 +38,30 @@ export class AdadaptedReactNativeSdk {
      */
     public getSessionId(): string | undefined {
         return this.sessionId;
+    }
+
+    /**
+     * Gets the Device OS.
+     * @returns the Device OS.
+     */
+    public getDeviceOs(): string | undefined {
+        return this.deviceOs;
+    }
+
+    /**
+     * Gets the Device Info object.
+     * @returns the Device Info object.
+     */
+    public getDeviceInfo(): DeviceInfo | undefined {
+        return this.deviceInfo;
+    }
+
+    /**
+     * Gets the Ad Session Info object.
+     * @returns the Ad Session Info object.
+     */
+    public getSessionInfo(): adadaptedApiTypes.models.AdSession | undefined {
+        return this.sessionInfo;
     }
 
     /**
@@ -37,7 +77,7 @@ export class AdadaptedReactNativeSdk {
      * Gets the users device info.
      * @returns a Promise of void.
      */
-    private getDeviceInfo(): Promise<string> {
+    private getDeviceInformation(): Promise<string> {
         return new Promise<string>((resolve) => {
             NativeModules.AdadaptedReactNativeSdk.getDeviceInfo().then(
                 (response: string) => {
@@ -64,19 +104,14 @@ export class AdadaptedReactNativeSdk {
         }
 
         return new Promise<void>((resolve, reject) => {
-            this.getDeviceInfo()
+            this.getDeviceInformation()
                 .then((deviceInfoObj) => {
-                    // TODO: fix iOS to send back a json string as a result for this device/native call.
-                    // const deviceInfoJson = JSON.stringify(deviceInfoObj);
                     const deviceInfo = JSON.parse(deviceInfoObj) as DeviceInfo;
-                    let deviceOs = DeviceOS.ANDROID;
-
-                    if (
-                        deviceInfo.systemName.toLowerCase() === "ios" ||
-                        deviceInfo.systemName.toLowerCase() === "iphone os"
-                    ) {
-                        deviceOs = DeviceOS.IOS;
-                    }
+                    this.deviceInfo = deviceInfo;
+                    this.deviceOs =
+                        deviceInfo.systemName === "ios"
+                            ? DeviceOS.IOS
+                            : DeviceOS.ANDROID;
 
                     // Pass device info along with API call
                     adadaptedApiRequests
@@ -84,9 +119,13 @@ export class AdadaptedReactNativeSdk {
                             {
                                 app_id: appId,
                                 udid: deviceInfo.udid,
-                                device_width: parseInt(deviceInfo.deviceWidth),
+                                device_width: parseInt(
+                                    deviceInfo.deviceWidth,
+                                    10
+                                ),
                                 device_height: parseInt(
-                                    deviceInfo.deviceHeight
+                                    deviceInfo.deviceHeight,
+                                    10
                                 ),
                                 device_density: deviceInfo.deviceScreenDensity,
                                 device_name: deviceInfo.deviceName,
@@ -99,18 +138,16 @@ export class AdadaptedReactNativeSdk {
                                 allow_retargeting:
                                     deviceInfo.isAdTrackingEnabled
                             },
-                            deviceOs,
+                            this.deviceOs,
                             this.apiEnv
                         )
                         .then((response) => {
-                            // @ts-ignore
                             this.sessionId = response.data.session_id;
+                            this.sessionInfo = response.data;
 
-                            console.log(response);
                             resolve();
                         })
                         .catch((err) => {
-                            console.log(err.response.request._response);
                             reject(err);
                         });
                 })

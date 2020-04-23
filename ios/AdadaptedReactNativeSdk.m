@@ -25,13 +25,13 @@ RCT_REMAP_METHOD(
     NSString *timezoneName = [[NSTimeZone localTimeZone] name];
     NSNumber *isAdTrackingEnabled = [NSNumber numberWithBool: [[ASIdentifierManager sharedManager] isAdvertisingTrackingEnabled]];
 
+    // Create the dictionary that will be turned into the final JSON result.
     NSDictionary *finalDeviceData = @{
         @"udid": idfaString,
         @"deviceName": deviceInfo.name,
-        @"systemName": deviceInfo.systemName,
+        @"systemName": @"ios",
         @"systemVersion": deviceInfo.systemVersion,
         @"deviceModel": deviceInfo.model,
-        @"identifierForVendor": deviceInfo.identifierForVendor,
         @"deviceWidth": deviceWidth,
         @"deviceHeight": deviceHeight,
         @"deviceScreenDensity": deviceScreenDensity,
@@ -42,7 +42,14 @@ RCT_REMAP_METHOD(
         @"isAdTrackingEnabled": isAdTrackingEnabled
     };
 
-    resolve(finalDeviceData);
+    NSError *error;
+    NSData *jsonData = [
+        NSJSONSerialization dataWithJSONObject: finalDeviceData
+        options: 0
+        error: &error
+    ];
+
+    resolve([[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding]);
 }
 
 @end

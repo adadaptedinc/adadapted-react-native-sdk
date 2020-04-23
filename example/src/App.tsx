@@ -51,12 +51,22 @@ export class App extends React.Component<Props, State> {
         this.adadaptedReactNativeSdk
             .initialize("NTLKNZKYMMI2NTM1", ApiEnv.Dev)
             .then(() => {
-                console.log("Initialized");
+                console.log("Session Initialized");
+                console.log(
+                    "DEVICE_INFO",
+                    this.adadaptedReactNativeSdk?.getDeviceInfo()
+                );
+                console.log(
+                    "SESSION_INFO",
+                    this.adadaptedReactNativeSdk?.getSessionInfo()
+                );
+
                 this.setState({
                     sessionId: this.adadaptedReactNativeSdk?.getSessionId()
                 });
             })
             .catch((err) => {
+                console.log(err.response.request._response);
                 console.log(err);
             });
     }
@@ -80,5 +90,3 @@ const styles = StyleSheet.create({
         justifyContent: "center"
     }
 });
-
-export default App;

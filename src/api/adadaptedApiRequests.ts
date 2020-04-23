@@ -20,7 +20,6 @@ export function initializeSession(
 ): Promise<
     AxiosResponse<adadaptedApiTypes.responseModels.InitializeSessionResponse>
 > {
-    console.log(requestData);
     return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.initializeSession()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/sessions/initialize`, {

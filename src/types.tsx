@@ -72,10 +72,6 @@ export interface DeviceInfo {
      */
     deviceModel: string;
     /**
-     * The vendor UUID.
-     */
-    identifierForVendor: string;
-    /**
      * The device screen width.
      */
     deviceWidth: string;
