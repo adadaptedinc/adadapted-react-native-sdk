@@ -5,7 +5,6 @@
 import * as React from "react";
 import { StyleSheet, View, Text } from "react-native";
 import { AdadaptedReactNativeSdk } from "adadapted-react-native-sdk";
-import { ApiEnv } from "../../src/types";
 
 /**
  * Props interface for {@link App}.
@@ -20,6 +19,10 @@ interface State {
      * The session ID.
      */
     sessionId: string | undefined;
+    /**
+     * The Ad Zone Info list.
+     */
+    adZoneInfoList: AdadaptedReactNativeSdk.AdZoneInfo[] | undefined;
 }
 
 /**
@@ -27,9 +30,9 @@ interface State {
  */
 export class App extends React.Component<Props, State> {
     /**
-     * The {@link AdadaptedReactNativeSdk} instance.
+     * The {@link AdadaptedReactNativeSdk.Sdk} instance.
      */
-    private adadaptedReactNativeSdk: AdadaptedReactNativeSdk | undefined;
+    private aaSdk: AdadaptedReactNativeSdk.Sdk | undefined;
 
     /**
      * @inheritDoc
@@ -38,7 +41,8 @@ export class App extends React.Component<Props, State> {
         super(props, context);
 
         this.state = {
-            sessionId: undefined
+            sessionId: undefined,
+            adZoneInfoList: undefined
         };
     }
 
@@ -46,27 +50,33 @@ export class App extends React.Component<Props, State> {
      * @inheritDoc
      */
     public componentDidMount(): void {
-        this.adadaptedReactNativeSdk = new AdadaptedReactNativeSdk();
+        this.aaSdk = new AdadaptedReactNativeSdk.Sdk();
 
-        this.adadaptedReactNativeSdk
-            .initialize("NTLKNZKYMMI2NTM1", ApiEnv.Dev)
+        this.aaSdk
+            .initialize({
+                appId: "NTLKNZKYMMI2NTM1",
+                apiEnv: AdadaptedReactNativeSdk.ApiEnv.Dev,
+                onAdZonesRefreshed: () => {
+                    this.setState(
+                        {
+                            sessionId: this.aaSdk?.getSessionId(),
+                            adZoneInfoList: this.aaSdk?.getAdZones()
+                        },
+                        () => {
+                            console.log("state updated");
+                        }
+                    );
+                }
+            })
             .then(() => {
                 console.log("Session Initialized");
-                console.log(
-                    "DEVICE_INFO",
-                    this.adadaptedReactNativeSdk?.getDeviceInfo()
-                );
-                console.log(
-                    "SESSION_INFO",
-                    this.adadaptedReactNativeSdk?.getSessionInfo()
-                );
 
                 this.setState({
-                    sessionId: this.adadaptedReactNativeSdk?.getSessionId()
+                    sessionId: this.aaSdk?.getSessionId(),
+                    adZoneInfoList: this.aaSdk?.getAdZones()
                 });
             })
             .catch((err) => {
-                console.log(err.response.request._response);
                 console.log(err);
             });
     }
@@ -76,17 +86,38 @@ export class App extends React.Component<Props, State> {
      */
     public render(): JSX.Element {
         return (
-            <View style={styles.container}>
-                <Text>Session ID: {this.state.sessionId}</Text>
+            <View style={styles.mainView}>
+                <Text style={styles.sessionIdContainer}>
+                    Session ID: {this.state.sessionId}
+                </Text>
+                {this.state.adZoneInfoList?.map((adZoneInfo, idx) => {
+                    return (
+                        <View key={idx} style={styles.adZoneContainer}>
+                            {adZoneInfo.adZone}
+                        </View>
+                    );
+                })}
             </View>
         );
     }
 }
 
 const styles = StyleSheet.create({
-    container: {
+    mainView: {
         flex: 1,
         alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
+        backgroundColor: "pink"
+    },
+    sessionIdContainer: {
+        backgroundColor: "yellow",
+        width: "100%"
+    },
+    adZoneContainer: {
+        paddingTop: 20,
+        paddingBottom: 20,
+        backgroundColor: "purple",
+        width: "100%",
+        height: 200
     }
 });

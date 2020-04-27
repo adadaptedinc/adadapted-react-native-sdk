@@ -36,7 +36,8 @@
     },
     "homepage": "https://gitlab.com/adadapted/adadapted-react-native-sdk#readme",
     "dependencies": {
-        "axios": "^0.19.2"
+        "axios": "^0.19.2",
+        "react-native-webview": "^9.3.0"
     },
     "peerDependencies": {
         "react": "*",

@@ -89,14 +89,15 @@ export namespace adadaptedApiTypes {
             type: string;
             /**
              * How often the ad refreshes? Swaps out for another?
+             * Length of time in seconds.
              */
             refresh_time: number;
             /**
-             * The URL to the ad image to display.
+             * The URL for the ad image to display.
              */
             creative_url: string;
             /**
-             * ?
+             * The tracking pixel to include in the zone view for this ad?
              */
             tracking_html: string;
             /**
@@ -209,7 +210,7 @@ export namespace adadaptedApiTypes {
      */
     export namespace requestModels {
         /**
-         * Interface for the request of the Reward Verify API call.
+         * Interface for the request of the Initialize Session API call.
          */
         export interface InitializeSessionRequest {
             /**
@@ -285,6 +286,24 @@ export namespace adadaptedApiTypes {
              */
             params?: { [key: string]: string };
         }
+
+        /**
+         * Interface for the request of the Refresh Session Data API call.
+         */
+        export interface RefreshSessionDataRequest {
+            /**
+             * The app ID provided by the client using the API.
+             */
+            aid: string;
+            /**
+             * The unique device ID.
+             */
+            uid: string;
+            /**
+             * The current session ID.
+             */
+            sid: string;
+        }
     }
 
     /**
@@ -295,5 +314,10 @@ export namespace adadaptedApiTypes {
          * Interface for the response of the Campaign API request.
          */
         export interface InitializeSessionResponse extends models.AdSession {}
+
+        /**
+         * Interface for the response of the Campaign API request.
+         */
+        export interface RefreshSessionDataResponse extends models.AdSession {}
     }
 }

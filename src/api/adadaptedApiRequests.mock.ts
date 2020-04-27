@@ -28,6 +28,29 @@ export function initializeSession(): Promise<
 }
 
 /**
+ * Mocks the API call for refreshing session data.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function refreshSessionData(): Promise<
+    AxiosResponse<adadaptedApiTypes.responseModels.RefreshSessionDataResponse>
+> {
+    return new Promise<
+        AxiosResponse<
+            adadaptedApiTypes.responseModels.RefreshSessionDataResponse
+        >
+    >((resolve) => {
+        resolve({
+            data: REFRESHED_AD_SESSION_DATA,
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200"
+        });
+    });
+}
+
+/**
  * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
  */
 const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
@@ -35,7 +58,7 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
     will_serve_ads: true,
     active_campaigns: true,
     session_expires_at: 1587684561,
-    polling_interval_ms: 300000,
+    polling_interval_ms: 1000,
     zones: {
         100838: {
             id: "100838",
@@ -48,6 +71,63 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                     ad_id: "1815",
                     impression_id: "100838::C4D792785EA1EC91",
                     refresh_time: 60,
+                    hide_after_interaction: false,
+                    type: "html",
+                    creative_url:
+                        "https://sandbox.adadapted.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=3D7341C3F27BB02DFE7BE08F8922D6A95EA1EC91&amp;udid=00000000-0000-0000-0000-000000000000",
+                    tracking_html: "<html></html>",
+                    action_type: "c",
+                    action_path: "",
+                    payload: {
+                        detailed_list_items: [
+                            {
+                                product_barcode: "0",
+                                product_brand: "Brand",
+                                product_category: "",
+                                product_discount: "",
+                                product_image: "",
+                                product_sku: "",
+                                product_title: "Sample Product"
+                            }
+                        ]
+                    },
+                    popup: {
+                        title_text: "",
+                        background_color: "",
+                        text_color: "",
+                        alt_close_btn: "",
+                        type: "",
+                        hide_banner: false,
+                        hide_close_btn: false,
+                        hide_browser_nav: false
+                    }
+                }
+            ]
+        }
+    }
+};
+
+/**
+ * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
+ */
+const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
+    session_id: "3D7341C3F27BB02DFE7BE08F8922D6A95EA1EC91",
+    will_serve_ads: true,
+    active_campaigns: true,
+    session_expires_at: 1587684561,
+    polling_interval_ms: 1000,
+    zones: {
+        100838: {
+            id: "100838",
+            port_height: 250,
+            port_width: 320,
+            land_height: 250,
+            land_width: 320,
+            ads: [
+                {
+                    ad_id: "1816",
+                    impression_id: "100838::C4D792785EA1EC91",
+                    refresh_time: 30,
                     hide_after_interaction: false,
                     type: "html",
                     creative_url:

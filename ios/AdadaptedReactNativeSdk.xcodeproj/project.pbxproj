@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B3E7B58A1CC2AC0600A0062D /* AdadaptedReactNativeSdk.m in Sources */ = {isa = PBXBuildFile; fileRef = B3E7B5891CC2AC0600A0062D /* AdadaptedReactNativeSdk.m */; };
+		B933D719401946E7AB553B09 /* libRNCWebView.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9DA8E8C2BE7F46DA88253211 /* libRNCWebView.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,6 +27,8 @@
 		134814201AA4EA6300B7C361 /* libAdadaptedReactNativeSdk.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libAdadaptedReactNativeSdk.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		B3E7B5881CC2AC0600A0062D /* AdadaptedReactNativeSdk.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AdadaptedReactNativeSdk.h; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* AdadaptedReactNativeSdk.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AdadaptedReactNativeSdk.m; sourceTree = "<group>"; };
+		5C06D3F9EFE843778CF4C149 /* RNCWebView.xcodeproj */ = {isa = PBXFileReference; name = "RNCWebView.xcodeproj"; path = "../node_modules/react-native-webview/ios/RNCWebView.xcodeproj"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = wrapper.pb-project; explicitFileType = undefined; includeInIndex = 0; };
+		9DA8E8C2BE7F46DA88253211 /* libRNCWebView.a */ = {isa = PBXFileReference; name = "libRNCWebView.a"; path = "libRNCWebView.a"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = archive.ar; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -33,6 +36,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B933D719401946E7AB553B09 /* libRNCWebView.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,8 +57,18 @@
 				B3E7B5881CC2AC0600A0062D /* AdadaptedReactNativeSdk.h */,
 				B3E7B5891CC2AC0600A0062D /* AdadaptedReactNativeSdk.m */,
 				134814211AA4EA7D00B7C361 /* Products */,
+				9142FCDA141D41968EBC9AB7 /* Libraries */,
 			);
 			sourceTree = "<group>";
+		};
+		9142FCDA141D41968EBC9AB7 /* Libraries */ = {
+			isa = "PBXGroup";
+			children = (
+				5C06D3F9EFE843778CF4C149 /* RNCWebView.xcodeproj */,
+			);
+			name = Libraries;
+			sourceTree = "<group>";
+			path = "";
 		};
 /* End PBXGroup section */
 
@@ -82,7 +96,7 @@
 		58B511D31A9E6C8500147676 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0920;
+				LastUpgradeCheck = 920;
 				ORGANIZATIONNAME = Facebook;
 				TargetAttributes = {
 					58B511DA1A9E6C8500147676 = {
@@ -216,12 +230,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = (
-				"$(inherited)",
+					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 					"$(SRCROOT)/../../../React/**",
 					"$(SRCROOT)/../../react-native/React/**",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/AdadaptedReactNativeSdk\"",
+				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = AdadaptedReactNativeSdk;
 				SKIP_INSTALL = YES;
@@ -237,7 +254,10 @@
 					"$(SRCROOT)/../../../React/**",
 					"$(SRCROOT)/../../react-native/React/**",
 				);
-				LIBRARY_SEARCH_PATHS = "$(inherited)";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/AdadaptedReactNativeSdk\"",
+				);
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_NAME = AdadaptedReactNativeSdk;
 				SKIP_INSTALL = YES;
