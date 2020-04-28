@@ -58,3 +58,29 @@ export function refreshSessionData(
               }
           );
 }
+
+/**
+ * Makes an API request to report an ad event that has occurred.
+ * A valid session is required for this API endpoint to respond successfully.
+ * @param requestData - The data to be sent with the request.
+ * @param deviceOS - The operating system being ran on the device.
+ * @param apiEnv - The API environment to use when making the API request.
+ * @returns a promise containing the response data.
+ */
+export function reportAdEvent(
+    requestData: adadaptedApiTypes.requestModels.ReportAdEventRequest,
+    deviceOS: AdadaptedReactNativeSdk.DeviceOS,
+    apiEnv: AdadaptedReactNativeSdk.ApiEnv
+): Promise<
+    AxiosResponse<adadaptedApiTypes.responseModels.ReportAdEventResponse>
+> {
+    return apiEnv === AdadaptedReactNativeSdk.ApiEnv.Mock
+        ? adadaptedApiRequestMocks.reportAdEvent()
+        : axios(`${apiEnv}/v/0.9.5/${deviceOS}/ads/events`, {
+              method: "POST",
+              data: requestData,
+              headers: {
+                  accept: "application/json"
+              }
+          });
+}

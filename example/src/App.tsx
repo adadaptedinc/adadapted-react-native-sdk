@@ -32,13 +32,16 @@ export class App extends React.Component<Props, State> {
     /**
      * The {@link AdadaptedReactNativeSdk.Sdk} instance.
      */
-    private aaSdk: AdadaptedReactNativeSdk.Sdk | undefined;
+    private readonly aaSdk: AdadaptedReactNativeSdk.Sdk;
 
     /**
      * @inheritDoc
      */
     constructor(props: Props, context?: any) {
         super(props, context);
+
+        // Assign a reference to the SDK.
+        this.aaSdk = new AdadaptedReactNativeSdk.Sdk();
 
         this.state = {
             sessionId: undefined,
@@ -50,8 +53,6 @@ export class App extends React.Component<Props, State> {
      * @inheritDoc
      */
     public componentDidMount(): void {
-        this.aaSdk = new AdadaptedReactNativeSdk.Sdk();
-
         this.aaSdk
             .initialize({
                 appId: "NTLKNZKYMMI2NTM1",
@@ -59,8 +60,8 @@ export class App extends React.Component<Props, State> {
                 onAdZonesRefreshed: () => {
                     this.setState(
                         {
-                            sessionId: this.aaSdk?.getSessionId(),
-                            adZoneInfoList: this.aaSdk?.getAdZones()
+                            sessionId: this.aaSdk.getSessionId(),
+                            adZoneInfoList: this.aaSdk.getAdZones()
                         },
                         () => {
                             console.log("state updated");
@@ -72,13 +73,21 @@ export class App extends React.Component<Props, State> {
                 console.log("Session Initialized");
 
                 this.setState({
-                    sessionId: this.aaSdk?.getSessionId(),
-                    adZoneInfoList: this.aaSdk?.getAdZones()
+                    sessionId: this.aaSdk.getSessionId(),
+                    adZoneInfoList: this.aaSdk.getAdZones()
                 });
             })
             .catch((err) => {
                 console.log(err);
             });
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public componentWillUnmount(): void {
+        // Unmount the SDK.
+        this.aaSdk && this.aaSdk.unmount();
     }
 
     /**

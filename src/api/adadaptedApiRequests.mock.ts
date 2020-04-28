@@ -51,6 +51,29 @@ export function refreshSessionData(): Promise<
 }
 
 /**
+ * Mocks the API call for reporting an ad event.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function reportAdEvent(): Promise<
+    AxiosResponse<adadaptedApiTypes.responseModels.ReportAdEventResponse>
+> {
+    return new Promise<
+        AxiosResponse<adadaptedApiTypes.responseModels.ReportAdEventResponse>
+    >((resolve) => {
+        resolve({
+            data: {
+                results: ["Ok"]
+            },
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200"
+        });
+    });
+}
+
+/**
  * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
  */
 const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {

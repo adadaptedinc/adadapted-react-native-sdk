@@ -49,6 +49,12 @@ export namespace AdadaptedReactNativeSdk {
          * refreshed and available for reference.
          */
         private onAdZonesRefreshed: () => void | undefined;
+        /**
+         * The current active "setTimeout" reference. This is needed so we
+         * can reference this variable and clean up the timer when its no
+         * longer needed so memory leaks do not occur.
+         */
+        private refreshAdZonesTimer: ReturnType<typeof setTimeout> | undefined;
 
         /**
          * Gets the Session ID.
@@ -91,6 +97,7 @@ export namespace AdadaptedReactNativeSdk {
             this.onAdZonesRefreshed = () => {};
 
             this.initialize = this.initialize.bind(this);
+            this.unmount = this.unmount.bind(this);
         }
 
         /**
@@ -121,12 +128,60 @@ export namespace AdadaptedReactNativeSdk {
                 adZoneInfoList.push({
                     zoneId: adZones[adZoneId].id,
                     adZone: (
-                        <AdZone key={adZoneId} adZoneData={adZones[adZoneId]} />
+                        <AdZone
+                            key={adZoneId}
+                            appId={this.appId}
+                            sessionId={this.sessionId!}
+                            udid={this.deviceInfo!.udid}
+                            deviceOs={this.deviceOs!}
+                            apiEnv={this.apiEnv}
+                            adZoneData={adZones[adZoneId]}
+                        />
                     )
                 });
             }
 
             return adZoneInfoList;
+        }
+
+        /**
+         * Triggered when session data is initialized or refreshed. Creates
+         * a timer based on the session data refresh value.
+         */
+        private onRefreshAdZones(): void {
+            this.refreshAdZonesTimer = setTimeout(() => {
+                adadaptedApiRequests
+                    .refreshSessionData(
+                        {
+                            aid: this.appId,
+                            sid: this.sessionId!,
+                            uid: this.deviceInfo!.udid
+                        },
+                        this.deviceOs!,
+                        this.apiEnv
+                    )
+                    .then((response) => {
+                        this.sessionInfo = response.data;
+                        this.adZones = this.generateAdZones(
+                            response.data.zones
+                        );
+
+                        // Call the user defined callback indicating
+                        // the session data has been refreshed.
+                        this.onAdZonesRefreshed();
+                        console.log("zone data refreshed");
+
+                        // Start the timer again based on the new session data.
+                        this.onRefreshAdZones();
+                    })
+                    .catch((err) => {
+                        console.log(err);
+
+                        // Start the timer again so we can make another
+                        // attempt to refresh the session data.
+                        this.onRefreshAdZones();
+                    });
+            }, this.sessionInfo!.polling_interval_ms);
         }
 
         /**
@@ -214,34 +269,15 @@ export namespace AdadaptedReactNativeSdk {
             });
         }
 
-        public onRefreshAdZones(): void {
-            setTimeout(() => {
-                adadaptedApiRequests
-                    .refreshSessionData(
-                        {
-                            aid: this.appId,
-                            sid: this.sessionId!,
-                            uid: this.deviceInfo!.udid
-                        },
-                        this.deviceOs!,
-                        this.apiEnv
-                    )
-                    .then((response) => {
-                        this.sessionInfo = response.data;
-                        this.adZones = this.generateAdZones(
-                            response.data.zones
-                        );
-
-                        // Call the user defined callback indicating
-                        // the session data has been refreshed.
-                        this.onAdZonesRefreshed();
-                        console.log("zone data refreshed");
-                        this.onRefreshAdZones();
-                    })
-                    .catch((err) => {
-                        console.log(err);
-                    });
-            }, this.sessionInfo!.polling_interval_ms);
+        /**
+         * Performs all clean up tasks for the SDK. Call this method when
+         * the component that references this SDK will "unmount", otherwise you
+         * can experience memory leaks.
+         */
+        public unmount(): void {
+            if (this.refreshAdZonesTimer) {
+                clearTimeout(this.refreshAdZonesTimer);
+            }
         }
     }
 

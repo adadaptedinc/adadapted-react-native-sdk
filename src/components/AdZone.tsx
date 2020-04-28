@@ -3,14 +3,36 @@
  * @module
  */
 import * as React from "react";
-import { StyleSheet, View, ViewStyle } from "react-native";
+import { Linking, StyleSheet, View, ViewStyle } from "react-native";
+import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
+import { AdadaptedReactNativeSdk } from "../index";
 
 /**
  * Props interface for {@link AdZone}.
  */
 interface Props {
+    /**
+     * The app ID.
+     */
+    appId: string;
+    /**
+     * The session ID.
+     */
+    sessionId: string;
+    /**
+     * The UDID.
+     */
+    udid: string;
+    /**
+     * The device OS used for API requests.
+     */
+    deviceOs: AdadaptedReactNativeSdk.DeviceOS;
+    /**
+     * The API environment to use when making an API request.
+     */
+    apiEnv: AdadaptedReactNativeSdk.ApiEnv;
     /**
      * The ad zone data.
      */
@@ -46,6 +68,12 @@ interface StyleDef {
  */
 export class AdZone extends React.Component<Props, State> {
     /**
+     * Timer used for cycling through ads in the zone
+     * based on the ad "refresh time" for each ad.
+     */
+    private cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
+
+    /**
      * @inheritDoc
      */
     constructor(props: Props, context?: any) {
@@ -71,6 +99,15 @@ export class AdZone extends React.Component<Props, State> {
     /**
      * @inheritDoc
      */
+    public componentWillUnmount(): void {
+        if (this.cycleAdTimer) {
+            clearTimeout(this.cycleAdTimer);
+        }
+    }
+
+    /**
+     * @inheritDoc
+     */
     public render(): JSX.Element {
         // Generate the styles each render in case the ad is updated with
         // new settings that need to be reflected in the styles of the view.
@@ -85,9 +122,57 @@ export class AdZone extends React.Component<Props, State> {
                     }}
                     automaticallyAdjustContentInsets={false}
                     style={styles.webView}
+                    onTouchEnd={() => {
+                        // If the "action_path" value is defined, follow the URL.
+                        if (currentAd.action_path) {
+                            Linking.openURL(currentAd.action_path).then();
+                        }
+
+                        this.triggerReportAdEvent(
+                            currentAd,
+                            adadaptedApiTypes.models.ReportedEventType
+                                .INTERACTION
+                        );
+                    }}
                 />
             </View>
         );
+    }
+
+    /**
+     * Triggered when we need to report an ad event to the API.
+     * @param currentAd - The ad to send an event for.
+     * @param eventType - The event type for the reported event.
+     */
+    private triggerReportAdEvent(
+        currentAd: adadaptedApiTypes.models.Ad,
+        eventType: adadaptedApiTypes.models.ReportedEventType
+    ): void {
+        // The event timestamp has to be sent as a unix timestamp.
+        const currentTs = Math.round(new Date().getTime() / 1000);
+
+        // Log the taken action/event with the API.
+        adadaptedApiRequests
+            .reportAdEvent(
+                {
+                    app_id: this.props.appId,
+                    session_id: this.props.sessionId,
+                    udid: this.props.udid,
+                    events: [
+                        {
+                            ad_id: currentAd.ad_id,
+                            impression_id: currentAd.impression_id,
+                            event_type: eventType,
+                            created_at: currentTs
+                        }
+                    ]
+                },
+                this.props.deviceOs,
+                this.props.apiEnv
+            )
+            .then(() => {
+                // Do nothing with the response for now...
+            });
     }
 
     /**
@@ -95,7 +180,7 @@ export class AdZone extends React.Component<Props, State> {
      */
     private createAdTimer(): void {
         if (this.props.adZoneData.ads.length > 0) {
-            setTimeout(() => {
+            this.cycleAdTimer = setTimeout(() => {
                 this.cycleDisplayedAd();
             }, this.props.adZoneData.ads[this.state.adIndexShown].refresh_time * 1000);
         }

@@ -203,6 +203,42 @@ export namespace adadaptedApiTypes {
              */
             type: string;
         }
+
+        /**
+         * The definition of a Reported Event.
+         */
+        export interface ReportedEvent {
+            /**
+             * The add ID.
+             */
+            ad_id: string;
+            /**
+             * The impression ID.
+             */
+            impression_id: string;
+            /**
+             * The event type to report
+             */
+            event_type: ReportedEventType;
+            /**
+             * The timestamp at which the event occurred.
+             */
+            created_at: number;
+        }
+
+        /**
+         * Enum defining the different types of events that can be reported.
+         */
+        export enum ReportedEventType {
+            /**
+             * Occurs when an ad is displayed to the user.
+             */
+            IMPRESSION = "impression",
+            /**
+             * Occurs when the user interacts with an ad.
+             */
+            INTERACTION = "interaction"
+        }
     }
 
     /**
@@ -304,6 +340,28 @@ export namespace adadaptedApiTypes {
              */
             sid: string;
         }
+
+        /**
+         * Interface for the request that reports an ad event.
+         */
+        export interface ReportAdEventRequest {
+            /**
+             * The app ID provided by the client using the API.
+             */
+            app_id: string;
+            /**
+             * The unique device ID.
+             */
+            udid: string;
+            /**
+             * The current session ID.
+             */
+            session_id: string;
+            /**
+             * Events to report.
+             */
+            events: models.ReportedEvent[];
+        }
     }
 
     /**
@@ -319,5 +377,16 @@ export namespace adadaptedApiTypes {
          * Interface for the response of the Campaign API request.
          */
         export interface RefreshSessionDataResponse extends models.AdSession {}
+
+        /**
+         * Interface for the response of the Report Ad Event API request.
+         */
+        export interface ReportAdEventResponse {
+            /**
+             * Array that contains response strings of "Ok" or "Failed" based
+             * on the same order of the events sent to the request.
+             */
+            results: string[];
+        }
     }
 }
