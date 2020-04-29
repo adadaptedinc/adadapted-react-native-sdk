@@ -93,7 +93,7 @@ export class AdZone extends React.Component<Props, State> {
      * @inheritDoc
      */
     public componentDidMount(): void {
-        this.createAdTimer();
+        this.initializeAd();
     }
 
     /**
@@ -202,9 +202,22 @@ export class AdZone extends React.Component<Props, State> {
                 adIndexShown: nextAdIndex
             },
             () => {
-                // Create the new timer based on the new ad index.
-                this.createAdTimer();
+                this.initializeAd();
             }
+        );
+    }
+
+    /**
+     * Performs all ad initialization tasks when a new ad is being displayed.
+     */
+    private initializeAd(): void {
+        // Create the new timer based on the new ad index.
+        this.createAdTimer();
+
+        // Trigger an impression event for the ad.
+        this.triggerReportAdEvent(
+            this.props.adZoneData.ads[this.state.adIndexShown],
+            adadaptedApiTypes.models.ReportedEventType.IMPRESSION
         );
     }
 

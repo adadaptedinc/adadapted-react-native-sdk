@@ -74,6 +74,29 @@ export function reportAdEvent(): Promise<
 }
 
 /**
+ * Mocks the API call for getting keyword intercepts.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function getKeywordIntercepts(): Promise<
+    AxiosResponse<adadaptedApiTypes.responseModels.KeywordInterceptsResponse>
+> {
+    return new Promise<
+        AxiosResponse<
+            adadaptedApiTypes.responseModels.KeywordInterceptsResponse
+        >
+    >((resolve) => {
+        resolve({
+            data: KEYWORD_INTERCEPT_DATA,
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200"
+        });
+    });
+}
+
+/**
  * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
  */
 const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
@@ -185,4 +208,38 @@ const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
             ]
         }
     }
+};
+
+/**
+ * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
+ */
+const KEYWORD_INTERCEPT_DATA: adadaptedApiTypes.models.KeywordIntercepts = {
+    search_id: "test-search-id",
+    min_match_length: 3,
+    terms: [
+        {
+            term_id: "test-term-id-1",
+            term: "Milk",
+            replacement: "Fairlife Milk",
+            priority: 1
+        },
+        {
+            term_id: "test-term-id-2",
+            term: "milk",
+            replacement: "A2 Milk",
+            priority: 0
+        },
+        {
+            term_id: "test-term-id-3",
+            term: "CHEESE",
+            replacement: "Kraft Singles",
+            priority: 0
+        },
+        {
+            term_id: "test-term-id-4",
+            term: "cOfFeE",
+            replacement: "Folgers Instant Coffee",
+            priority: 0
+        }
+    ]
 };

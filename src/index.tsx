@@ -57,6 +57,14 @@ export namespace AdadaptedReactNativeSdk {
         private refreshAdZonesTimer: ReturnType<typeof setTimeout> | undefined;
 
         /**
+         * The current available keyword intercepts that can
+         * be used when a search is provided by the user.
+         */
+        private keywordIntercepts:
+            | adadaptedApiTypes.models.KeywordIntercepts
+            | undefined;
+
+        /**
          * Gets the Session ID.
          * @returns the Session ID.
          */
@@ -149,6 +157,14 @@ export namespace AdadaptedReactNativeSdk {
          * a timer based on the session data refresh value.
          */
         private onRefreshAdZones(): void {
+            // Get the amount of time we will wait until a refresh occurs.
+            // We are setting a minimum refresh time of 5 minutes, so if a
+            // value provided by the API is lower, we don't refresh too often.
+            const timerMs =
+                this.sessionInfo!.polling_interval_ms >= 300000
+                    ? this.sessionInfo!.polling_interval_ms
+                    : 300000;
+
             this.refreshAdZonesTimer = setTimeout(() => {
                 adadaptedApiRequests
                     .refreshSessionData(
@@ -181,7 +197,29 @@ export namespace AdadaptedReactNativeSdk {
                         // attempt to refresh the session data.
                         this.onRefreshAdZones();
                     });
-            }, this.sessionInfo!.polling_interval_ms);
+            }, timerMs);
+        }
+
+        /**
+         * Trigger an API request to get all possible
+         * keyword intercepts for the session.
+         */
+        private getKeywordIntercepts(): void {
+            adadaptedApiRequests
+                .getKeywordIntercepts(
+                    {
+                        aid: this.appId,
+                        sid: this.sessionId!,
+                        uid: this.deviceInfo!.udid
+                    },
+                    this.deviceOs!,
+                    this.apiEnv
+                )
+                .then((response) => {
+                    this.keywordIntercepts = response.data;
+
+                    this.performKeywordSearch("mil");
+                });
         }
 
         /**
@@ -255,7 +293,15 @@ export namespace AdadaptedReactNativeSdk {
                                     response.data.zones
                                 );
 
+                                console.log(this.sessionId);
+
+                                // Start the session data refresh timer.
                                 this.onRefreshAdZones();
+
+                                // Get all possible keyword intercept values.
+                                // We don't need to wait for this to complete
+                                // prior to resolving initialization of the SDK.
+                                this.getKeywordIntercepts();
 
                                 resolve();
                             })
@@ -267,6 +313,36 @@ export namespace AdadaptedReactNativeSdk {
                         reject(err);
                     });
             });
+        }
+
+        /**
+         * Searches through available ad keywords and
+         */
+        public performKeywordSearch(searchTerm: string): KeywordSearchResult[] {
+            const finalResultList: KeywordSearchResult[] = [];
+
+            if (
+                this.keywordIntercepts &&
+                searchTerm.trim() &&
+                searchTerm.length >= this.keywordIntercepts.min_match_length
+            ) {
+                for (const termObj of this.keywordIntercepts.terms) {
+                    if (
+                        termObj.term
+                            .toLowerCase()
+                            .indexOf(searchTerm.toLowerCase()) != -1
+                    ) {
+                        finalResultList.push(termObj);
+                    }
+                }
+
+                // Sort the final result by priority.
+                finalResultList.sort((a, b) =>
+                    a.priority > b.priority ? 1 : -1
+                );
+            }
+
+            return finalResultList;
         }
 
         /**
@@ -404,4 +480,13 @@ export namespace AdadaptedReactNativeSdk {
          */
         adZone: JSX.Element;
     }
+
+    /**
+     * Interface defining a keyword search result.
+     * This is primarily used to export an interface directly from
+     * {@link AdadaptedReactNativeSdk} so the interaction with the SDK all be
+     * done through this namespace.
+     */
+    export interface KeywordSearchResult
+        extends adadaptedApiTypes.models.KeywordSearchTerm {}
 }

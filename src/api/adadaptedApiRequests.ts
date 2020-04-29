@@ -84,3 +84,31 @@ export function reportAdEvent(
               }
           });
 }
+
+/**
+ * Makes an API request to get all possible keyword intercepts for the session.
+ * A valid session is required for this API endpoint to respond successfully.
+ * @param requestData - The data to be sent with the request.
+ * @param deviceOS - The operating system being ran on the device.
+ * @param apiEnv - The API environment to use when making the API request.
+ * @returns a promise containing the response data.
+ */
+export function getKeywordIntercepts(
+    requestData: adadaptedApiTypes.requestModels.KeywordInterceptsRequest,
+    deviceOS: AdadaptedReactNativeSdk.DeviceOS,
+    apiEnv: AdadaptedReactNativeSdk.ApiEnv
+): Promise<
+    AxiosResponse<adadaptedApiTypes.responseModels.KeywordInterceptsResponse>
+> {
+    return apiEnv === AdadaptedReactNativeSdk.ApiEnv.Mock
+        ? adadaptedApiRequestMocks.getKeywordIntercepts()
+        : axios(
+              `${apiEnv}/v/0.9.5/${deviceOS}/intercepts/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}`,
+              {
+                  method: "GET",
+                  headers: {
+                      accept: "application/json"
+                  }
+              }
+          );
+}

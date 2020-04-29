@@ -205,6 +205,51 @@ export namespace adadaptedApiTypes {
         }
 
         /**
+         * The definition of a Keyword Intercepts object.
+         */
+        export interface KeywordIntercepts {
+            /**
+             * The search ID.
+             * Automatically assigned by the API.
+             */
+            search_id: string;
+            /**
+             * The minimum number of characters required to perform
+             * a search against all available search terms.
+             */
+            min_match_length: number;
+            /**
+             * All available search terms.
+             */
+            terms: KeywordSearchTerm[];
+        }
+
+        /**
+         * The definition of a Keyword Search Term.
+         */
+        export interface KeywordSearchTerm {
+            /**
+             * The search term ID.
+             */
+            term_id: string;
+            /**
+             * The search term to validate a search string against.
+             */
+            term: string;
+            /**
+             * The display string a client can use to display in a list.
+             */
+            replacement: string;
+            /**
+             * The display priority of this item.
+             * Compare this to other {@link KeywordSearchTerm} items to determine
+             * the final priority order during display.
+             * The lower the number, the higher the priority.
+             */
+            priority: number;
+        }
+
+        /**
          * The definition of a Reported Event.
          */
         export interface ReportedEvent {
@@ -362,6 +407,24 @@ export namespace adadaptedApiTypes {
              */
             events: models.ReportedEvent[];
         }
+
+        /**
+         * Interface for the request of the Refresh Session Data API call.
+         */
+        export interface KeywordInterceptsRequest {
+            /**
+             * The app ID provided by the client using the API.
+             */
+            aid: string;
+            /**
+             * The unique device ID.
+             */
+            uid: string;
+            /**
+             * The current session ID.
+             */
+            sid: string;
+        }
     }
 
     /**
@@ -388,5 +451,11 @@ export namespace adadaptedApiTypes {
              */
             results: string[];
         }
+
+        /**
+         * Interface for the response of the Keyword Intercepts API request.
+         */
+        export interface KeywordInterceptsResponse
+            extends models.KeywordIntercepts {}
     }
 }

@@ -3,7 +3,13 @@
  * {@link AdadaptedReactNativeSdk} package/module.
  */
 import * as React from "react";
-import { StyleSheet, View, Text } from "react-native";
+import {
+    StyleSheet,
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity
+} from "react-native";
 import { AdadaptedReactNativeSdk } from "adadapted-react-native-sdk";
 
 /**
@@ -23,6 +29,14 @@ interface State {
      * The Ad Zone Info list.
      */
     adZoneInfoList: AdadaptedReactNativeSdk.AdZoneInfo[] | undefined;
+    /**
+     * The test search term value.
+     */
+    searchValue: string;
+    /**
+     * Search Result Item List.
+     */
+    searchResultItemList: AdadaptedReactNativeSdk.KeywordSearchResult[];
 }
 
 /**
@@ -45,7 +59,9 @@ export class App extends React.Component<Props, State> {
 
         this.state = {
             sessionId: undefined,
-            adZoneInfoList: undefined
+            adZoneInfoList: undefined,
+            searchValue: "",
+            searchResultItemList: []
         };
     }
 
@@ -96,6 +112,38 @@ export class App extends React.Component<Props, State> {
     public render(): JSX.Element {
         return (
             <View style={styles.mainView}>
+                <TextInput
+                    value={this.state.searchValue}
+                    style={styles.searchTextField}
+                    onChangeText={(value) => {
+                        const searchResults = this.aaSdk.performKeywordSearch(
+                            value
+                        );
+
+                        this.setState({
+                            searchValue: value,
+                            searchResultItemList: searchResults
+                        });
+                    }}
+                />
+                <View style={styles.searchView}>
+                    <Text style={styles.searchResultsTitle}>
+                        Search Results:
+                    </Text>
+                    {this.state.searchResultItemList.map((item) => (
+                        <TouchableOpacity
+                            key={item.term_id}
+                            style={styles.searchResultContainer}
+                            onPress={() => {
+                                this.selectItem(item);
+                            }}
+                        >
+                            <Text style={styles.searchResultText}>
+                                {item.replacement}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
                 <Text style={styles.sessionIdContainer}>
                     Session ID: {this.state.sessionId}
                 </Text>
@@ -109,6 +157,16 @@ export class App extends React.Component<Props, State> {
             </View>
         );
     }
+
+    /**
+     * Alters the item name selected.
+     * @param item - The item to alert data from.
+     */
+    private selectItem(
+        item: AdadaptedReactNativeSdk.KeywordSearchResult
+    ): void {
+        alert(`Added "${item.replacement}" to your shopping list!`);
+    }
 }
 
 const styles = StyleSheet.create({
@@ -120,13 +178,41 @@ const styles = StyleSheet.create({
     },
     sessionIdContainer: {
         backgroundColor: "yellow",
-        width: "100%"
+        width: "100%",
+        marginTop: 20,
+        marginBottom: 20
     },
     adZoneContainer: {
         paddingTop: 20,
         paddingBottom: 20,
-        backgroundColor: "purple",
         width: "100%",
         height: 200
+    },
+    searchTextField: {
+        flex: 0,
+        width: "95%",
+        height: 40,
+        backgroundColor: "white",
+        borderColor: "gray",
+        borderWidth: 1,
+        padding: 10,
+        margin: 10
+    },
+    searchView: {
+        flex: 0,
+        width: "100%"
+    },
+    searchResultsTitle: {
+        backgroundColor: "orange",
+        width: "100%"
+    },
+    searchResultContainer: {
+        padding: 10,
+        marginTop: 3,
+        backgroundColor: "#d9f9b1",
+        alignItems: "center"
+    },
+    searchResultText: {
+        color: "#4f603c"
     }
 });
