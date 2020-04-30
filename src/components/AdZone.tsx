@@ -223,6 +223,7 @@ export class AdZone extends React.Component<Props, State> {
 
     /**
      * Generates all component related styles.
+     * @returns the styles needed for the component.
      */
     private generateStyles(): StyleDef {
         return StyleSheet.create({

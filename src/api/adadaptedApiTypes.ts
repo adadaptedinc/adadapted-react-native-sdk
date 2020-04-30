@@ -250,9 +250,9 @@ export namespace adadaptedApiTypes {
         }
 
         /**
-         * The definition of a Reported Event.
+         * The definition of a Reported Ad Event.
          */
-        export interface ReportedEvent {
+        export interface ReportedAdEvent {
             /**
              * The add ID.
              */
@@ -261,6 +261,37 @@ export namespace adadaptedApiTypes {
              * The impression ID.
              */
             impression_id: string;
+            /**
+             * The event type to report
+             */
+            event_type: ReportedEventType;
+            /**
+             * The timestamp at which the event occurred.
+             */
+            created_at: number;
+        }
+
+        /**
+         * The definition of a Reported Intercept Event.
+         */
+        export interface ReportedInterceptEvent {
+            /**
+             * The intercept search ID.
+             */
+            search_id: string;
+            /**
+             * The term ID.
+             */
+            term_id: string;
+            /**
+             * The term.
+             */
+            term: string;
+            /**
+             * The user input provided that ultimately
+             * resulted in the event triggering.
+             */
+            user_input: string;
             /**
              * The event type to report
              */
@@ -282,7 +313,24 @@ export namespace adadaptedApiTypes {
             /**
              * Occurs when the user interacts with an ad.
              */
-            INTERACTION = "interaction"
+            INTERACTION = "interaction",
+            /**
+             * Occurs when the user's search term did not
+             * match an available keyword intercept term.
+             */
+            NOT_MATCHED = "not_matched",
+            /**
+             * Occurs when the user's search term has matched a keyword intercept term.
+             */
+            MATCHED = "matched",
+            /**
+             * Occurs when the user was presented a keyword intercept term.
+             */
+            PRESENTED = "presented",
+            /**
+             * Occurs when the user has selected a keyword intercept term.
+             */
+            SELECTED = "selected"
         }
     }
 
@@ -405,7 +453,7 @@ export namespace adadaptedApiTypes {
             /**
              * Events to report.
              */
-            events: models.ReportedEvent[];
+            events: models.ReportedAdEvent[];
         }
 
         /**
@@ -424,6 +472,28 @@ export namespace adadaptedApiTypes {
              * The current session ID.
              */
             sid: string;
+        }
+
+        /**
+         * Interface for the request that reports an intercept event.
+         */
+        export interface ReportInterceptEventRequest {
+            /**
+             * The app ID provided by the client using the API.
+             */
+            app_id: string;
+            /**
+             * The unique device ID.
+             */
+            udid: string;
+            /**
+             * The current session ID.
+             */
+            session_id: string;
+            /**
+             * Events to report.
+             */
+            events: models.ReportedInterceptEvent[];
         }
     }
 
@@ -457,5 +527,16 @@ export namespace adadaptedApiTypes {
          */
         export interface KeywordInterceptsResponse
             extends models.KeywordIntercepts {}
+
+        /**
+         * Interface for the response of the Report Intercept Event API request.
+         */
+        export interface ReportInterceptEventResponse {
+            /**
+             * Array that contains response strings of "Ok" or "Failed" based
+             * on the same order of the events sent to the request.
+             */
+            results: string[];
+        }
     }
 }

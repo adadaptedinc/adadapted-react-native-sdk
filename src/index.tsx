@@ -55,6 +55,12 @@ export namespace AdadaptedReactNativeSdk {
          * longer needed so memory leaks do not occur.
          */
         private refreshAdZonesTimer: ReturnType<typeof setTimeout> | undefined;
+        /**
+         * The user input string provided by the client and used to return a
+         * result of keyword intercept terms. This will always be the last
+         * provided value.
+         */
+        private keywordInterceptSearchValue: string;
 
         /**
          * The current available keyword intercepts that can
@@ -92,6 +98,7 @@ export namespace AdadaptedReactNativeSdk {
 
         /**
          * Gets the list of available Ad Zones.
+         * @returns all available ad zones.
          */
         public getAdZones(): AdZoneInfo[] | undefined {
             return this.adZones;
@@ -102,7 +109,10 @@ export namespace AdadaptedReactNativeSdk {
          */
         constructor() {
             this.apiEnv = ApiEnv.Prod;
-            this.onAdZonesRefreshed = () => {};
+            this.onAdZonesRefreshed = () => {
+                // Defaulting to empty method.
+            };
+            this.keywordInterceptSearchValue = "";
 
             this.initialize = this.initialize.bind(this);
             this.unmount = this.unmount.bind(this);
@@ -124,7 +134,7 @@ export namespace AdadaptedReactNativeSdk {
 
         /**
          * Creates all Ad Zone Info objects based on provided Ad Zones.
-         * @params adZones - The object of available zones.
+         * @param adZones - The object of available zones.
          * @returns the array of Ad Zone Info objects.
          */
         private generateAdZones(adZones: {
@@ -133,20 +143,22 @@ export namespace AdadaptedReactNativeSdk {
             const adZoneInfoList: AdZoneInfo[] = [];
 
             for (const adZoneId in adZones) {
-                adZoneInfoList.push({
-                    zoneId: adZones[adZoneId].id,
-                    adZone: (
-                        <AdZone
-                            key={adZoneId}
-                            appId={this.appId}
-                            sessionId={this.sessionId!}
-                            udid={this.deviceInfo!.udid}
-                            deviceOs={this.deviceOs!}
-                            apiEnv={this.apiEnv}
-                            adZoneData={adZones[adZoneId]}
-                        />
-                    )
-                });
+                if (adZones.hasOwnProperty(adZoneId)) {
+                    adZoneInfoList.push({
+                        zoneId: adZones[adZoneId].id,
+                        adZone: (
+                            <AdZone
+                                key={adZoneId}
+                                appId={this.appId}
+                                sessionId={this.sessionId!}
+                                udid={this.deviceInfo!.udid}
+                                deviceOs={this.deviceOs!}
+                                apiEnv={this.apiEnv}
+                                adZoneData={adZones[adZoneId]}
+                            />
+                        )
+                    });
+                }
             }
 
             return adZoneInfoList;
@@ -185,13 +197,12 @@ export namespace AdadaptedReactNativeSdk {
                         // Call the user defined callback indicating
                         // the session data has been refreshed.
                         this.onAdZonesRefreshed();
-                        console.log("zone data refreshed");
 
                         // Start the timer again based on the new session data.
                         this.onRefreshAdZones();
                     })
                     .catch((err) => {
-                        console.log(err);
+                        console.error(err);
 
                         // Start the timer again so we can make another
                         // attempt to refresh the session data.
@@ -220,6 +231,35 @@ export namespace AdadaptedReactNativeSdk {
 
                     this.performKeywordSearch("mil");
                 });
+        }
+
+        /**
+         * Gets the Keyword Intercept Term based on the provided term ID.
+         * @param termId - The term ID to get the term object for.
+         * @returns the term if it was found based on the provided term ID.
+         */
+        private getKeywordInterceptTerm(
+            termId: string
+        ): adadaptedApiTypes.models.KeywordSearchTerm | undefined {
+            let term: adadaptedApiTypes.models.KeywordSearchTerm | undefined;
+
+            if (this.keywordIntercepts && termId) {
+                for (const termObj of this.keywordIntercepts.terms) {
+                    if (termObj.term_id === termId) {
+                        term = termObj;
+                    }
+                }
+            }
+
+            return term;
+        }
+
+        /**
+         * Gets the current unix timestamp.
+         * @returns the current unix timestamp.
+         */
+        private getCurrentUnixTimestamp(): number {
+            return Math.round(new Date().getTime() / 1000);
         }
 
         /**
@@ -293,7 +333,7 @@ export namespace AdadaptedReactNativeSdk {
                                     response.data.zones
                                 );
 
-                                console.log(this.sessionId);
+                                console.log(JSON.stringify(response.data));
 
                                 // Start the session data refresh timer.
                                 this.onRefreshAdZones();
@@ -317,32 +357,228 @@ export namespace AdadaptedReactNativeSdk {
 
         /**
          * Searches through available ad keywords and
+         * @param searchTerm - The search term used to match against
+         *      available keyword intercepts.
+         * @returns all keyword intercept terms that matched the search term.
          */
         public performKeywordSearch(searchTerm: string): KeywordSearchResult[] {
-            const finalResultList: KeywordSearchResult[] = [];
+            const finalResultListStartsWith: KeywordSearchResult[] = [];
+            const finalResultListContains: KeywordSearchResult[] = [];
 
-            if (
-                this.keywordIntercepts &&
+            this.keywordInterceptSearchValue = searchTerm;
+
+            if (!this.deviceInfo || !this.sessionId) {
+                console.error("AdAdapted SDK has not been initialized.");
+            } else if (!this.keywordIntercepts) {
+                console.error("No available keyword intercepts.");
+            } else if (
+                searchTerm &&
                 searchTerm.trim() &&
-                searchTerm.length >= this.keywordIntercepts.min_match_length
+                searchTerm.trim().length >=
+                    this.keywordIntercepts.min_match_length
             ) {
+                searchTerm = searchTerm.trim();
+
+                const finalEventsList: adadaptedApiTypes.models.ReportedInterceptEvent[] = [];
+                const currentTs = this.getCurrentUnixTimestamp();
+
+                // Search for matching terms.
                 for (const termObj of this.keywordIntercepts.terms) {
                     if (
                         termObj.term
                             .toLowerCase()
-                            .indexOf(searchTerm.toLowerCase()) != -1
+                            .startsWith(searchTerm.toLowerCase())
                     ) {
-                        finalResultList.push(termObj);
+                        // If the term starts with the search term,
+                        // add it to the finalResultListStartsWith list.
+                        finalResultListStartsWith.push(termObj);
+                    } else if (
+                        termObj.term
+                            .toLowerCase()
+                            .indexOf(searchTerm.toLowerCase()) !== -1
+                    ) {
+                        // If the term din't start with the search term, but
+                        // still contains the search term, add it to the
+                        // finalResultListContains list.
+                        finalResultListContains.push(termObj);
+                    }
+
+                    if (
+                        termObj.term
+                            .toLowerCase()
+                            .startsWith(searchTerm.toLowerCase()) ||
+                        termObj.term
+                            .toLowerCase()
+                            .indexOf(searchTerm.toLowerCase()) !== -1
+                    ) {
+                        // Add the event to the list so we can report the
+                        // "matched" event for this term.
+                        finalEventsList.push({
+                            term_id: termObj.term_id,
+                            search_id: this.keywordIntercepts.search_id,
+                            user_input: this.keywordInterceptSearchValue,
+                            term: termObj.term,
+                            event_type:
+                                adadaptedApiTypes.models.ReportedEventType
+                                    .MATCHED,
+                            created_at: currentTs
+                        });
                     }
                 }
 
-                // Sort the final result by priority.
-                finalResultList.sort((a, b) =>
+                // Sort the final results by priority.
+                finalResultListStartsWith.sort((a, b) =>
                     a.priority > b.priority ? 1 : -1
                 );
+                finalResultListContains.sort((a, b) =>
+                    a.priority > b.priority ? 1 : -1
+                );
+
+                // If there are no events to report at this point,
+                // we need to report the "not_matched" event.
+                if (finalEventsList.length === 0) {
+                    finalEventsList.push({
+                        term_id: "",
+                        search_id: "NA",
+                        user_input: this.keywordInterceptSearchValue,
+                        term: "NA",
+                        event_type:
+                            adadaptedApiTypes.models.ReportedEventType
+                                .NOT_MATCHED,
+                        created_at: currentTs
+                    });
+                }
+
+                // Send up the "matched" event for the keyword search for
+                // all terms that matched the users search.
+                adadaptedApiRequests
+                    .reportInterceptEvent(
+                        {
+                            app_id: this.appId,
+                            udid: this.deviceInfo.udid,
+                            session_id: this.sessionId,
+                            events: finalEventsList
+                        },
+                        this.deviceOs!,
+                        this.apiEnv
+                    )
+                    .then(() => {
+                        // Do nothing with the response for now...
+                    });
             }
 
-            return finalResultList;
+            // The returned list will keep all terms found by matching the
+            // beginning of the term string at the beginning of the list. All
+            // terms found that didn't match the beginning of the string, but
+            // still contained the search term will be concatenated to the end
+            // of the list.
+            return finalResultListStartsWith.concat(finalResultListContains);
+        }
+
+        /**
+         * Client must trigger this method when a Keyword Intercept Term has
+         * been "selected" by the user.
+         * This will ensure that the event is properly recorded and enable
+         * accuracy in client reports.
+         * @param termId - The term ID to trigger the event for.
+         */
+        public reportKeywordInterceptTermSelected(termId: string): void {
+            const termObj = this.getKeywordInterceptTerm(termId);
+
+            if (!this.deviceInfo || !this.sessionId) {
+                console.error("AdAdapted SDK has not been initialized.");
+            } else if (!this.keywordIntercepts) {
+                console.error("No available keyword intercepts.");
+            } else if (!termId || !termObj) {
+                console.error("Invalid term ID provided.");
+            } else {
+                adadaptedApiRequests
+                    .reportInterceptEvent(
+                        {
+                            app_id: this.appId,
+                            udid: this.deviceInfo.udid,
+                            session_id: this.sessionId,
+                            events: [
+                                {
+                                    term_id: termObj.term_id,
+                                    search_id: this.keywordIntercepts.search_id,
+                                    user_input: this
+                                        .keywordInterceptSearchValue,
+                                    term: termObj.term,
+                                    event_type:
+                                        adadaptedApiTypes.models
+                                            .ReportedEventType.SELECTED,
+                                    created_at: this.getCurrentUnixTimestamp()
+                                }
+                            ]
+                        },
+                        this.deviceOs!,
+                        this.apiEnv
+                    )
+                    .then(() => {
+                        // Do nothing with the response for now...
+                    });
+            }
+        }
+
+        /**
+         * Client must trigger this method when a Keyword Intercept Term has
+         * been "presented" to the user. All terms that satisfy a search don't
+         * have to be presented, so only provide term IDs for the terms that
+         * ultimately get presented to the user.
+         * This will ensure that the event is properly recorded and enable
+         * accuracy in client reports.
+         * @param terms - The term IDs list to trigger the event for.
+         */
+        public reportKeywordInterceptTermsPresented(terms: string[]): void {
+            const termObjs: adadaptedApiTypes.models.KeywordSearchTerm[] = [];
+
+            for (const termId of terms) {
+                const termObj = this.getKeywordInterceptTerm(termId);
+
+                if (termObj) {
+                    termObjs.push(termObj);
+                }
+            }
+
+            if (!this.deviceInfo || !this.sessionId) {
+                console.error("AdAdapted SDK has not been initialized.");
+            } else if (!this.keywordIntercepts) {
+                console.error("No available keyword intercepts.");
+            } else if (!terms || terms.length === 0 || termObjs.length === 0) {
+                console.error("Invalid or empty terms ID list provided.");
+            } else {
+                const termEvents: adadaptedApiTypes.models.ReportedInterceptEvent[] = [];
+                const currentTs = this.getCurrentUnixTimestamp();
+
+                for (const termObj of termObjs) {
+                    termEvents.push({
+                        term_id: termObj.term_id,
+                        search_id: this.keywordIntercepts.search_id,
+                        user_input: this.keywordInterceptSearchValue,
+                        term: termObj.term,
+                        event_type:
+                            adadaptedApiTypes.models.ReportedEventType
+                                .PRESENTED,
+                        created_at: currentTs
+                    });
+                }
+
+                adadaptedApiRequests
+                    .reportInterceptEvent(
+                        {
+                            app_id: this.appId,
+                            udid: this.deviceInfo.udid,
+                            session_id: this.sessionId,
+                            events: termEvents
+                        },
+                        this.deviceOs!,
+                        this.apiEnv
+                    )
+                    .then(() => {
+                        // Do nothing with the response for now...
+                    });
+            }
         }
 
         /**

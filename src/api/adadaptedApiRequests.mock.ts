@@ -97,10 +97,35 @@ export function getKeywordIntercepts(): Promise<
 }
 
 /**
+ * Mocks the API call for reporting an ad event.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function reportInterceptEvent(): Promise<
+    AxiosResponse<adadaptedApiTypes.responseModels.ReportInterceptEventResponse>
+> {
+    return new Promise<
+        AxiosResponse<
+            adadaptedApiTypes.responseModels.ReportInterceptEventResponse
+        >
+    >((resolve) => {
+        resolve({
+            data: {
+                results: ["Ok"]
+            },
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200"
+        });
+    });
+}
+
+/**
  * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
  */
 const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
-    session_id: "3D7341C3F27BB02DFE7BE08F8922D6A95EA1EC91",
+    session_id: "TEST_SESSION_ID",
     will_serve_ads: true,
     active_campaigns: true,
     session_expires_at: 1587684561,
@@ -120,7 +145,7 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                     hide_after_interaction: false,
                     type: "html",
                     creative_url:
-                        "https://sandbox.adadapted.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=3D7341C3F27BB02DFE7BE08F8922D6A95EA1EC91&amp;udid=00000000-0000-0000-0000-000000000000",
+                        "https://sandbox.adadapted.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
                     tracking_html: "<html></html>",
                     action_type: "c",
                     action_path: "",
@@ -157,7 +182,7 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
  * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
  */
 const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
-    session_id: "3D7341C3F27BB02DFE7BE08F8922D6A95EA1EC91",
+    session_id: "TEST_SESSION_ID",
     will_serve_ads: true,
     active_campaigns: true,
     session_expires_at: 1587684561,
@@ -177,7 +202,7 @@ const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                     hide_after_interaction: false,
                     type: "html",
                     creative_url:
-                        "https://sandbox.adadapted.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=3D7341C3F27BB02DFE7BE08F8922D6A95EA1EC91&amp;udid=00000000-0000-0000-0000-000000000000",
+                        "https://sandbox.adadapted.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
                     tracking_html: "<html></html>",
                     action_type: "c",
                     action_path: "",

@@ -6,6 +6,7 @@ import * as React from "react";
 import {
     StyleSheet,
     View,
+    ScrollView,
     Text,
     TextInput,
     TouchableOpacity
@@ -34,9 +35,17 @@ interface State {
      */
     searchValue: string;
     /**
-     * Search Result Item List.
+     * Standard products search result item list.
      */
-    searchResultItemList: AdadaptedReactNativeSdk.KeywordSearchResult[];
+    standardProductSearchResultItemList: string[];
+    /**
+     * AdAdapted SDK Keyword Search result item list.
+     */
+    aasdkSearchResultItemList: AdadaptedReactNativeSdk.KeywordSearchResult[];
+    /**
+     * The selected item list.
+     */
+    selectedItemList: string[];
 }
 
 /**
@@ -61,7 +70,9 @@ export class App extends React.Component<Props, State> {
             sessionId: undefined,
             adZoneInfoList: undefined,
             searchValue: "",
-            searchResultItemList: []
+            standardProductSearchResultItemList: [],
+            aasdkSearchResultItemList: [],
+            selectedItemList: []
         };
     }
 
@@ -74,27 +85,20 @@ export class App extends React.Component<Props, State> {
                 appId: "NTLKNZKYMMI2NTM1",
                 apiEnv: AdadaptedReactNativeSdk.ApiEnv.Dev,
                 onAdZonesRefreshed: () => {
-                    this.setState(
-                        {
-                            sessionId: this.aaSdk.getSessionId(),
-                            adZoneInfoList: this.aaSdk.getAdZones()
-                        },
-                        () => {
-                            console.log("state updated");
-                        }
-                    );
+                    this.setState({
+                        sessionId: this.aaSdk.getSessionId(),
+                        adZoneInfoList: this.aaSdk.getAdZones()
+                    });
                 }
             })
             .then(() => {
-                console.log("Session Initialized");
-
                 this.setState({
                     sessionId: this.aaSdk.getSessionId(),
                     adZoneInfoList: this.aaSdk.getAdZones()
                 });
             })
             .catch((err) => {
-                console.log(err);
+                console.error(err);
             });
     }
 
@@ -103,7 +107,9 @@ export class App extends React.Component<Props, State> {
      */
     public componentWillUnmount(): void {
         // Unmount the SDK.
-        this.aaSdk && this.aaSdk.unmount();
+        if (this.aaSdk) {
+            this.aaSdk.unmount();
+        }
     }
 
     /**
@@ -111,42 +117,62 @@ export class App extends React.Component<Props, State> {
      */
     public render(): JSX.Element {
         return (
-            <View style={styles.mainView}>
+            <ScrollView
+                style={styles.mainView}
+                contentContainerStyle={{
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginTop: 40
+                }}
+            >
+                <Text style={styles.sessionIdContainer}>
+                    Session ID: {this.state.sessionId}
+                </Text>
                 <TextInput
                     value={this.state.searchValue}
                     style={styles.searchTextField}
                     onChangeText={(value) => {
-                        const searchResults = this.aaSdk.performKeywordSearch(
-                            value
-                        );
-
-                        this.setState({
-                            searchValue: value,
-                            searchResultItemList: searchResults
-                        });
+                        this.handleOnSearchValueChanged(value);
                     }}
                 />
                 <View style={styles.searchView}>
                     <Text style={styles.searchResultsTitle}>
                         Search Results:
                     </Text>
-                    {this.state.searchResultItemList.map((item) => (
+                    {this.state.aasdkSearchResultItemList.map((itemObj) => (
                         <TouchableOpacity
-                            key={item.term_id}
+                            key={itemObj.term_id}
                             style={styles.searchResultContainer}
                             onPress={() => {
-                                this.selectItem(item);
+                                this.selectItem({
+                                    item: itemObj
+                                });
                             }}
                         >
                             <Text style={styles.searchResultText}>
-                                {item.replacement}
+                                {itemObj.replacement}
                             </Text>
+                            <Text style={styles.searchResultAdBadge}>AD</Text>
                         </TouchableOpacity>
                     ))}
+                    {this.state.standardProductSearchResultItemList.map(
+                        (itemName, idx) => (
+                            <TouchableOpacity
+                                key={idx}
+                                style={styles.searchResultContainer}
+                                onPress={() => {
+                                    this.selectItem({
+                                        itemName
+                                    });
+                                }}
+                            >
+                                <Text style={styles.searchResultText}>
+                                    {itemName}
+                                </Text>
+                            </TouchableOpacity>
+                        )
+                    )}
                 </View>
-                <Text style={styles.sessionIdContainer}>
-                    Session ID: {this.state.sessionId}
-                </Text>
                 {this.state.adZoneInfoList?.map((adZoneInfo, idx) => {
                     return (
                         <View key={idx} style={styles.adZoneContainer}>
@@ -154,39 +180,141 @@ export class App extends React.Component<Props, State> {
                         </View>
                     );
                 })}
-            </View>
+                <View style={styles.listItemContainer}>
+                    <Text style={styles.selectedItemResultsTitle}>
+                        My Shopping List:
+                    </Text>
+                    {this.state.selectedItemList?.map((item, idx) => {
+                        return (
+                            <Text key={idx} style={styles.listItem}>
+                                {item}
+                            </Text>
+                        );
+                    })}
+                </View>
+            </ScrollView>
         );
     }
 
     /**
-     * Alters the item name selected.
-     * @param item - The item to alert data from.
+     * Triggered when the search text field's value has changed.
+     * @param searchValue - The search string.
      */
-    private selectItem(
-        item: AdadaptedReactNativeSdk.KeywordSearchResult
-    ): void {
-        alert(`Added "${item.replacement}" to your shopping list!`);
+    private handleOnSearchValueChanged(searchValue: string): void {
+        const aasdkSearchResults = this.aaSdk.performKeywordSearch(searchValue);
+
+        // Randomly choose one of the resulting terms to display.
+        // You can add multiple randomly chosen terms here too
+        // if you would like.
+        const finalAasdkSearchResults: AdadaptedReactNativeSdk.KeywordSearchResult[] = [];
+
+        if (aasdkSearchResults.length > 0) {
+            const randomIndex = Math.floor(
+                Math.random() * aasdkSearchResults.length
+            );
+            finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
+
+            // Report up the "presented" event to the AA SDK.
+            this.aaSdk.reportKeywordInterceptTermsPresented([
+                aasdkSearchResults[randomIndex].term_id
+            ]);
+        }
+
+        // Search for all standard items using the search value.
+        const finalStandardProductSearchResultsStringStart: string[] = [];
+        const finalStandardProductSearchResultsStringContains: string[] = [];
+
+        if (searchValue.trim().length > 0) {
+            for (const productName of AVAILABLE_PRODUCTS) {
+                if (
+                    productName
+                        .toLowerCase()
+                        .startsWith(searchValue.toLowerCase())
+                ) {
+                    finalStandardProductSearchResultsStringStart.push(
+                        productName
+                    );
+                } else if (
+                    productName
+                        .toLowerCase()
+                        .indexOf(searchValue.toLowerCase()) !== -1
+                ) {
+                    finalStandardProductSearchResultsStringContains.push(
+                        productName
+                    );
+                }
+            }
+        }
+
+        this.setState({
+            searchValue,
+            standardProductSearchResultItemList: finalStandardProductSearchResultsStringStart.concat(
+                finalStandardProductSearchResultsStringContains
+            ),
+            aasdkSearchResultItemList: finalAasdkSearchResults
+        });
     }
+
+    /**
+     * Adds the selected item to the selected item list.
+     * @param selectedItem - The item to select.
+     */
+    private selectItem(selectedItem: SelectedItem): void {
+        if (selectedItem.item) {
+            // Report up the "selected" event to the AA SDK.
+            this.aaSdk.reportKeywordInterceptTermSelected(
+                selectedItem.item.term_id
+            );
+        }
+
+        this.setState((prevState) => {
+            const finalList = prevState.selectedItemList;
+
+            if (selectedItem.item) {
+                finalList.push(selectedItem.item.replacement);
+            } else if (selectedItem.itemName) {
+                finalList.push(selectedItem.itemName);
+            }
+
+            return {
+                selectedItemList: finalList
+            };
+        });
+    }
+}
+
+/**
+ * Interfaced used to pass in an item to the {@link App.selectItem} method.
+ * Only one of the two properties should be provided.
+ */
+interface SelectedItem {
+    /**
+     * The object containing a keyword search item.
+     */
+    item?: AdadaptedReactNativeSdk.KeywordSearchResult;
+    /**
+     * A standard product name.
+     */
+    itemName?: string;
 }
 
 const styles = StyleSheet.create({
     mainView: {
         flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
         backgroundColor: "pink"
     },
     sessionIdContainer: {
         backgroundColor: "yellow",
         width: "100%",
         marginTop: 20,
-        marginBottom: 20
+        marginBottom: 20,
+        padding: 10
     },
     adZoneContainer: {
         paddingTop: 20,
         paddingBottom: 20,
         width: "100%",
-        height: 200
+        height: 250
     },
     searchTextField: {
         flex: 0,
@@ -204,15 +332,71 @@ const styles = StyleSheet.create({
     },
     searchResultsTitle: {
         backgroundColor: "orange",
-        width: "100%"
+        width: "100%",
+        padding: 10,
+        fontWeight: "bold"
     },
     searchResultContainer: {
+        flexDirection: "row",
         padding: 10,
-        marginTop: 3,
+        marginTop: 1,
         backgroundColor: "#d9f9b1",
-        alignItems: "center"
+        alignItems: "flex-start"
     },
     searchResultText: {
-        color: "#4f603c"
+        flex: 0,
+        color: "#333333"
+    },
+    searchResultAdBadge: {
+        flex: 1,
+        color: "#ff605b",
+        textAlign: "right"
+    },
+    listItemContainer: {
+        flex: 0,
+        width: "100%",
+        marginBottom: 80
+    },
+    listItem: {
+        padding: 10,
+        marginTop: 1,
+        backgroundColor: "#6ca3f9",
+        color: "#333333"
+    },
+    selectedItemResultsTitle: {
+        backgroundColor: "orange",
+        width: "100%",
+        padding: 10,
+        fontWeight: "bold"
     }
 });
+
+/**
+ * Used to provide the app a set of non-ad products to display
+ * along with ad products provided by the AdAdapted SDK.
+ * Add additional products here as necessary.
+ */
+const AVAILABLE_PRODUCTS: string[] = [
+    "Organic Valley Milk",
+    "Dean's Milk",
+    "Safeway Milk",
+    "Shamrock Farms Milk",
+    "Horizon Organic Milk",
+    "Milk: Meijer",
+    "Milk: Kroger",
+    "Starbucks Coffee",
+    "Folger's Classic Roast Coffee",
+    "Newman's Own Organic Coffee",
+    "Green Mountain Coffee",
+    "Maxwell House Coffee",
+    "Coffee: Meijer",
+    "Coffee: Kroger",
+    "Kraft Mac & Cheese",
+    "Sargento Shredded Cheddar Cheese",
+    "Philadelphia Cream Cheese",
+    "Annie's Mac & Cheese",
+    "Cheddar Cheese: Meijer",
+    "Cheddar Cheese: Kroger",
+    "Cheese: Meijer",
+    "Cheese: Kroger"
+];
