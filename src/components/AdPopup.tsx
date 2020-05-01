@@ -1,0 +1,307 @@
+/**
+ * Component for creating an {@link AdPopup}.
+ * @module
+ */
+import * as React from "react";
+import { WebView } from "react-native-webview";
+import Modal from "react-native-modal";
+import {
+    StyleSheet,
+    ViewStyle,
+    Text,
+    SafeAreaView,
+    TouchableOpacity,
+    TextStyle,
+    View,
+    Image,
+    ImageStyle
+} from "react-native";
+import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
+import { safeInvoke } from "../util";
+
+/**
+ * Props interface for {@link AdPopup}.
+ */
+interface Props {
+    /**
+     * The add to display in the popup.
+     */
+    ad: adadaptedApiTypes.models.Ad;
+    /**
+     * If true, the ad popup is displayed.
+     */
+    isOpen?: boolean;
+    /**
+     * Triggered when the popup is closing.
+     */
+    onClose?(): void;
+}
+
+/**
+ * State interface for {@link AdPopup}.
+ */
+interface State {
+    /**
+     * If true, the popup web view can navigate back.
+     */
+    canGoBack: boolean;
+    /**
+     * If true, the popup web view can navigate forward.
+     */
+    canGoForward: boolean;
+}
+
+/**
+ * Defines the style typing for the component.
+ */
+interface StyleDef {
+    /**
+     * Styles for the main View element.
+     */
+    mainView: ViewStyle;
+    /**
+     * Styles for the WebView element.
+     */
+    webView: ViewStyle;
+    /**
+     * Styles for the close button View element.
+     */
+    closeButtonView: ViewStyle;
+    /**
+     * Styles for the navigation header View element.
+     */
+    navHeaderView: ViewStyle;
+    /**
+     * Styles for the nav arrow buttons view.
+     */
+    navArrowsContainer: ViewStyle;
+    /**
+     * Styles for the navigation left arrow button.
+     */
+    navLeftArrow: ImageStyle;
+    /**
+     * Styles for the navigation right arrow button.
+     */
+    navRightArrow: ImageStyle;
+    /**
+     * Styles for the nav bar title container.
+     */
+    navBarTitleView: ViewStyle;
+    /**
+     * Styles for the title text.
+     */
+    titleText: TextStyle;
+    /**
+     * Styles for the close button opacity container.
+     */
+    closeButtonContainer: ViewStyle;
+    /**
+     * Styles for the button text.
+     */
+    closeButtonText: TextStyle;
+}
+
+/**
+ * Creates the AdPopup component.
+ */
+export class AdPopup extends React.Component<Props, State> {
+    /**
+     * The web view element reference.
+     */
+    private webViewElementRef: WebView | null = null;
+
+    /**
+     * @inheritDoc
+     */
+    constructor(props: Props, context?: any) {
+        super(props, context);
+
+        this.state = {
+            canGoBack: false,
+            canGoForward: false
+        };
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public render(): JSX.Element {
+        // Generate the styles each render in case the ad is updated with
+        // new settings that need to be reflected in the styles of the view.
+        const styles = this.generateStyles();
+
+        return (
+            <Modal
+                style={styles.mainView}
+                isVisible={this.props.isOpen}
+                hasBackdrop={false}
+                coverScreen={true}
+            >
+                <SafeAreaView style={{ flex: 1 }}>
+                    <SafeAreaView style={styles.navHeaderView}>
+                        <View style={styles.navArrowsContainer}>
+                            <View
+                                onTouchStart={() => {
+                                    if (
+                                        this.webViewElementRef &&
+                                        this.state.canGoBack
+                                    ) {
+                                        this.webViewElementRef.goBack();
+                                    }
+                                }}
+                            >
+                                <Image
+                                    source={{
+                                        uri:
+                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABpUlEQVRoQ+2YvUrFQBBGZ59Hq8QXsLcVLCwsFBQUFBQUlHsFBQUFBQUFLSwsBB9C+/2m0ifxAUYCCinM5i47c83Cpgy7yznzzZAfR5lfLnN+KgL/nWBJoCSQWIHSQokFTN5eEogtYVVVY+fcAhF9icg7M49jz2ivn2oCP/CjFsAngNksBP6Ab7gBYG7wAh3wJCLHg2+hLngiOgJwklL9Zq/pDATgDwCcpcKbCgTg9wBcaMCbCQR6foeZr7TgTQS64J1zW977G014dYFA22wAuNOGVxUIwK8BeLCAVxMIwK8AeLKCVxEIDOwyMz9bwqsI1HX9QUQzbVARWWLmF2t4LQFPRHW2Atm3UFP5rIf4t3UCD7BV7/2j1TyovswFJNa99/cWEqoCoXYSkU1mvtWWUBfomYltANeaEiYCPRK7AC61JMwEeiT2AZxrSJgKhCScc4fe+9NUCXOBnsEe/kd9z3Min/9CHUm8AZhPaaOptFAbsKqqkXNusbknIq+D/y+UUt1J9k49gUmgYtYUgZhqWawtCVhUNebMkkBMtSzWlgQsqhpz5jfHSasx85A3NgAAAABJRU5ErkJggg=="
+                                    }}
+                                    style={styles.navLeftArrow}
+                                />
+                            </View>
+                            <View
+                                onTouchStart={() => {
+                                    if (
+                                        this.webViewElementRef &&
+                                        this.state.canGoForward
+                                    ) {
+                                        this.webViewElementRef.goForward();
+                                    }
+                                }}
+                            >
+                                <Image
+                                    source={{
+                                        uri:
+                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABnklEQVRoQ+3YsUoEMRAG4H8ewCfRKpNeH0KwsLBQUFBQUFBQ8ERBQUFBQUELCwsLS3tfwFylzzOykAVZmz0yM+dCrs7O/d9Mwu2FMPAPDTw/KmDaE6wTqBMo7EDdQoUNLH68TiCEMCKieQAzIvI+Ho9HxW2doEDxBJj5C8Bs+50icuKJ0AB8AuDfTfNEFAPyFjruTt0LUQxogjPzEYDTaSBUABlxAODcG6EGyIg9AJeeCFVAEzyEsENE114IdUATPMa4JSK3HggTQN5OGwDurRFmgIxYA/BoiTAFZMQKgGcrhDkgH+xlInqxQLgAMmKJiF47iO+U0twE725/lk4bkFJK8d8DQgjD3ULMPNxDHGNcFZEni8Pb1jQ7AzHGdRF5sAzf1DYBhBA2iejOOrwJgJm3Adx4hFcHMPMugCuv8KoAZt4HcOEZXg0QYzwUkTPv8CqAwf+p794LNV3xupFQmQAzfwBYaLePZ3gVQN5Ci7nzb563ciqAkjdJjWdNfok1gvWtUQF9O2W1rk7AqrN969YJ9O2U1bo6AavO9q37A5jF5jGXG4ruAAAAAElFTkSuQmCC"
+                                    }}
+                                    style={styles.navRightArrow}
+                                />
+                            </View>
+                        </View>
+                        <View style={styles.navBarTitleView}>
+                            <Text
+                                style={styles.titleText}
+                                numberOfLines={1}
+                                ellipsizeMode={"tail"}
+                            >
+                                {this.props.ad.popup.title_text}
+                            </Text>
+                        </View>
+                    </SafeAreaView>
+                    <WebView
+                        source={{
+                            uri: this.props.ad.action_path
+                        }}
+                        ref={(ref) => {
+                            this.webViewElementRef = ref;
+                        }}
+                        automaticallyAdjustContentInsets={false}
+                        allowFileAccess={true}
+                        style={styles.webView}
+                        onNavigationStateChange={(navState) => {
+                            this.setState({
+                                canGoBack: navState.canGoBack,
+                                canGoForward: navState.canGoForward
+                            });
+                        }}
+                    />
+                    <SafeAreaView style={styles.closeButtonView}>
+                        <TouchableOpacity
+                            style={styles.closeButtonContainer}
+                            onPress={() => {
+                                safeInvoke(this.props.onClose);
+                            }}
+                        >
+                            <Text style={styles.closeButtonText}>Close</Text>
+                        </TouchableOpacity>
+                    </SafeAreaView>
+                </SafeAreaView>
+            </Modal>
+        );
+    }
+
+    /**
+     * Generates all component related styles.
+     * @returns the styles needed for the component.
+     */
+    private generateStyles(): StyleDef {
+        const backButtonOpacity = this.state.canGoBack ? 1 : 0.3;
+        const forwardButtonOpacity = this.state.canGoForward ? 1 : 0.3;
+
+        return StyleSheet.create({
+            mainView: {
+                display: "flex",
+                flexDirection: "column",
+                position: "relative",
+                margin: 0,
+                width: "100%",
+                height: "100%"
+            },
+            navHeaderView: {
+                display: "flex",
+                flexDirection: "row",
+                height: 60,
+                width: "100%",
+                backgroundColor: "#dadada",
+                zIndex: 1
+            },
+            navArrowsContainer: {
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center"
+            },
+            navLeftArrow: {
+                width: 48,
+                height: 48,
+                marginRight: 5,
+                marginLeft: 10,
+                opacity: backButtonOpacity
+            },
+            navRightArrow: {
+                width: 48,
+                height: 48,
+                marginRight: 10,
+                marginLeft: 5,
+                opacity: forwardButtonOpacity
+            },
+            navBarTitleView: {
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                flex: 1,
+                marginRight: 20
+            },
+            titleText: {
+                color: "#333333",
+                fontWeight: "bold",
+                fontSize: 18,
+                overflow: "hidden",
+                flexWrap: "nowrap"
+            },
+            webView: {
+                width: "100%",
+                height: "100%",
+                zIndex: 0
+            },
+            closeButtonView: {
+                height: 60,
+                width: "100%",
+                backgroundColor: "#dadada",
+                zIndex: 1
+            },
+            closeButtonContainer: {
+                display: "flex",
+                justifyContent: "center",
+                width: "100%",
+                height: "100%"
+            },
+            closeButtonText: {
+                width: "100%",
+                color: "#2969a0",
+                margin: "auto",
+                fontSize: 18,
+                textAlign: "center"
+            }
+        });
+    }
+}

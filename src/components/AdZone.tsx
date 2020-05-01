@@ -8,6 +8,7 @@ import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
 import { AdadaptedReactNativeSdk } from "../index";
+import { AdPopup } from "./AdPopup";
 
 /**
  * Props interface for {@link AdZone}.
@@ -47,6 +48,10 @@ interface State {
      * Tracks the current ad index being shown.
      */
     adIndexShown: number;
+    /**
+     * If true, the ad popup(if available) is open.
+     */
+    isAdPopupOpen: boolean;
 }
 
 /**
@@ -85,7 +90,8 @@ export class AdZone extends React.Component<Props, State> {
         );
 
         this.state = {
-            adIndexShown: startingAdIndex
+            adIndexShown: startingAdIndex,
+            isAdPopupOpen: false
         };
     }
 
@@ -123,19 +129,51 @@ export class AdZone extends React.Component<Props, State> {
                     automaticallyAdjustContentInsets={false}
                     style={styles.webView}
                     onTouchEnd={() => {
-                        // If the "action_path" value is defined, follow the URL.
-                        if (currentAd.action_path) {
-                            Linking.openURL(currentAd.action_path).then();
-                        }
-
-                        this.triggerReportAdEvent(
-                            currentAd,
-                            adadaptedApiTypes.models.ReportedEventType
-                                .INTERACTION
-                        );
+                        this.onAdZoneSelected(currentAd);
+                    }}
+                />
+                <AdPopup
+                    ad={currentAd}
+                    isOpen={this.state.isAdPopupOpen}
+                    onClose={() => {
+                        this.setState({
+                            isAdPopupOpen: false
+                        });
                     }}
                 />
             </View>
+        );
+    }
+
+    /**
+     * Triggers when the user selects the ad zone.
+     * @param currentAd - The ad currently displayed.
+     */
+    private onAdZoneSelected(currentAd: adadaptedApiTypes.models.Ad): void {
+        // Determine the "action type" and perform that specific action.
+        if (
+            currentAd.action_type ===
+                adadaptedApiTypes.models.AdActionType.EXTERNAL &&
+            currentAd.action_path
+        ) {
+            // Action Type: EXTERNAL
+            Linking.openURL(currentAd.action_path).then();
+        } else if (
+            (currentAd.action_type ===
+                adadaptedApiTypes.models.AdActionType.POPUP ||
+                currentAd.action_type ===
+                    adadaptedApiTypes.models.AdActionType.LINK) &&
+            currentAd.action_path
+        ) {
+            // Action Type: POPUP or LINK
+            this.setState({
+                isAdPopupOpen: true
+            });
+        }
+
+        this.triggerReportAdEvent(
+            currentAd,
+            adadaptedApiTypes.models.ReportedEventType.INTERACTION
         );
     }
 

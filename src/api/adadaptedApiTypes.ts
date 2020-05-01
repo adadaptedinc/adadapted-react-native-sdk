@@ -107,7 +107,7 @@ export namespace adadaptedApiTypes {
             /**
              * ?
              */
-            action_type: string;
+            action_type: AdActionType;
             /**
              * If true, the ad will be hidden after interaction.
              */
@@ -300,6 +300,40 @@ export namespace adadaptedApiTypes {
              * The timestamp at which the event occurred.
              */
             created_at: number;
+        }
+
+        /**
+         * Enum defining the available ad action types.
+         */
+        export enum AdActionType {
+            /**
+             * Used for Add To List.
+             */
+            CONTENT = "c",
+            /**
+             * Used for opening URLs in an external browser.
+             */
+            EXTERNAL = "e",
+            /**
+             * Used for opening URLs in a web view within the app.
+             * Works the same as {@link AdActionType.POPUP}.
+             * NOTE: This one should probably be deprecated with the new
+             *       platform redesign, since its not as obvious what it does.
+             */
+            LINK = "l",
+            /**
+             * Used for opening URLs in a web view within the app.
+             * Works the same as {@link AdActionType.LINK}.
+             */
+            POPUP = "p",
+            /**
+             * Used for opening app store URLs in the app store.
+             */
+            APP = "a",
+            /**
+             * ?
+             */
+            NONE = "n"
         }
 
         /**

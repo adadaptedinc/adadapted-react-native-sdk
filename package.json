@@ -37,6 +37,7 @@
     "homepage": "https://gitlab.com/adadapted/adadapted-react-native-sdk#readme",
     "dependencies": {
         "axios": "^0.19.2",
+        "react-native-modal": "^11.5.6",
         "react-native-webview": "^9.3.0"
     },
     "peerDependencies": {
@@ -65,6 +66,7 @@
         "tslint-eslint-rules": "^5.4.0",
         "tslint-plugin-prettier": "^2.3.0",
         "tslint-react-native": "0.0.7",
+        "type-zoo": "^3.4.1",
         "typescript": "^3.7.5"
     },
     "jest": {

@@ -9,7 +9,8 @@ import {
     ScrollView,
     Text,
     TextInput,
-    TouchableOpacity
+    TouchableOpacity,
+    SafeAreaView
 } from "react-native";
 import { AdadaptedReactNativeSdk } from "adadapted-react-native-sdk";
 
@@ -117,82 +118,86 @@ export class App extends React.Component<Props, State> {
      */
     public render(): JSX.Element {
         return (
-            <ScrollView
-                style={styles.mainView}
-                contentContainerStyle={{
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginTop: 40
-                }}
-            >
-                <Text style={styles.sessionIdContainer}>
-                    Session ID: {this.state.sessionId}
-                </Text>
-                <TextInput
-                    value={this.state.searchValue}
-                    style={styles.searchTextField}
-                    onChangeText={(value) => {
-                        this.handleOnSearchValueChanged(value);
+            <SafeAreaView style={styles.safeAreaView}>
+                <ScrollView
+                    style={styles.mainView}
+                    contentContainerStyle={{
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 40
                     }}
-                />
-                <View style={styles.searchView}>
-                    <Text style={styles.searchResultsTitle}>
-                        Search Results:
+                >
+                    <Text style={styles.sessionIdContainer}>
+                        Session ID: {this.state.sessionId}
                     </Text>
-                    {this.state.aasdkSearchResultItemList.map((itemObj) => (
-                        <TouchableOpacity
-                            key={itemObj.term_id}
-                            style={styles.searchResultContainer}
-                            onPress={() => {
-                                this.selectItem({
-                                    item: itemObj
-                                });
-                            }}
-                        >
-                            <Text style={styles.searchResultText}>
-                                {itemObj.replacement}
-                            </Text>
-                            <Text style={styles.searchResultAdBadge}>AD</Text>
-                        </TouchableOpacity>
-                    ))}
-                    {this.state.standardProductSearchResultItemList.map(
-                        (itemName, idx) => (
+                    <TextInput
+                        value={this.state.searchValue}
+                        style={styles.searchTextField}
+                        onChangeText={(value) => {
+                            this.handleOnSearchValueChanged(value);
+                        }}
+                    />
+                    <View style={styles.searchView}>
+                        <Text style={styles.searchResultsTitle}>
+                            Search Results:
+                        </Text>
+                        {this.state.aasdkSearchResultItemList.map((itemObj) => (
                             <TouchableOpacity
-                                key={idx}
+                                key={itemObj.term_id}
                                 style={styles.searchResultContainer}
                                 onPress={() => {
                                     this.selectItem({
-                                        itemName
+                                        item: itemObj
                                     });
                                 }}
                             >
                                 <Text style={styles.searchResultText}>
-                                    {itemName}
+                                    {itemObj.replacement}
+                                </Text>
+                                <Text style={styles.searchResultAdBadge}>
+                                    AD
                                 </Text>
                             </TouchableOpacity>
-                        )
-                    )}
-                </View>
-                {this.state.adZoneInfoList?.map((adZoneInfo, idx) => {
-                    return (
-                        <View key={idx} style={styles.adZoneContainer}>
-                            {adZoneInfo.adZone}
-                        </View>
-                    );
-                })}
-                <View style={styles.listItemContainer}>
-                    <Text style={styles.selectedItemResultsTitle}>
-                        My Shopping List:
-                    </Text>
-                    {this.state.selectedItemList?.map((item, idx) => {
+                        ))}
+                        {this.state.standardProductSearchResultItemList.map(
+                            (itemName, idx) => (
+                                <TouchableOpacity
+                                    key={idx}
+                                    style={styles.searchResultContainer}
+                                    onPress={() => {
+                                        this.selectItem({
+                                            itemName
+                                        });
+                                    }}
+                                >
+                                    <Text style={styles.searchResultText}>
+                                        {itemName}
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        )}
+                    </View>
+                    {this.state.adZoneInfoList?.map((adZoneInfo, idx) => {
                         return (
-                            <Text key={idx} style={styles.listItem}>
-                                {item}
-                            </Text>
+                            <View key={idx} style={styles.adZoneContainer}>
+                                {adZoneInfo.adZone}
+                            </View>
                         );
                     })}
-                </View>
-            </ScrollView>
+                    <View style={styles.listItemContainer}>
+                        <Text style={styles.selectedItemResultsTitle}>
+                            My Shopping List:
+                        </Text>
+                        {this.state.selectedItemList?.map((item, idx) => {
+                            return (
+                                <Text key={idx} style={styles.listItem}>
+                                    {item}
+                                </Text>
+                            );
+                        })}
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
         );
     }
 
@@ -299,6 +304,9 @@ interface SelectedItem {
 }
 
 const styles = StyleSheet.create({
+    safeAreaView: {
+        flex: 1
+    },
     mainView: {
         flex: 1,
         backgroundColor: "pink"
@@ -306,7 +314,6 @@ const styles = StyleSheet.create({
     sessionIdContainer: {
         backgroundColor: "yellow",
         width: "100%",
-        marginTop: 20,
         marginBottom: 20,
         padding: 10
     },
