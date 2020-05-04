@@ -147,7 +147,7 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                     creative_url:
                         "https://sandbox.adadapted.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
                     tracking_html: "<html></html>",
-                    action_type: "c",
+                    action_type: adadaptedApiTypes.models.AdActionType.CONTENT,
                     action_path: "",
                     payload: {
                         detailed_list_items: [
@@ -204,7 +204,7 @@ const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                     creative_url:
                         "https://sandbox.adadapted.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
                     tracking_html: "<html></html>",
-                    action_type: "c",
+                    action_type: adadaptedApiTypes.models.AdActionType.CONTENT,
                     action_path: "",
                     payload: {
                         detailed_list_items: [

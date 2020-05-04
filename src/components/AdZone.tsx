@@ -215,12 +215,14 @@ export class AdZone extends React.Component<Props, State> {
 
     /**
      * Generates a new timer for cycling to the next ad.
+     * @param timerLength - The length of time(in milliseconds) to initialize
+     *      the timer with.
      */
-    private createAdTimer(): void {
+    private createAdTimer(timerLength: number): void {
         if (this.props.adZoneData.ads.length > 0) {
             this.cycleAdTimer = setTimeout(() => {
                 this.cycleDisplayedAd();
-            }, this.props.adZoneData.ads[this.state.adIndexShown].refresh_time * 1000);
+            }, timerLength);
         }
     }
 
@@ -228,21 +230,36 @@ export class AdZone extends React.Component<Props, State> {
      * Cycles to the next ad to display in the current available sequence of ads.
      */
     private cycleDisplayedAd(): void {
-        // Start by determining the next ad index to display.
-        let nextAdIndex = 0;
+        console.log("cycleDisplayedAd");
+        if (!this.state.isAdPopupOpen) {
+            // Start by determining the next ad index to display.
+            let nextAdIndex = 0;
 
-        if (this.state.adIndexShown < this.props.adZoneData.ads.length - 1) {
-            nextAdIndex = this.state.adIndexShown + 1;
-        }
-
-        this.setState(
-            {
-                adIndexShown: nextAdIndex
-            },
-            () => {
-                this.initializeAd();
+            if (
+                this.state.adIndexShown <
+                this.props.adZoneData.ads.length - 1
+            ) {
+                nextAdIndex = this.state.adIndexShown + 1;
             }
-        );
+
+            this.setState(
+                {
+                    adIndexShown: nextAdIndex
+                },
+                () => {
+                    this.initializeAd();
+                }
+            );
+        } else {
+            // Create a new timer with a timer length of just 10 seconds.
+            // This will allow us to re-check if the popup is still open
+            // quicker and handle switching to the next ad sooner instead of
+            // just restarting the current timer. We do this, because we must
+            // maintain the current ad shown or the popup will cycle to the
+            // next ad while the user is actively engaged with it. Then when
+            // the user closes the popup, the ad will cycle to the next quickly.
+            this.createAdTimer(10000);
+        }
     }
 
     /**
@@ -250,7 +267,10 @@ export class AdZone extends React.Component<Props, State> {
      */
     private initializeAd(): void {
         // Create the new timer based on the new ad index.
-        this.createAdTimer();
+        this.createAdTimer(
+            this.props.adZoneData.ads[this.state.adIndexShown].refresh_time *
+                1000
+        );
 
         // Trigger an impression event for the ad.
         this.triggerReportAdEvent(
