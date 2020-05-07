@@ -6,6 +6,7 @@ import { NativeModules } from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import { adadaptedApiTypes } from "./api/adadaptedApiTypes";
 import { AdZone } from "./components/AdZone";
+import { safeInvoke } from "./util";
 
 /**
  * Class that acts as the AdAdapted SDK for react-native.
@@ -61,7 +62,6 @@ export namespace AdadaptedReactNativeSdk {
          * provided value.
          */
         private keywordInterceptSearchValue: string;
-
         /**
          * The current available keyword intercepts that can
          * be used when a search is provided by the user.
@@ -69,6 +69,14 @@ export namespace AdadaptedReactNativeSdk {
         private keywordIntercepts:
             | adadaptedApiTypes.models.KeywordIntercepts
             | undefined;
+        /**
+         * If provided, triggers when an ad zone is clicked and it is an
+         * "add to list" ad.
+         * @param items - The array of items to "add to list".
+         */
+        private onAddToListAdZoneClicked: (
+            items: adadaptedApiTypes.models.DetailedListItem[]
+        ) => void | undefined;
 
         /**
          * Gets the Session ID.
@@ -110,6 +118,9 @@ export namespace AdadaptedReactNativeSdk {
         constructor() {
             this.apiEnv = ApiEnv.Prod;
             this.onAdZonesRefreshed = () => {
+                // Defaulting to empty method.
+            };
+            this.onAddToListAdZoneClicked = () => {
                 // Defaulting to empty method.
             };
             this.keywordInterceptSearchValue = "";
@@ -155,6 +166,12 @@ export namespace AdadaptedReactNativeSdk {
                                 deviceOs={this.deviceOs!}
                                 apiEnv={this.apiEnv}
                                 adZoneData={adZones[adZoneId]}
+                                onAddToListAdZoneClicked={(items) => {
+                                    safeInvoke(
+                                        this.onAddToListAdZoneClicked,
+                                        items
+                                    );
+                                }}
                             />
                         )
                     });
@@ -283,6 +300,12 @@ export namespace AdadaptedReactNativeSdk {
             // globally for use when the method needs to be triggered.
             if (props.onAdZonesRefreshed) {
                 this.onAdZonesRefreshed = props.onAdZonesRefreshed;
+            }
+
+            // If the callback for onAddToListAdZoneClicked was provided, set it
+            // globally for use when the method needs to be triggered.
+            if (props.onAddToListAdZoneClicked) {
+                this.onAddToListAdZoneClicked = props.onAddToListAdZoneClicked;
             }
 
             return new Promise<void>((resolve, reject) => {
@@ -643,6 +666,13 @@ export namespace AdadaptedReactNativeSdk {
          * gets refreshed and is now available for reference.
          */
         onAdZonesRefreshed?(): void;
+        /**
+         * Callback that gets triggered when an "add to list" ad zone is clicked.
+         * @param items - The array of items to "add to list".
+         */
+        onAddToListAdZoneClicked?(
+            items: adadaptedApiTypes.models.DetailedListItem[]
+        ): void;
     }
 
     /**

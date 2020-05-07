@@ -90,6 +90,15 @@ export class App extends React.Component<Props, State> {
                         sessionId: this.aaSdk.getSessionId(),
                         adZoneInfoList: this.aaSdk.getAdZones()
                     });
+                },
+                onAddToListAdZoneClicked: (items) => {
+                    // Demonstrate adding all provided items to the
+                    // client side list.
+                    for (const item of items) {
+                        this.selectItem({
+                            itemName: item.product_title
+                        });
+                    }
                 }
             })
             .then(() => {

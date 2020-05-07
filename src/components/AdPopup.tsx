@@ -14,7 +14,8 @@ import {
     TextStyle,
     View,
     Image,
-    ImageStyle
+    ImageStyle,
+    ActivityIndicator
 } from "react-native";
 import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
 import { safeInvoke } from "../util";
@@ -35,6 +36,14 @@ interface Props {
      * Triggered when the popup is closing.
      */
     onClose?(): void;
+    /**
+     * Triggered when an ad circular item is clicked and
+     * the item should be "added to list".
+     * @param item - The item to add to list.
+     */
+    onAddToListItemClicked(
+        item: adadaptedApiTypes.models.DetailedListItem
+    ): void;
 }
 
 /**
@@ -49,6 +58,10 @@ interface State {
      * If true, the popup web view can navigate forward.
      */
     canGoForward: boolean;
+    /**
+     * If true, the webview is loading a new page.
+     */
+    isPageLoading: boolean;
 }
 
 /**
@@ -92,6 +105,10 @@ interface StyleDef {
      */
     titleText: TextStyle;
     /**
+     * Styles for the loading indicator container.
+     */
+    loadingIndicatorContainer: ViewStyle;
+    /**
      * Styles for the close button opacity container.
      */
     closeButtonContainer: ViewStyle;
@@ -118,7 +135,8 @@ export class AdPopup extends React.Component<Props, State> {
 
         this.state = {
             canGoBack: false,
-            canGoForward: false
+            canGoForward: false,
+            isPageLoading: true
         };
     }
 
@@ -186,6 +204,16 @@ export class AdPopup extends React.Component<Props, State> {
                                 {this.props.ad.popup.title_text}
                             </Text>
                         </View>
+                        <View style={styles.loadingIndicatorContainer}>
+                            {this.state.isPageLoading ? (
+                                <ActivityIndicator
+                                    size="large"
+                                    color="#2969a0"
+                                />
+                            ) : (
+                                undefined
+                            )}
+                        </View>
                     </SafeAreaView>
                     <WebView
                         source={{
@@ -197,10 +225,48 @@ export class AdPopup extends React.Component<Props, State> {
                         automaticallyAdjustContentInsets={false}
                         allowFileAccess={true}
                         style={styles.webView}
+                        javaScriptEnabled={true}
+                        injectedJavaScript={`
+                            const adButtons = document.getElementsByTagName("button");
+
+                            for (let x = 0; x < adButtons.length; x++) {
+                                if (adButtons[x].getAttribute("data-payload-id")) {
+                                    adButtons[x].addEventListener("click", (event) => {
+                                        event.stopPropagation();
+                                        
+                                        window.ReactNativeWebView.postMessage(
+                                            JSON.stringify(
+                                                window.AdAdapted.payloads[adButtons[x].getAttribute("data-payload-id")]
+                                            )
+                                        );
+                                    })
+                                }
+                            }
+                        `}
+                        onMessage={(event) => {
+                            const responseObj: adadaptedApiTypes.models.DetailedListItem = JSON.parse(
+                                event.nativeEvent.data
+                            );
+
+                            safeInvoke(
+                                this.props.onAddToListItemClicked,
+                                responseObj
+                            );
+                        }}
                         onNavigationStateChange={(navState) => {
                             this.setState({
                                 canGoBack: navState.canGoBack,
                                 canGoForward: navState.canGoForward
+                            });
+                        }}
+                        onLoadStart={() => {
+                            this.setState({
+                                isPageLoading: true
+                            });
+                        }}
+                        onLoadEnd={() => {
+                            this.setState({
+                                isPageLoading: false
                             });
                         }}
                     />
@@ -268,8 +334,7 @@ export class AdPopup extends React.Component<Props, State> {
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
-                flex: 1,
-                marginRight: 20
+                flex: 1
             },
             titleText: {
                 color: "#333333",
@@ -277,6 +342,14 @@ export class AdPopup extends React.Component<Props, State> {
                 fontSize: 18,
                 overflow: "hidden",
                 flexWrap: "nowrap"
+            },
+            loadingIndicatorContainer: {
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+                marginLeft: 10,
+                marginRight: 10
             },
             webView: {
                 width: "100%",

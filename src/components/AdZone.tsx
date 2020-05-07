@@ -9,6 +9,7 @@ import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
 import { AdadaptedReactNativeSdk } from "../index";
 import { AdPopup } from "./AdPopup";
+import { safeInvoke } from "../util";
 
 /**
  * Props interface for {@link AdZone}.
@@ -38,6 +39,13 @@ interface Props {
      * The ad zone data.
      */
     adZoneData: adadaptedApiTypes.models.Zone;
+    /**
+     * Callback that gets triggered when an "add to list" ad zone is clicked.
+     * @param items - The array of items to "add to list".
+     */
+    onAddToListAdZoneClicked?(
+        items: adadaptedApiTypes.models.DetailedListItem[]
+    ): void;
 }
 
 /**
@@ -140,6 +148,9 @@ export class AdZone extends React.Component<Props, State> {
                             isAdPopupOpen: false
                         });
                     }}
+                    onAddToListItemClicked={(item) => {
+                        safeInvoke(this.props.onAddToListAdZoneClicked, [item]);
+                    }}
                 />
             </View>
         );
@@ -169,6 +180,16 @@ export class AdZone extends React.Component<Props, State> {
             this.setState({
                 isAdPopupOpen: true
             });
+        } else if (
+            currentAd.action_type ===
+                adadaptedApiTypes.models.AdActionType.CONTENT &&
+            currentAd.payload &&
+            currentAd.payload.detailed_list_items
+        ) {
+            safeInvoke(
+                this.props.onAddToListAdZoneClicked,
+                currentAd.payload.detailed_list_items
+            );
         }
 
         this.triggerReportAdEvent(
