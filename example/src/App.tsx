@@ -91,7 +91,7 @@ export class App extends React.Component<Props, State> {
                         adZoneInfoList: this.aaSdk.getAdZones()
                     });
                 },
-                onAddToListAdZoneClicked: (items) => {
+                onAddToListTriggered: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
                     for (const item of items) {

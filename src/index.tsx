@@ -70,11 +70,11 @@ export namespace AdadaptedReactNativeSdk {
             | adadaptedApiTypes.models.KeywordIntercepts
             | undefined;
         /**
-         * If provided, triggers when an ad zone is clicked and it is an
-         * "add to list" ad.
+         * If provided, triggers when an "add to list" item is
+         * clicked in an ad zone or in-app popup.
          * @param items - The array of items to "add to list".
          */
-        private onAddToListAdZoneClicked: (
+        private onAddToListTriggered: (
             items: adadaptedApiTypes.models.DetailedListItem[]
         ) => void | undefined;
 
@@ -95,16 +95,6 @@ export namespace AdadaptedReactNativeSdk {
         }
 
         /**
-         * Gets the Ad Session Info object.
-         * @returns the Ad Session Info object.
-         */
-        public getSessionInfo():
-            | adadaptedApiTypes.models.AdSession
-            | undefined {
-            return this.sessionInfo;
-        }
-
-        /**
          * Gets the list of available Ad Zones.
          * @returns all available ad zones.
          */
@@ -120,7 +110,7 @@ export namespace AdadaptedReactNativeSdk {
             this.onAdZonesRefreshed = () => {
                 // Defaulting to empty method.
             };
-            this.onAddToListAdZoneClicked = () => {
+            this.onAddToListTriggered = () => {
                 // Defaulting to empty method.
             };
             this.keywordInterceptSearchValue = "";
@@ -166,9 +156,9 @@ export namespace AdadaptedReactNativeSdk {
                                 deviceOs={this.deviceOs!}
                                 apiEnv={this.apiEnv}
                                 adZoneData={adZones[adZoneId]}
-                                onAddToListAdZoneClicked={(items) => {
+                                onAddToListTriggered={(items) => {
                                     safeInvoke(
-                                        this.onAddToListAdZoneClicked,
+                                        this.onAddToListTriggered,
                                         items
                                     );
                                 }}
@@ -302,10 +292,10 @@ export namespace AdadaptedReactNativeSdk {
                 this.onAdZonesRefreshed = props.onAdZonesRefreshed;
             }
 
-            // If the callback for onAddToListAdZoneClicked was provided, set it
+            // If the callback for onAddToListTriggered was provided, set it
             // globally for use when the method needs to be triggered.
-            if (props.onAddToListAdZoneClicked) {
-                this.onAddToListAdZoneClicked = props.onAddToListAdZoneClicked;
+            if (props.onAddToListTriggered) {
+                this.onAddToListTriggered = props.onAddToListTriggered;
             }
 
             return new Promise<void>((resolve, reject) => {
@@ -356,8 +346,6 @@ export namespace AdadaptedReactNativeSdk {
                                     response.data.zones
                                 );
 
-                                console.log(JSON.stringify(response.data));
-
                                 // Start the session data refresh timer.
                                 this.onRefreshAdZones();
 
@@ -379,7 +367,7 @@ export namespace AdadaptedReactNativeSdk {
         }
 
         /**
-         * Searches through available ad keywords and
+         * Searches through available ad keywords based on provided search term.
          * @param searchTerm - The search term used to match against
          *      available keyword intercepts.
          * @returns all keyword intercept terms that matched the search term.
@@ -667,10 +655,10 @@ export namespace AdadaptedReactNativeSdk {
          */
         onAdZonesRefreshed?(): void;
         /**
-         * Callback that gets triggered when an "add to list" ad zone is clicked.
+         * Callback that gets triggered when an "add to list" item/items are clicked.
          * @param items - The array of items to "add to list".
          */
-        onAddToListAdZoneClicked?(
+        onAddToListTriggered?(
             items: adadaptedApiTypes.models.DetailedListItem[]
         ): void;
     }

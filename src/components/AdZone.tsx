@@ -40,10 +40,10 @@ interface Props {
      */
     adZoneData: adadaptedApiTypes.models.Zone;
     /**
-     * Callback that gets triggered when an "add to list" ad zone is clicked.
+     * Callback that gets triggered when an "add to list" item/items are clicked.
      * @param items - The array of items to "add to list".
      */
-    onAddToListAdZoneClicked?(
+    onAddToListTriggered?(
         items: adadaptedApiTypes.models.DetailedListItem[]
     ): void;
 }
@@ -149,7 +149,7 @@ export class AdZone extends React.Component<Props, State> {
                         });
                     }}
                     onAddToListItemClicked={(item) => {
-                        safeInvoke(this.props.onAddToListAdZoneClicked, [item]);
+                        safeInvoke(this.props.onAddToListTriggered, [item]);
                     }}
                 />
             </View>
@@ -187,7 +187,7 @@ export class AdZone extends React.Component<Props, State> {
             currentAd.payload.detailed_list_items
         ) {
             safeInvoke(
-                this.props.onAddToListAdZoneClicked,
+                this.props.onAddToListTriggered,
                 currentAd.payload.detailed_list_items
             );
         }
@@ -251,7 +251,6 @@ export class AdZone extends React.Component<Props, State> {
      * Cycles to the next ad to display in the current available sequence of ads.
      */
     private cycleDisplayedAd(): void {
-        console.log("cycleDisplayedAd");
         if (!this.state.isAdPopupOpen) {
             // Start by determining the next ad index to display.
             let nextAdIndex = 0;

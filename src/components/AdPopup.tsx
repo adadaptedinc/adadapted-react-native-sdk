@@ -6,16 +6,16 @@ import * as React from "react";
 import { WebView } from "react-native-webview";
 import Modal from "react-native-modal";
 import {
-    StyleSheet,
-    ViewStyle,
-    Text,
-    SafeAreaView,
-    TouchableOpacity,
-    TextStyle,
-    View,
+    ActivityIndicator,
     Image,
     ImageStyle,
-    ActivityIndicator
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from "react-native";
 import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
 import { safeInvoke } from "../util";
@@ -226,23 +226,14 @@ export class AdPopup extends React.Component<Props, State> {
                         allowFileAccess={true}
                         style={styles.webView}
                         javaScriptEnabled={true}
-                        injectedJavaScript={`
-                            const adButtons = document.getElementsByTagName("button");
-
-                            for (let x = 0; x < adButtons.length; x++) {
-                                if (adButtons[x].getAttribute("data-payload-id")) {
-                                    adButtons[x].addEventListener("click", (event) => {
-                                        event.stopPropagation();
-                                        
-                                        window.ReactNativeWebView.postMessage(
-                                            JSON.stringify(
-                                                window.AdAdapted.payloads[adButtons[x].getAttribute("data-payload-id")]
-                                            )
-                                        );
-                                    })
-                                }
-                            }
-                        `}
+                        injectedJavaScript={
+                            this.props.ad.action_type ===
+                                adadaptedApiTypes.models.AdActionType.POPUP ||
+                            this.props.ad.action_type ===
+                                adadaptedApiTypes.models.AdActionType.LINK
+                                ? this.getAddToListCircularJavascript()
+                                : ""
+                        }
                         onMessage={(event) => {
                             const responseObj: adadaptedApiTypes.models.DetailedListItem = JSON.parse(
                                 event.nativeEvent.data
@@ -283,6 +274,111 @@ export class AdPopup extends React.Component<Props, State> {
                 </SafeAreaView>
             </Modal>
         );
+    }
+
+    /**
+     * Generates the javascript to pass down to the Web View that extracts the
+     * clicked product information based on the circular ad design.
+     * @returns the javascript string to pass to the Web View.
+     */
+    private getAddToListCircularJavascript(): string {
+        // TODO: This method should ultimately be removed. We shouldn't have to
+        //      hack the web view's javascript just to get the correct data to
+        //      return. When the circular templates get reworked, we should
+        //      build in an onMessage response within the circulars page so we
+        //      don't have to do it this way.
+        return `
+            const adButtons = document.getElementsByTagName("button");
+
+            if (adButtons.length > 0) {
+                if (adButtons.length > 1 && adButtons[1].getAttribute("data-payload-id")) {
+                    for (let x = 0; x < adButtons.length; x++) {
+                        if (adButtons[x].getAttribute("data-payload-id")) {
+                            adButtons[x].addEventListener("click", (event) => {
+                                window.ReactNativeWebView.postMessage(
+                                    JSON.stringify(
+                                        window.AdAdapted.payloads[adButtons[x].getAttribute("data-payload-id")]
+                                    )
+                                );
+                            });
+                        }
+                    }
+                } else {
+                    const onDataPostMessage = (imgSrc) => {
+                        const valueAfterLastSlash = imgSrc.match(/(?:[^\\/](?!(\\/)))+$/g).toString();
+                        const upcValueWithLeadingZeros = valueAfterLastSlash.match(/[^.]*/).toString();
+                        const finalUpcValue = parseInt(upcValueWithLeadingZeros, 10);
+                        const itemData = window.__NUXT__.data[0].items;
+                        let clickedItem = {};
+                        
+                        for (let i = 0; i < itemData.length; i++) {
+                            if (itemData[i].upc == finalUpcValue) {
+                                clickedItem = itemData[i];
+                            }
+                        }
+                        
+                        window.ReactNativeWebView.postMessage(
+                            JSON.stringify({
+                                product_barcode: clickedItem.upc,
+                                product_brand: clickedItem.brand,
+                                product_category: clickedItem.category,
+                                product_discount: clickedItem.sale_price,
+                                product_image: clickedItem.image,
+                                product_sku: clickedItem.retailer_sku,
+                                product_title: clickedItem.title
+                            })
+                        );
+                    };
+                    
+                    const onItemDialogLoad = () => {
+                        setTimeout(() => {
+                            document.getElementsByClassName("modal-body")[0].getElementsByTagName("button")[0].addEventListener("click", (event) => {
+                                onDataPostMessage(
+                                    event.target.parentElement.getElementsByTagName("img")[0].getAttribute("src")
+                                );
+                            });
+                        }, 100);
+                    };
+                    
+                    const adItemImages = document.querySelectorAll(".item img");
+                    const adItemPromotionDivs = document.querySelectorAll(".item .promotion");
+                    const adItemTitleDivs = document.querySelectorAll(".item .title");
+                    const adItemPricingDivs = document.querySelectorAll(".item .pricing");
+                    
+                    for (let x = 0; x < adItemImages.length; x++) {
+                        adItemImages[x].addEventListener("click", (event) => {
+                            onItemDialogLoad();
+                        });
+                    }
+                    
+                    for (let x = 0; x < adItemPromotionDivs.length; x++) {
+                        adItemPromotionDivs[x].addEventListener("click", (event) => {
+                            onItemDialogLoad();
+                        });
+                    }
+                    
+                    for (let x = 0; x < adItemTitleDivs.length; x++) {
+                        adItemTitleDivs[x].addEventListener("click", (event) => {
+                            onItemDialogLoad();
+                        });
+                    }
+                    
+                    for (let x = 0; x < adItemPricingDivs.length; x++) {
+                        adItemPricingDivs[x].addEventListener("click", (event) => {
+                            onItemDialogLoad();
+                        });
+                    }
+                    
+                    for (let x = 0; x < adButtons.length; x++) {
+                        adButtons[x].addEventListener("click", (event) => {
+                            onDataPostMessage(
+                                event.target.parentElement.getElementsByTagName("img")[0].getAttribute("src")
+                            );
+                        });
+                    }
+                }
+            }
+        `;
     }
 
     /**
