@@ -1,6 +1,6 @@
 {
     "name": "adadapted-react-native-sdk",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "description": "Allows for use of the AdAdapted SDK through react-native.",
     "main": "lib/commonjs/index.js",
     "module": "lib/module/index.js",
@@ -26,7 +26,11 @@
     "keywords": [
         "react-native",
         "ios",
-        "android"
+        "android",
+        "adadapted",
+        "sdk",
+        "ad",
+        "ads"
     ],
     "repository": "https://gitlab.com/adadapted/adadapted-react-native-sdk",
     "author": "Jeramy Usher <jusher@adadapted.com> (https://gitlab.com/adadapted/adadapted-react-native-sdk)",
