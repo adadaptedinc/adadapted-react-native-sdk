@@ -1,7 +1,7 @@
 {
-    "name": "adadapted-react-native-sdk",
+    "name": "@adadapted/react-native-sdk",
     "version": "1.0.0",
-    "description": "Allows for use of the AdAdapted SDK through react-native.",
+    "description": "The AdAdapted react-native SDK.",
     "main": "lib/commonjs/index.js",
     "module": "lib/module/index.js",
     "types": "lib/typescript/src/index.d.ts",
@@ -17,11 +17,11 @@
         "prettier-fix": "prettier --write \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\" \"example/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "compile": "tsc --version && tsc --project tsconfig.json --noEmit --noErrorTruncation --pretty",
         "lint": "tslint --version && tslint --project tsconfig.json --config tslint.json",
-        "test-coverage": "rm -rf coverage && jest --version && jest --coverage",
-        "test": "jest --version && jest",
-        "install-pods": "cd example/ios && pod install",
+        "test-coverage": "rm -rf coverage && jest --version --clearCache && jest --coverage --clearCache",
+        "test": "jest --version --clearCache && jest",
+        "prettier": "prettier --list-different \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "prepare-build": "bob build",
-        "release": "release-it"
+        "example-app-install-pods": "cd example/ios && pod install"
     },
     "keywords": [
         "react-native",
@@ -32,7 +32,10 @@
         "ad",
         "ads"
     ],
-    "repository": "https://gitlab.com/adadapted/adadapted-react-native-sdk",
+    "repository": {
+        "type": "git",
+        "url": "https://gitlab.com/adadapted/adadapted-react-native-sdk"
+    },
     "author": "Jeramy Usher <jusher@adadapted.com> (https://gitlab.com/adadapted/adadapted-react-native-sdk)",
     "license": "MIT",
     "bugs": {
@@ -50,21 +53,28 @@
     },
     "devDependencies": {
         "@babel/plugin-transform-typescript": "^7.9.4",
-        "@commitlint/config-conventional": "^8.3.4",
+        "@babel/preset-env": "^7.9.6",
+        "@babel/preset-react": "^7.9.4",
+        "@babel/preset-typescript": "^7.9.0",
         "@react-native-community/bob": "^0.10.1",
         "@react-native-community/eslint-config": "^0.0.7",
-        "@release-it/conventional-changelog": "^1.1.0",
         "@types/axios": "^0.14.0",
+        "@types/enzyme": "^3.10.5",
+        "@types/enzyme-adapter-react-16": "^1.0.6",
         "@types/jest": "^25.1.2",
         "@types/react": "^16.9.19",
+        "@types/react-dom": "^16.9.8",
         "@types/react-native": "0.61.10",
-        "commitlint": "^8.3.4",
-        "husky": "^4.0.1",
+        "enzyme": "^3.11.0",
+        "enzyme-adapter-react-16": "^1.15.2",
+        "enzyme-to-json": "^3.4.4",
         "jest": "^25.1.0",
+        "jest-enzyme": "^7.1.2",
         "prettier": "^1.19.1",
-        "react": "~16.9.0",
+        "react": "^16.13.1",
+        "react-dom": "^16.13.1",
         "react-native": "^0.62.2",
-        "release-it": "^12.6.3",
+        "ts-jest": "^25.5.1",
         "tslint": "^6.1.1",
         "tslint-config-prettier": "^1.18.0",
         "tslint-eslint-rules": "^5.4.0",
@@ -78,35 +88,62 @@
         "modulePathIgnorePatterns": [
             "<rootDir>/example/node_modules",
             "<rootDir>/lib/"
-        ]
-    },
-    "husky": {
-        "hooks": {
-            "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
-            "pre-commit": "npm lint && npm typescript"
+        ],
+        "snapshotSerializers": [
+            "enzyme-to-json/serializer"
+        ],
+        "setupFiles": [
+            "<rootDir>/jest.setup.ts"
+        ],
+        "transform": {
+            "^.+\\.[j|t]sx?$": "ts-jest"
+        },
+        "transformIgnorePatterns": [
+            "/node_modules/(?!react-native)/.+"
+        ],
+        "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
+        "moduleFileExtensions": [
+            "ts",
+            "tsx",
+            "js",
+            "jsx",
+            "json"
+        ],
+        "modulePaths": [
+            "<rootDir>/node_modules"
+        ],
+        "moduleNameMapper": {
+            "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "<rootDir>/__mocks__/fileMock.js",
+            "\\.(s?css)$": "<rootDir>/__mocks__/styleMock.js",
+            "^src/(.*)$": "<rootDir>/src/$1"
+        },
+        "collectCoverage": false,
+        "coverageDirectory": "coverage",
+        "collectCoverageFrom": [
+            "src/**/*.{js,jsx,ts,tsx}",
+            "!src/api/**/*.*",
+            "!src/**/*.d.ts",
+            "!src/index.tsx"
+        ],
+        "coverageThreshold": {
+            "global": {
+                "branches": 5,
+                "functions": 5,
+                "lines": 5,
+                "statements": 5
+            }
+        },
+        "watchPathIgnorePatterns": [
+            "<rootDir>/jest.json"
+        ],
+        "globals": {
+            "BUILD_ENV": "dev"
         }
     },
     "tslintIgnore": [
         "node_modules/",
         "lib/"
     ],
-    "release-it": {
-        "git": {
-            "commitMessage": "chore: release %s",
-            "tagName": "v%s"
-        },
-        "npm": {
-            "publish": true
-        },
-        "github": {
-            "release": false
-        },
-        "plugins": {
-            "@release-it/conventional-changelog": {
-                "preset": "angular"
-            }
-        }
-    },
     "@react-native-community/bob": {
         "source": "src",
         "output": "lib",
