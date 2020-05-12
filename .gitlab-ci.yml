@@ -1,53 +1,53 @@
-#stages:
-#  - test
-#  - release
-#  - deploy
-#
-## TEST STAGE --------------------------------------------
-## Audit the code base and run unit tests
-## -------------------------------------------------------
-#code_validation:
-#  stage: test
-#  image: node:12.10.0-stretch-slim
-#  script:
-#    - npm install
-#    - npm audit fix
-#    - npm run prettier
-#    - npm run compile
-#    - npm run lint
-##    - npm run test
-#
-## RELEASE STAGE -----------------------------------------
-## Version up and release
-## -------------------------------------------------------
-#release:
-#  stage: release
-#  image: registry.gitlab.com/juhani/go-semrel-gitlab:v0.20.4
-#  script:
-#    - release next-version --bump-patch
-#    - release tag
-#    - release changelog
-#  when: on_success
-#  only:
-#    refs:
-#      - master
-#  except:
-#    - tags
-#
-## DEPLOY PRODUCTION -------------------------------------
-## Deploy the production build files
-## -------------------------------------------------------
-#deploy_master:
-#  stage: deploy
-#  image: node:12.10.0-stretch-slim
-#  before_script:
-#    - npm install -g npm-cli-login
-#  script:
-#    - npm install
-#    - npm audit fix
-#    - npm run prepare-build
-#    - npm-cli-login
-#    - npm publish --access public
-#  when: on_success
-#  only:
-#    - tags
+stages:
+  - test
+  - release
+  - deploy
+
+# TEST STAGE --------------------------------------------
+# Audit the code base and run unit tests
+# -------------------------------------------------------
+code_validation:
+  stage: test
+  image: node:12.10.0-stretch-slim
+  script:
+    - npm install
+    - npm audit fix
+    - npm run prettier
+    - npm run compile
+    - npm run lint
+#    - npm run test
+
+# RELEASE STAGE -----------------------------------------
+# Version up and release
+# -------------------------------------------------------
+release:
+  stage: release
+  image: registry.gitlab.com/juhani/go-semrel-gitlab:v0.20.4
+  script:
+    - release next-version --bump-patch
+    - release tag
+    - release changelog
+  when: on_success
+  only:
+    refs:
+      - master
+  except:
+    - tags
+
+# DEPLOY PRODUCTION -------------------------------------
+# Deploy the production build files
+# -------------------------------------------------------
+deploy_master:
+  stage: deploy
+  image: node:12.10.0-stretch-slim
+  before_script:
+    - npm install -g npm-cli-login
+  script:
+    - npm install
+    - npm audit fix
+    - npm run prepare-build
+    - npm-cli-login
+    - npm publish --access public
+  when: on_success
+  only:
+    - tags
