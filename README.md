@@ -10,4 +10,4 @@ npm install --save adadapted-react-native-sdk
 
 ## License
 
-MIT
+AdAdapted Platform License
