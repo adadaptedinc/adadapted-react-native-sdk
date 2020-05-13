@@ -41,15 +41,18 @@ deploy_master:
   stage: deploy
   image: node:12.10.0-stretch-slim
   before_script:
-    - echo $NPM_USER
-    - echo $NPM_PASS
-    - echo $NPM_EMAIL
+    - export LOGIN_NPM_USER=$NPM_USER
+    - export LOGIN_NPM_PASS=$NPM_PASS
+    - export LOGIN_NPM_EMAIL=$NPM_EMAIL
     - npm install -g npm-cli-login
   script:
+    - echo LOGIN_NPM_USER is $LOGIN_NPM_USER
+    - echo LOGIN_NPM_PASS is $LOGIN_NPM_PASS
+    - echo LOGIN_NPM_EMAIL is $LOGIN_NPM_EMAIL
     - npm install
     - npm audit fix
     - npm run prepare-build
-    - npm-cli-login -u $NPM_USER -p $NPM_PASS -e $NPM_EMAIL
+    - npm-cli-login -u $LOGIN_NPM_USER -p $LOGIN_NPM_PASS -e $LOGIN_NPM_EMAIL
     - npm publish --access public
   when: on_success
   only:
