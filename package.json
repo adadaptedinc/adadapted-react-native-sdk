@@ -1,6 +1,6 @@
 {
     "name": "@adadapted/react-native-sdk",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "The AdAdapted react-native SDK.",
     "main": "lib/commonjs/index.js",
     "module": "lib/module/index.js",
