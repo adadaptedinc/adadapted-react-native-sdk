@@ -4,7 +4,7 @@
 import { adadaptedApiTypes } from "./adadaptedApiTypes";
 import axios, { AxiosResponse } from "axios";
 import * as adadaptedApiRequestMocks from "./adadaptedApiRequests.mock";
-import { AdadaptedReactNativeSdk } from "adadapted-react-native-sdk";
+import { AdadaptedReactNativeSdk } from "../index";
 
 /**
  * Makes an API request to initialize the session for the AdAdapted API.
