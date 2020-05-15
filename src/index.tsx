@@ -539,12 +539,12 @@ export namespace AdadaptedReactNativeSdk {
          * ultimately get presented to the user.
          * This will ensure that the event is properly recorded and enable
          * accuracy in client reports.
-         * @param terms - The term IDs list to trigger the event for.
+         * @param termIds - The term IDs list to trigger the event for.
          */
-        public reportKeywordInterceptTermsPresented(terms: string[]): void {
+        public reportKeywordInterceptTermsPresented(termIds: string[]): void {
             const termObjs: adadaptedApiTypes.models.KeywordSearchTerm[] = [];
 
-            for (const termId of terms) {
+            for (const termId of termIds) {
                 const termObj = this.getKeywordInterceptTerm(termId);
 
                 if (termObj) {
@@ -556,7 +556,11 @@ export namespace AdadaptedReactNativeSdk {
                 console.error("AdAdapted SDK has not been initialized.");
             } else if (!this.keywordIntercepts) {
                 console.error("No available keyword intercepts.");
-            } else if (!terms || terms.length === 0 || termObjs.length === 0) {
+            } else if (
+                !termIds ||
+                termIds.length === 0 ||
+                termObjs.length === 0
+            ) {
                 console.error("Invalid or empty terms ID list provided.");
             } else {
                 const termEvents: adadaptedApiTypes.models.ReportedInterceptEvent[] = [];
