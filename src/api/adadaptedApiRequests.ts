@@ -26,8 +26,8 @@ export function initializeSession(
               method: "POST",
               data: requestData,
               headers: {
-                  accept: "application/json"
-              }
+                  accept: "application/json",
+              },
           });
 }
 
@@ -53,8 +53,8 @@ export function refreshSessionData(
               {
                   method: "GET",
                   headers: {
-                      accept: "application/json"
-                  }
+                      accept: "application/json",
+                  },
               }
           );
 }
@@ -80,8 +80,8 @@ export function reportAdEvent(
               method: "POST",
               data: requestData,
               headers: {
-                  accept: "application/json"
-              }
+                  accept: "application/json",
+              },
           });
 }
 
@@ -107,8 +107,8 @@ export function getKeywordIntercepts(
               {
                   method: "GET",
                   headers: {
-                      accept: "application/json"
-                  }
+                      accept: "application/json",
+                  },
               }
           );
 }
@@ -134,7 +134,7 @@ export function reportInterceptEvent(
               method: "POST",
               data: requestData,
               headers: {
-                  accept: "application/json"
-              }
+                  accept: "application/json",
+              },
           });
 }

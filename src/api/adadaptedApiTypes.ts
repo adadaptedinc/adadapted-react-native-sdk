@@ -333,7 +333,7 @@ export namespace adadaptedApiTypes {
             /**
              * ?
              */
-            NONE = "n"
+            NONE = "n",
         }
 
         /**
@@ -364,7 +364,7 @@ export namespace adadaptedApiTypes {
             /**
              * Occurs when the user has selected a keyword intercept term.
              */
-            SELECTED = "selected"
+            SELECTED = "selected",
         }
     }
 

@@ -99,7 +99,7 @@ export class AdZone extends React.Component<Props, State> {
 
         this.state = {
             adIndexShown: startingAdIndex,
-            isAdPopupOpen: false
+            isAdPopupOpen: false,
         };
     }
 
@@ -132,7 +132,7 @@ export class AdZone extends React.Component<Props, State> {
             <View style={styles.mainView}>
                 <WebView
                     source={{
-                        uri: currentAd.creative_url
+                        uri: currentAd.creative_url,
                     }}
                     automaticallyAdjustContentInsets={false}
                     style={styles.webView}
@@ -145,7 +145,7 @@ export class AdZone extends React.Component<Props, State> {
                     isOpen={this.state.isAdPopupOpen}
                     onClose={() => {
                         this.setState({
-                            isAdPopupOpen: false
+                            isAdPopupOpen: false,
                         });
                     }}
                     onAddToListItemClicked={(item) => {
@@ -178,7 +178,7 @@ export class AdZone extends React.Component<Props, State> {
         ) {
             // Action Type: POPUP or LINK
             this.setState({
-                isAdPopupOpen: true
+                isAdPopupOpen: true,
             });
         } else if (
             currentAd.action_type ===
@@ -222,9 +222,9 @@ export class AdZone extends React.Component<Props, State> {
                             ad_id: currentAd.ad_id,
                             impression_id: currentAd.impression_id,
                             event_type: eventType,
-                            created_at: currentTs
-                        }
-                    ]
+                            created_at: currentTs,
+                        },
+                    ],
                 },
                 this.props.deviceOs,
                 this.props.apiEnv
@@ -264,7 +264,7 @@ export class AdZone extends React.Component<Props, State> {
 
             this.setState(
                 {
-                    adIndexShown: nextAdIndex
+                    adIndexShown: nextAdIndex,
                 },
                 () => {
                     this.initializeAd();
@@ -307,12 +307,12 @@ export class AdZone extends React.Component<Props, State> {
         return StyleSheet.create({
             mainView: {
                 width: "100%",
-                height: "100%"
+                height: "100%",
             },
             webView: {
                 width: "100%",
-                height: "100%"
-            }
+                height: "100%",
+            },
         });
     }
 }
