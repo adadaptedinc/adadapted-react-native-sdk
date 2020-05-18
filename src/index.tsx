@@ -163,7 +163,7 @@ export namespace AdadaptedReactNativeSdk {
                                     );
                                 }}
                             />
-                        )
+                        ),
                     });
                 }
             }
@@ -190,7 +190,7 @@ export namespace AdadaptedReactNativeSdk {
                         {
                             aid: this.appId,
                             sid: this.sessionId!,
-                            uid: this.deviceInfo!.udid
+                            uid: this.deviceInfo!.udid,
                         },
                         this.deviceOs!,
                         this.apiEnv
@@ -228,7 +228,7 @@ export namespace AdadaptedReactNativeSdk {
                     {
                         aid: this.appId,
                         sid: this.sessionId!,
-                        uid: this.deviceInfo!.udid
+                        uid: this.deviceInfo!.udid,
                     },
                     this.deviceOs!,
                     this.apiEnv
@@ -334,7 +334,7 @@ export namespace AdadaptedReactNativeSdk {
                                     bundle_id: deviceInfo.bundleId,
                                     bundle_version: deviceInfo.bundleVersion,
                                     allow_retargeting:
-                                        deviceInfo.isAdTrackingEnabled
+                                        deviceInfo.isAdTrackingEnabled,
                                 },
                                 this.deviceOs,
                                 this.apiEnv
@@ -432,7 +432,7 @@ export namespace AdadaptedReactNativeSdk {
                             event_type:
                                 adadaptedApiTypes.models.ReportedEventType
                                     .MATCHED,
-                            created_at: currentTs
+                            created_at: currentTs,
                         });
                     }
                 }
@@ -456,7 +456,7 @@ export namespace AdadaptedReactNativeSdk {
                         event_type:
                             adadaptedApiTypes.models.ReportedEventType
                                 .NOT_MATCHED,
-                        created_at: currentTs
+                        created_at: currentTs,
                     });
                 }
 
@@ -468,7 +468,7 @@ export namespace AdadaptedReactNativeSdk {
                             app_id: this.appId,
                             udid: this.deviceInfo.udid,
                             session_id: this.sessionId,
-                            events: finalEventsList
+                            events: finalEventsList,
                         },
                         this.deviceOs!,
                         this.apiEnv
@@ -519,9 +519,9 @@ export namespace AdadaptedReactNativeSdk {
                                     event_type:
                                         adadaptedApiTypes.models
                                             .ReportedEventType.SELECTED,
-                                    created_at: this.getCurrentUnixTimestamp()
-                                }
-                            ]
+                                    created_at: this.getCurrentUnixTimestamp(),
+                                },
+                            ],
                         },
                         this.deviceOs!,
                         this.apiEnv
@@ -539,12 +539,12 @@ export namespace AdadaptedReactNativeSdk {
          * ultimately get presented to the user.
          * This will ensure that the event is properly recorded and enable
          * accuracy in client reports.
-         * @param terms - The term IDs list to trigger the event for.
+         * @param termIds - The term IDs list to trigger the event for.
          */
-        public reportKeywordInterceptTermsPresented(terms: string[]): void {
+        public reportKeywordInterceptTermsPresented(termIds: string[]): void {
             const termObjs: adadaptedApiTypes.models.KeywordSearchTerm[] = [];
 
-            for (const termId of terms) {
+            for (const termId of termIds) {
                 const termObj = this.getKeywordInterceptTerm(termId);
 
                 if (termObj) {
@@ -556,7 +556,11 @@ export namespace AdadaptedReactNativeSdk {
                 console.error("AdAdapted SDK has not been initialized.");
             } else if (!this.keywordIntercepts) {
                 console.error("No available keyword intercepts.");
-            } else if (!terms || terms.length === 0 || termObjs.length === 0) {
+            } else if (
+                !termIds ||
+                termIds.length === 0 ||
+                termObjs.length === 0
+            ) {
                 console.error("Invalid or empty terms ID list provided.");
             } else {
                 const termEvents: adadaptedApiTypes.models.ReportedInterceptEvent[] = [];
@@ -571,7 +575,7 @@ export namespace AdadaptedReactNativeSdk {
                         event_type:
                             adadaptedApiTypes.models.ReportedEventType
                                 .PRESENTED,
-                        created_at: currentTs
+                        created_at: currentTs,
                     });
                 }
 
@@ -581,7 +585,7 @@ export namespace AdadaptedReactNativeSdk {
                             app_id: this.appId,
                             udid: this.deviceInfo.udid,
                             session_id: this.sessionId,
-                            events: termEvents
+                            events: termEvents,
                         },
                         this.deviceOs!,
                         this.apiEnv
@@ -615,7 +619,7 @@ export namespace AdadaptedReactNativeSdk {
         /**
          * Represents the iOS operating system.
          */
-        IOS = "ios"
+        IOS = "ios",
     }
 
     /**
@@ -633,7 +637,7 @@ export namespace AdadaptedReactNativeSdk {
         /**
          * Used only for unit testing/mocking data.
          */
-        Mock = "MOCK_DATA"
+        Mock = "MOCK_DATA",
     }
 
     /**
