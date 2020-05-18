@@ -10,9 +10,9 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    SafeAreaView
+    SafeAreaView,
 } from "react-native";
-import { AdadaptedReactNativeSdk } from "adadapted-react-native-sdk";
+import { AdadaptedReactNativeSdk } from "../../src/index";
 
 /**
  * Props interface for {@link App}.
@@ -73,7 +73,7 @@ export class App extends React.Component<Props, State> {
             searchValue: "",
             standardProductSearchResultItemList: [],
             aasdkSearchResultItemList: [],
-            selectedItemList: []
+            selectedItemList: [],
         };
     }
 
@@ -88,7 +88,7 @@ export class App extends React.Component<Props, State> {
                 onAdZonesRefreshed: () => {
                     this.setState({
                         sessionId: this.aaSdk.getSessionId(),
-                        adZoneInfoList: this.aaSdk.getAdZones()
+                        adZoneInfoList: this.aaSdk.getAdZones(),
                     });
                 },
                 onAddToListTriggered: (items) => {
@@ -96,15 +96,15 @@ export class App extends React.Component<Props, State> {
                     // client side list.
                     for (const item of items) {
                         this.selectItem({
-                            itemName: item.product_title
+                            itemName: item.product_title,
                         });
                     }
-                }
+                },
             })
             .then(() => {
                 this.setState({
                     sessionId: this.aaSdk.getSessionId(),
-                    adZoneInfoList: this.aaSdk.getAdZones()
+                    adZoneInfoList: this.aaSdk.getAdZones(),
                 });
             })
             .catch((err) => {
@@ -133,7 +133,7 @@ export class App extends React.Component<Props, State> {
                     contentContainerStyle={{
                         alignItems: "center",
                         justifyContent: "center",
-                        marginTop: 40
+                        marginTop: 40,
                     }}
                 >
                     <Text style={styles.sessionIdContainer}>
@@ -156,7 +156,7 @@ export class App extends React.Component<Props, State> {
                                 style={styles.searchResultContainer}
                                 onPress={() => {
                                     this.selectItem({
-                                        item: itemObj
+                                        item: itemObj,
                                     });
                                 }}
                             >
@@ -175,7 +175,7 @@ export class App extends React.Component<Props, State> {
                                     style={styles.searchResultContainer}
                                     onPress={() => {
                                         this.selectItem({
-                                            itemName
+                                            itemName,
                                         });
                                     }}
                                 >
@@ -230,7 +230,7 @@ export class App extends React.Component<Props, State> {
 
             // Report up the "presented" event to the AA SDK.
             this.aaSdk.reportKeywordInterceptTermsPresented([
-                aasdkSearchResults[randomIndex].term_id
+                aasdkSearchResults[randomIndex].term_id,
             ]);
         }
 
@@ -265,7 +265,7 @@ export class App extends React.Component<Props, State> {
             standardProductSearchResultItemList: finalStandardProductSearchResultsStringStart.concat(
                 finalStandardProductSearchResultsStringContains
             ),
-            aasdkSearchResultItemList: finalAasdkSearchResults
+            aasdkSearchResultItemList: finalAasdkSearchResults,
         });
     }
 
@@ -291,7 +291,7 @@ export class App extends React.Component<Props, State> {
             }
 
             return {
-                selectedItemList: finalList
+                selectedItemList: finalList,
             };
         });
     }
@@ -314,23 +314,23 @@ interface SelectedItem {
 
 const styles = StyleSheet.create({
     safeAreaView: {
-        flex: 1
+        flex: 1,
     },
     mainView: {
         flex: 1,
-        backgroundColor: "pink"
+        backgroundColor: "pink",
     },
     sessionIdContainer: {
         backgroundColor: "yellow",
         width: "100%",
         marginBottom: 20,
-        padding: 10
+        padding: 10,
     },
     adZoneContainer: {
         paddingTop: 20,
         paddingBottom: 20,
         width: "100%",
-        height: 250
+        height: 250,
     },
     searchTextField: {
         flex: 0,
@@ -340,51 +340,51 @@ const styles = StyleSheet.create({
         borderColor: "gray",
         borderWidth: 1,
         padding: 10,
-        margin: 10
+        margin: 10,
     },
     searchView: {
         flex: 0,
-        width: "100%"
+        width: "100%",
     },
     searchResultsTitle: {
         backgroundColor: "orange",
         width: "100%",
         padding: 10,
-        fontWeight: "bold"
+        fontWeight: "bold",
     },
     searchResultContainer: {
         flexDirection: "row",
         padding: 10,
         marginTop: 1,
         backgroundColor: "#d9f9b1",
-        alignItems: "flex-start"
+        alignItems: "flex-start",
     },
     searchResultText: {
         flex: 0,
-        color: "#333333"
+        color: "#333333",
     },
     searchResultAdBadge: {
         flex: 1,
         color: "#ff605b",
-        textAlign: "right"
+        textAlign: "right",
     },
     listItemContainer: {
         flex: 0,
         width: "100%",
-        marginBottom: 80
+        marginBottom: 80,
     },
     listItem: {
         padding: 10,
         marginTop: 1,
         backgroundColor: "#6ca3f9",
-        color: "#333333"
+        color: "#333333",
     },
     selectedItemResultsTitle: {
         backgroundColor: "orange",
         width: "100%",
         padding: 10,
-        fontWeight: "bold"
-    }
+        fontWeight: "bold",
+    },
 });
 
 /**
@@ -414,5 +414,5 @@ const AVAILABLE_PRODUCTS: string[] = [
     "Cheddar Cheese: Meijer",
     "Cheddar Cheese: Kroger",
     "Cheese: Meijer",
-    "Cheese: Kroger"
+    "Cheese: Kroger",
 ];

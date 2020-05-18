@@ -22,7 +22,7 @@ export function initializeSession(): Promise<
             config: {},
             headers: {},
             status: 200,
-            statusText: "200"
+            statusText: "200",
         });
     });
 }
@@ -45,7 +45,7 @@ export function refreshSessionData(): Promise<
             config: {},
             headers: {},
             status: 200,
-            statusText: "200"
+            statusText: "200",
         });
     });
 }
@@ -62,13 +62,13 @@ export function reportAdEvent(): Promise<
     >((resolve) => {
         resolve({
             data: {
-                results: ["Ok"]
+                results: ["Ok"],
             },
             then: undefined,
             config: {},
             headers: {},
             status: 200,
-            statusText: "200"
+            statusText: "200",
         });
     });
 }
@@ -91,7 +91,7 @@ export function getKeywordIntercepts(): Promise<
             config: {},
             headers: {},
             status: 200,
-            statusText: "200"
+            statusText: "200",
         });
     });
 }
@@ -110,13 +110,13 @@ export function reportInterceptEvent(): Promise<
     >((resolve) => {
         resolve({
             data: {
-                results: ["Ok"]
+                results: ["Ok"],
             },
             then: undefined,
             config: {},
             headers: {},
             status: 200,
-            statusText: "200"
+            statusText: "200",
         });
     });
 }
@@ -158,9 +158,9 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                                 product_discount: "",
                                 product_image: "",
                                 product_sku: "",
-                                product_title: "Sample Product"
-                            }
-                        ]
+                                product_title: "Sample Product",
+                            },
+                        ],
                     },
                     popup: {
                         title_text: "",
@@ -170,12 +170,12 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                         type: "",
                         hide_banner: false,
                         hide_close_btn: false,
-                        hide_browser_nav: false
-                    }
-                }
-            ]
-        }
-    }
+                        hide_browser_nav: false,
+                    },
+                },
+            ],
+        },
+    },
 };
 
 /**
@@ -215,9 +215,9 @@ const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                                 product_discount: "",
                                 product_image: "",
                                 product_sku: "",
-                                product_title: "Sample Product"
-                            }
-                        ]
+                                product_title: "Sample Product",
+                            },
+                        ],
                     },
                     popup: {
                         title_text: "",
@@ -227,12 +227,12 @@ const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                         type: "",
                         hide_banner: false,
                         hide_close_btn: false,
-                        hide_browser_nav: false
-                    }
-                }
-            ]
-        }
-    }
+                        hide_browser_nav: false,
+                    },
+                },
+            ],
+        },
+    },
 };
 
 /**
@@ -246,25 +246,25 @@ const KEYWORD_INTERCEPT_DATA: adadaptedApiTypes.models.KeywordIntercepts = {
             term_id: "test-term-id-1",
             term: "Milk",
             replacement: "Fairlife Milk",
-            priority: 1
+            priority: 1,
         },
         {
             term_id: "test-term-id-2",
             term: "milk",
             replacement: "A2 Milk",
-            priority: 0
+            priority: 0,
         },
         {
             term_id: "test-term-id-3",
             term: "CHEESE",
             replacement: "Kraft Singles",
-            priority: 0
+            priority: 0,
         },
         {
             term_id: "test-term-id-4",
             term: "cOfFeE",
             replacement: "Folgers Instant Coffee",
-            priority: 0
-        }
-    ]
+            priority: 0,
+        },
+    ],
 };

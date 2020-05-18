@@ -34,9 +34,9 @@ describe("AdPopup", () => {
                                 product_discount: "",
                                 product_image: "",
                                 product_sku: "",
-                                product_title: "Sample Product"
-                            }
-                        ]
+                                product_title: "Sample Product",
+                            },
+                        ],
                     },
                     popup: {
                         title_text: "",
@@ -46,8 +46,8 @@ describe("AdPopup", () => {
                         type: "",
                         hide_banner: false,
                         hide_close_btn: false,
-                        hide_browser_nav: false
-                    }
+                        hide_browser_nav: false,
+                    },
                 }}
                 onAddToListItemClicked={() => {
                     // Mock this method.
