@@ -15,7 +15,7 @@ import {
     TextStyle,
     TouchableOpacity,
     View,
-    ViewStyle
+    ViewStyle,
 } from "react-native";
 import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
 import { safeInvoke } from "../util";
@@ -136,7 +136,7 @@ export class AdPopup extends React.Component<Props, State> {
         this.state = {
             canGoBack: false,
             canGoForward: false,
-            isPageLoading: true
+            isPageLoading: true,
         };
     }
 
@@ -171,7 +171,7 @@ export class AdPopup extends React.Component<Props, State> {
                                 <Image
                                     source={{
                                         uri:
-                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABpUlEQVRoQ+2YvUrFQBBGZ59Hq8QXsLcVLCwsFBQUFBQUlHsFBQUFBQUFLSwsBB9C+/2m0ifxAUYCCinM5i47c83Cpgy7yznzzZAfR5lfLnN+KgL/nWBJoCSQWIHSQokFTN5eEogtYVVVY+fcAhF9icg7M49jz2ivn2oCP/CjFsAngNksBP6Ab7gBYG7wAh3wJCLHg2+hLngiOgJwklL9Zq/pDATgDwCcpcKbCgTg9wBcaMCbCQR6foeZr7TgTQS64J1zW977G014dYFA22wAuNOGVxUIwK8BeLCAVxMIwK8AeLKCVxEIDOwyMz9bwqsI1HX9QUQzbVARWWLmF2t4LQFPRHW2Atm3UFP5rIf4t3UCD7BV7/2j1TyovswFJNa99/cWEqoCoXYSkU1mvtWWUBfomYltANeaEiYCPRK7AC61JMwEeiT2AZxrSJgKhCScc4fe+9NUCXOBnsEe/kd9z3Min/9CHUm8AZhPaaOptFAbsKqqkXNusbknIq+D/y+UUt1J9k49gUmgYtYUgZhqWawtCVhUNebMkkBMtSzWlgQsqhpz5jfHSasx85A3NgAAAABJRU5ErkJggg=="
+                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABpUlEQVRoQ+2YvUrFQBBGZ59Hq8QXsLcVLCwsFBQUFBQUlHsFBQUFBQUFLSwsBB9C+/2m0ifxAUYCCinM5i47c83Cpgy7yznzzZAfR5lfLnN+KgL/nWBJoCSQWIHSQokFTN5eEogtYVVVY+fcAhF9icg7M49jz2ivn2oCP/CjFsAngNksBP6Ab7gBYG7wAh3wJCLHg2+hLngiOgJwklL9Zq/pDATgDwCcpcKbCgTg9wBcaMCbCQR6foeZr7TgTQS64J1zW977G014dYFA22wAuNOGVxUIwK8BeLCAVxMIwK8AeLKCVxEIDOwyMz9bwqsI1HX9QUQzbVARWWLmF2t4LQFPRHW2Atm3UFP5rIf4t3UCD7BV7/2j1TyovswFJNa99/cWEqoCoXYSkU1mvtWWUBfomYltANeaEiYCPRK7AC61JMwEeiT2AZxrSJgKhCScc4fe+9NUCXOBnsEe/kd9z3Min/9CHUm8AZhPaaOptFAbsKqqkXNusbknIq+D/y+UUt1J9k49gUmgYtYUgZhqWawtCVhUNebMkkBMtSzWlgQsqhpz5jfHSasx85A3NgAAAABJRU5ErkJggg==",
                                     }}
                                     style={styles.navLeftArrow}
                                 />
@@ -189,7 +189,7 @@ export class AdPopup extends React.Component<Props, State> {
                                 <Image
                                     source={{
                                         uri:
-                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABnklEQVRoQ+3YsUoEMRAG4H8ewCfRKpNeH0KwsLBQUFBQUFBQ8ERBQUFBQUELCwsLS3tfwFylzzOykAVZmz0yM+dCrs7O/d9Mwu2FMPAPDTw/KmDaE6wTqBMo7EDdQoUNLH68TiCEMCKieQAzIvI+Ho9HxW2doEDxBJj5C8Bs+50icuKJ0AB8AuDfTfNEFAPyFjruTt0LUQxogjPzEYDTaSBUABlxAODcG6EGyIg9AJeeCFVAEzyEsENE114IdUATPMa4JSK3HggTQN5OGwDurRFmgIxYA/BoiTAFZMQKgGcrhDkgH+xlInqxQLgAMmKJiF47iO+U0twE725/lk4bkFJK8d8DQgjD3ULMPNxDHGNcFZEni8Pb1jQ7AzHGdRF5sAzf1DYBhBA2iejOOrwJgJm3Adx4hFcHMPMugCuv8KoAZt4HcOEZXg0QYzwUkTPv8CqAwf+p794LNV3xupFQmQAzfwBYaLePZ3gVQN5Ci7nzb563ciqAkjdJjWdNfok1gvWtUQF9O2W1rk7AqrN969YJ9O2U1bo6AavO9q37A5jF5jGXG4ruAAAAAElFTkSuQmCC"
+                                            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABnklEQVRoQ+3YsUoEMRAG4H8ewCfRKpNeH0KwsLBQUFBQUFBQ8ERBQUFBQUELCwsLS3tfwFylzzOykAVZmz0yM+dCrs7O/d9Mwu2FMPAPDTw/KmDaE6wTqBMo7EDdQoUNLH68TiCEMCKieQAzIvI+Ho9HxW2doEDxBJj5C8Bs+50icuKJ0AB8AuDfTfNEFAPyFjruTt0LUQxogjPzEYDTaSBUABlxAODcG6EGyIg9AJeeCFVAEzyEsENE114IdUATPMa4JSK3HggTQN5OGwDurRFmgIxYA/BoiTAFZMQKgGcrhDkgH+xlInqxQLgAMmKJiF47iO+U0twE725/lk4bkFJK8d8DQgjD3ULMPNxDHGNcFZEni8Pb1jQ7AzHGdRF5sAzf1DYBhBA2iejOOrwJgJm3Adx4hFcHMPMugCuv8KoAZt4HcOEZXg0QYzwUkTPv8CqAwf+p794LNV3xupFQmQAzfwBYaLePZ3gVQN5Ci7nzb563ciqAkjdJjWdNfok1gvWtUQF9O2W1rk7AqrN969YJ9O2U1bo6AavO9q37A5jF5jGXG4ruAAAAAElFTkSuQmCC",
                                     }}
                                     style={styles.navRightArrow}
                                 />
@@ -210,14 +210,12 @@ export class AdPopup extends React.Component<Props, State> {
                                     size="large"
                                     color="#2969a0"
                                 />
-                            ) : (
-                                undefined
-                            )}
+                            ) : undefined}
                         </View>
                     </SafeAreaView>
                     <WebView
                         source={{
-                            uri: this.props.ad.action_path
+                            uri: this.props.ad.action_path,
                         }}
                         ref={(ref) => {
                             this.webViewElementRef = ref;
@@ -247,17 +245,17 @@ export class AdPopup extends React.Component<Props, State> {
                         onNavigationStateChange={(navState) => {
                             this.setState({
                                 canGoBack: navState.canGoBack,
-                                canGoForward: navState.canGoForward
+                                canGoForward: navState.canGoForward,
                             });
                         }}
                         onLoadStart={() => {
                             this.setState({
-                                isPageLoading: true
+                                isPageLoading: true,
                             });
                         }}
                         onLoadEnd={() => {
                             this.setState({
-                                isPageLoading: false
+                                isPageLoading: false,
                             });
                         }}
                     />
@@ -396,7 +394,7 @@ export class AdPopup extends React.Component<Props, State> {
                 position: "relative",
                 margin: 0,
                 width: "100%",
-                height: "100%"
+                height: "100%",
             },
             navHeaderView: {
                 display: "flex",
@@ -404,40 +402,40 @@ export class AdPopup extends React.Component<Props, State> {
                 height: 60,
                 width: "100%",
                 backgroundColor: "#dadada",
-                zIndex: 1
+                zIndex: 1,
             },
             navArrowsContainer: {
                 display: "flex",
                 flexDirection: "row",
                 justifyContent: "center",
-                alignItems: "center"
+                alignItems: "center",
             },
             navLeftArrow: {
                 width: 48,
                 height: 48,
                 marginRight: 5,
                 marginLeft: 10,
-                opacity: backButtonOpacity
+                opacity: backButtonOpacity,
             },
             navRightArrow: {
                 width: 48,
                 height: 48,
                 marginRight: 10,
                 marginLeft: 5,
-                opacity: forwardButtonOpacity
+                opacity: forwardButtonOpacity,
             },
             navBarTitleView: {
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
-                flex: 1
+                flex: 1,
             },
             titleText: {
                 color: "#333333",
                 fontWeight: "bold",
                 fontSize: 18,
                 overflow: "hidden",
-                flexWrap: "nowrap"
+                flexWrap: "nowrap",
             },
             loadingIndicatorContainer: {
                 display: "flex",
@@ -445,32 +443,32 @@ export class AdPopup extends React.Component<Props, State> {
                 justifyContent: "center",
                 alignItems: "center",
                 marginLeft: 10,
-                marginRight: 10
+                marginRight: 10,
             },
             webView: {
                 width: "100%",
                 height: "100%",
-                zIndex: 0
+                zIndex: 0,
             },
             closeButtonView: {
                 height: 60,
                 width: "100%",
                 backgroundColor: "#dadada",
-                zIndex: 1
+                zIndex: 1,
             },
             closeButtonContainer: {
                 display: "flex",
                 justifyContent: "center",
                 width: "100%",
-                height: "100%"
+                height: "100%",
             },
             closeButtonText: {
                 width: "100%",
                 color: "#2969a0",
                 margin: "auto",
                 fontSize: 18,
-                textAlign: "center"
-            }
+                textAlign: "center",
+            },
         });
     }
 }
