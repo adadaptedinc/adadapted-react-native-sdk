@@ -21,7 +21,9 @@
         "test": "jest --version --clearCache && jest",
         "prettier": "prettier --list-different \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "prepare-build": "bob build",
-        "example-app-install-pods": "cd example/ios && pod install"
+        "example-app-install-pods": "cd example/ios && pod install",
+        "npm-check-outdated": "npm outdated",
+        "npm-update": "npm update"
     },
     "keywords": [
         "react-native",
