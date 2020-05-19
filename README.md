@@ -1,6 +1,8 @@
 # AdAdapted React Native SDK
 
-Allows for use of the AdAdapted SDK through react-native.
+The AdAdapted react-native SDK.
+
+[[_TOC_]]
 
 ## Features
 
