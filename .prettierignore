@@ -1,6 +1,7 @@
 jest.json
 package.json
 package-lock.json
+README.md
 dist/*
 node_modules/*
 example/jest.json

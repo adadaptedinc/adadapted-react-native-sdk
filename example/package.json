@@ -4,9 +4,11 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
-    "start": "react-native start"
+    "start": "react-native start",
+    "run-android": "react-native run-android",
+    "log-android": "react-native log-android",
+    "run-ios": "react-native run-ios",
+    "log-ios": "react-native log-ios"
   },
   "dependencies": {
     "axios": "^0.19.2",

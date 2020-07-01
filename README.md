@@ -19,8 +19,18 @@ The AdAdapted react-native SDK.
 ## Installation
 
 ```
-npm install --save adadapted-react-native-sdk
+npm install --save @adadapted/react-native-sdk
 ```
+
+Once the NPM install script above is complete, navigate to your `/ios` directory in your project and run the following:
+
+```
+pod install
+```
+
+This will ensure that iOS is linked up to the AdAdapted SDK dependency properly.
+
+**NOTE:** _This SDK uses base64 images and requires a minimum version of `flipper` used in your `Podfile`. Please see [Potential Issue 3](#potential-issue-3) for more details._
 
 ## Usage
 
@@ -123,14 +133,28 @@ render() {
 
 ### initialize()
 
-The initialize method is where your SDK session is created. This method returns a promise that when completed, you will have a valid SDK session going forward and will be able to use other SDK methods. You should call this method from within the `componentDidMount()` react lifecycle method to ensure it is only called once upon component mount.
+The initialize method is where your SDK session is created. This method returns a promise that when complete, your reference to the SDK will have a valid SDK session going forward. Once you have a valid session, you will be able to successfully use other SDK methods. You should call this method from within the `componentDidMount()` react lifecycle method to ensure it is only called once upon component mount.
 
 ```javascript
 aaSdk.initialize({
     /**
      * The app ID provided to you by AdAdapted.
+     * If you have multiple variations of the app, you will be provided with multiple App IDs.
+     * For each App ID you have, you will need to determine the correct one to provide the SDK when initializing based on the users variation of the app. 
+     * Must be provided for the SDK to initialize.
      */
     appId: string,
+    /**
+     * (Optional)
+     * Provide this value to define what API environment the SDK should use.
+     *
+     * Possible Values:
+     *     - Production: AdadaptedReactNativeSdk.ApiEnv.Prod
+     *     - Development: AdadaptedReactNativeSdk.ApiEnv.Dev
+     * 
+     * Production is the default value if you don't provide this property in your config. 
+     */
+    apiEnv: AdadaptedReactNativeSdk.ApiEnv,
     /**
      * (Optional)
      * Triggered when the available ad zones have
@@ -289,7 +313,7 @@ aaSdk.getAdZones();
 Once the SDK is initialized, this method can be called when performing a search operation within your app. Call this method either as the user types in a search term or when the user executes a search after the term is entered. A list of keyword search results will be returned by this method that can then be used to display dynamically along with the search results your app displays to the user. The final result of the search may have many items, in which case you would determine how many of them you would like to display.
 
 ```javascript
-aaSdk.performKeywordSearch((searchTerm: string));
+aaSdk.performKeywordSearch(searchTerm: string);
 ```
 
 **Return Type:**
@@ -343,14 +367,14 @@ The final result is sorted based on the following criteria:
 
 ### reportKeywordInterceptTermsPresented()
 
-This method must be called anytime a keyword suggestion is displayed as a result of the SDKs `performKeywordSearch()` method. Calling this method reports back the suggested keywords that were ultimately displayed to the user.
+This method must be called anytime a keyword suggestion(provided by the `performKeywordSearch()` method) is displayed to the user. Calling this method reports back these suggested keywords to AdAdapted.
 
 **NOTE:** _Making sure to call this method when a keyword is displayed will ensure AdAdapted can provide you with the most accurate reporting results._
 
-This method accepts a list of `term_id` of the displayed keywords. See `performKeywordSearch()` return type for more info.
+This method accepts a list of `term_id` of the displayed keywords. See `performKeywordSearch()` return type for more info on the `term_id` property.
 
 ```javascript
-aaSdk.reportKeywordInterceptTermsPresented((termIds: string[]));
+aaSdk.reportKeywordInterceptTermsPresented(termIds: string[]);
 ```
 
 **Return Type:**
@@ -363,14 +387,14 @@ void
 
 ### reportKeywordInterceptTermSelected()
 
-This method must be called anytime a keyword suggestion that was a result of the SDKs `performKeywordSearch()` method is selected by the user. Calling this method reports back the selected keyword.
+This method must be called anytime a keyword suggestion(provided by the `performKeywordSearch()` method) is selected by the user from your displayed search result list. Calling this method reports back the selected keyword to AdAdapted.
 
 **NOTE:** _Making sure to call this method when a keyword is selected will ensure AdAdapted can provide you with the most accurate reporting results._
 
-This method accepts the `term_id` from the selected keyword. See `performKeywordSearch()` return type for more info.
+This method accepts the `term_id` from the selected keyword. See `performKeywordSearch()` return type for more info on the `term_id` property.
 
 ```javascript
-aaSdk.reportKeywordInterceptTermSelected((termId: string));
+aaSdk.reportKeywordInterceptTermSelected(termId: string);
 ```
 
 **Return Type:**
@@ -383,7 +407,7 @@ void
 
 ### onAdZonesRefreshed()
 
-This method is available for you to define when the SDK is initialized. Using this callback allows you to listen for when the Ad Zone data gets refreshed by the API.
+This callback method is useful for knowing when the Ad Zone data gets refreshed by the API. This automatically happens based on a threshold of time to wait in between refresh attempts.
 
 **NOTE:** _It is recommended that you store the Ad Zone data in your component state and update the state within this callback with the refreshed Ad Zone data._
 
@@ -403,9 +427,9 @@ aaSdk.initialize({
 
 ### onAddToListTriggered()
 
-This method is available for you to define when the SDK is initialized. When this callback triggers an `items` list will be available containing each item the user selected to add to their list.
+This callback method is triggered when a user clicks an `add to list` ad zone. This method receives an `items` list that contains each item the user selected to add to their list.
 
-If there are any other actions you need to take place when the user adds an ad item to their list, you can do so at this time.
+If there are any other actions you need to perform when the user adds an ad item to their list, you can do so at this time.
 
 ```javascript
 aaSdk.initialize({
@@ -455,7 +479,7 @@ aaSdk.initialize({
 
 ## Possible Implementation Issues And Fixes
 
-### Potential Issue #1
+### Potential Issue 1
 
 **NOTE:** _This error is only related to Android._
 
@@ -469,7 +493,7 @@ If this occurs, you can fix it by updating your gradle version in the `gradle-wr
 
 ---
 
-### Potential Issue #2
+### Potential Issue 2
 
 The second potential issue is related to one of the NPM packages required by the SDK.
 
@@ -487,7 +511,7 @@ npm install --save react-native-webview
 
 ---
 
-### Potential Issue #3
+### Potential Issue 3
 
 **NOTE:** _This error is only related to iOS._
 
@@ -500,6 +524,15 @@ versions["Flipper-RSocket"] ||= "~> 1.1";
 ```
 
 These versions seem to be the minimum versions to support base64 images and were the versions suggested for use [in this post](https://github.com/facebook/react-native/issues/28583).
+
+## Limitations
+
+- This SDK uses timers in order to know when session data needs to be refreshed. You will most likely see the following warning message displayed in the debug console when running in an emulator:
+
+    ```
+    Setting a timer for a long period of time, i.e. multiple minutes, is a performance and correctness issue on Android as it keeps the timer module awake, and timers can only be called when the app is in the foreground. See https://github.com/facebook/react-native/issues/12981 for more info. (Saw setTimeout with duration 300000ms)
+    ```
+
 
 ## License
 

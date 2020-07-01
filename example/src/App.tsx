@@ -83,7 +83,7 @@ export class App extends React.Component<Props, State> {
     public componentDidMount(): void {
         this.aaSdk
             .initialize({
-                appId: "PUT_APP_TEST_ID_HERE",
+                appId: "NWVJMTVHZJQ5YZRI",
                 apiEnv: AdadaptedReactNativeSdk.ApiEnv.Dev,
                 onAdZonesRefreshed: () => {
                     this.setState({
