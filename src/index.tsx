@@ -7,6 +7,7 @@ import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import { adadaptedApiTypes } from "./api/adadaptedApiTypes";
 import { AdZone } from "./components/AdZone";
 import { safeInvoke } from "./util";
+const packageJson = require("../package.json");
 
 /**
  * Class that acts as the AdAdapted SDK for react-native.
@@ -316,6 +317,8 @@ export namespace AdadaptedReactNativeSdk {
                                 {
                                     app_id: this.appId,
                                     udid: deviceInfo.udid,
+                                    device_udid: deviceInfo.udid,
+                                    sdk_version: packageJson.version,
                                     device_width: parseInt(
                                         deviceInfo.deviceWidth,
                                         10
@@ -326,6 +329,7 @@ export namespace AdadaptedReactNativeSdk {
                                     ),
                                     device_density:
                                         deviceInfo.deviceScreenDensity,
+                                    device_carrier: deviceInfo.deviceCarrier,
                                     device_name: deviceInfo.deviceName,
                                     device_os: deviceInfo.systemName,
                                     device_osv: deviceInfo.systemVersion,
@@ -707,6 +711,10 @@ export namespace AdadaptedReactNativeSdk {
          * The current device local.
          */
         deviceLocale: string;
+        /**
+         * The device carrier name.
+         */
+        deviceCarrier: string;
         /**
          * The bundle ID.
          */
