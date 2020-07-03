@@ -16,6 +16,8 @@ import com.facebook.react.bridge.Promise;
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
+import android.telephony.TelephonyManager;
+import android.content.Context;
 
 class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(_reactContext) {
     val reactContext = _reactContext;
@@ -32,11 +34,18 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
         val deviceDisplayMetrics: DisplayMetrics = reactContext.getResources().getDisplayMetrics();
         var gaidInfo: AdvertisingIdClient.Info? = null;
         var bundleVersion: String = UNKNOWN_VALUE;
+        var deviceCarrier: String = "n/a";
         var deviceWidth: Int = 0;
         var deviceHeight: Int = 0;
         var deviceDensity: String = "";
         var gaid: String = "";
         var adTrackingEnabled: Boolean = false;
+
+        val mTelephonyMgr: TelephonyManager = reactContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager;
+
+        if (mTelephonyMgr != null && mTelephonyMgr.getNetworkOperatorName() != null) {
+            deviceCarrier = mTelephonyMgr.getNetworkOperatorName();
+        }
 
         try {
             gaidInfo = AdvertisingIdClient.getAdvertisingIdInfo(reactContext);
@@ -80,6 +89,7 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
         finalDeviceData.put("deviceName", android.os.Build.DEVICE);
         finalDeviceData.put("systemName", "android");
         finalDeviceData.put("systemVersion", android.os.Build.VERSION.RELEASE);
+        finalDeviceData.put("deviceCarrier", deviceCarrier);
         finalDeviceData.put("deviceModel", android.os.Build.MODEL);
         finalDeviceData.put("deviceWidth", deviceWidth);
         finalDeviceData.put("deviceHeight", deviceHeight);
