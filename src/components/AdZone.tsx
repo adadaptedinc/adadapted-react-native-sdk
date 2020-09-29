@@ -5,9 +5,15 @@
 import * as React from "react";
 import { Linking, StyleSheet, View, ViewStyle } from "react-native";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
-import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
+import {
+    Ad,
+    AdActionType,
+    DetailedListItem,
+    ReportedEventType,
+    Zone,
+} from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
-import { AdadaptedReactNativeSdk } from "../index";
+import { ApiEnv, DeviceOS } from "../index";
 import { AdPopup } from "./AdPopup";
 import { safeInvoke } from "../util";
 
@@ -28,24 +34,31 @@ interface Props {
      */
     udid: string;
     /**
+     * The touch sensitivity of the Ad Zone in both the X and Y directions.
+     * This is used to determine the click/press sensitivity when the
+     * Ad Zone is being touched by the user as a regular touch or while
+     * scrolling the view. If the amount of touch "drag" distance in either
+     * X or Y direction is less than this value, we will treat the action as
+     * a click/press on the Ad Zone.
+     */
+    xyDragDistanceAllowed: number;
+    /**
      * The device OS used for API requests.
      */
-    deviceOs: AdadaptedReactNativeSdk.DeviceOS;
+    deviceOs: DeviceOS;
     /**
      * The API environment to use when making an API request.
      */
-    apiEnv: AdadaptedReactNativeSdk.ApiEnv;
+    apiEnv: ApiEnv;
     /**
      * The ad zone data.
      */
-    adZoneData: adadaptedApiTypes.models.Zone;
+    adZoneData: Zone;
     /**
      * Callback that gets triggered when an "add to list" item/items are clicked.
      * @param items - The array of items to "add to list".
      */
-    onAddToListTriggered?(
-        items: adadaptedApiTypes.models.DetailedListItem[]
-    ): void;
+    onAddToListTriggered?(items: DetailedListItem[]): void;
 }
 
 /**
@@ -60,6 +73,24 @@ interface State {
      * If true, the ad popup(if available) is open.
      */
     isAdPopupOpen: boolean;
+    /**
+     * Tracks the coordinates when the user started touching the Ad View.
+     */
+    touchStartCoords: TouchCoordinates | undefined;
+}
+
+/**
+ * Interface for tracking "touch" coordinates.
+ */
+interface TouchCoordinates {
+    /**
+     * The X coordinate for the touch.
+     */
+    x: number;
+    /**
+     * The Y coordinate for the touch.
+     */
+    y: number;
 }
 
 /**
@@ -100,6 +131,7 @@ export class AdZone extends React.Component<Props, State> {
         this.state = {
             adIndexShown: startingAdIndex,
             isAdPopupOpen: false,
+            touchStartCoords: undefined,
         };
     }
 
@@ -127,31 +159,73 @@ export class AdZone extends React.Component<Props, State> {
         // new settings that need to be reflected in the styles of the view.
         const styles = this.generateStyles();
         const currentAd = this.props.adZoneData.ads[this.state.adIndexShown];
+        const finalMainViewStyle = styles.mainView;
+
+        if (!currentAd.creative_url) {
+            // If there is no ad to display, make the view take up no space.
+            finalMainViewStyle.width = 0;
+            finalMainViewStyle.height = 0;
+        }
 
         return (
-            <View style={styles.mainView}>
-                <WebView
-                    source={{
-                        uri: currentAd.creative_url,
-                    }}
-                    automaticallyAdjustContentInsets={false}
-                    style={styles.webView}
-                    onTouchEnd={() => {
-                        this.onAdZoneSelected(currentAd);
-                    }}
-                />
-                <AdPopup
-                    ad={currentAd}
-                    isOpen={this.state.isAdPopupOpen}
-                    onClose={() => {
-                        this.setState({
-                            isAdPopupOpen: false,
-                        });
-                    }}
-                    onAddToListItemClicked={(item) => {
-                        safeInvoke(this.props.onAddToListTriggered, [item]);
-                    }}
-                />
+            <View style={finalMainViewStyle}>
+                {currentAd.creative_url ? (
+                    <WebView
+                        source={{
+                            uri: currentAd.creative_url,
+                        }}
+                        automaticallyAdjustContentInsets={false}
+                        style={styles.webView}
+                        onTouchStart={(e) => {
+                            this.setState({
+                                touchStartCoords: {
+                                    x: e.nativeEvent.pageX,
+                                    y: e.nativeEvent.pageY,
+                                },
+                            });
+                        }}
+                        onTouchEnd={(e) => {
+                            if (this.state.touchStartCoords) {
+                                const touchEndCoords: TouchCoordinates = {
+                                    x: e.nativeEvent.pageX,
+                                    y: e.nativeEvent.pageY,
+                                };
+
+                                if (
+                                    Math.abs(
+                                        this.state.touchStartCoords.x -
+                                            touchEndCoords.x
+                                    ) < this.props.xyDragDistanceAllowed &&
+                                    Math.abs(
+                                        this.state.touchStartCoords.y -
+                                            touchEndCoords.y
+                                    ) < this.props.xyDragDistanceAllowed
+                                ) {
+                                    this.onAdZoneSelected(currentAd);
+                                }
+
+                                // Make sure to reset the start coords
+                                this.setState({
+                                    touchStartCoords: undefined,
+                                });
+                            }
+                        }}
+                    />
+                ) : undefined}
+                {currentAd.creative_url ? (
+                    <AdPopup
+                        ad={currentAd}
+                        isOpen={this.state.isAdPopupOpen}
+                        onClose={() => {
+                            this.setState({
+                                isAdPopupOpen: false,
+                            });
+                        }}
+                        onAddToListItemClicked={(item) => {
+                            safeInvoke(this.props.onAddToListTriggered, [item]);
+                        }}
+                    />
+                ) : undefined}
             </View>
         );
     }
@@ -160,20 +234,17 @@ export class AdZone extends React.Component<Props, State> {
      * Triggers when the user selects the ad zone.
      * @param currentAd - The ad currently displayed.
      */
-    private onAdZoneSelected(currentAd: adadaptedApiTypes.models.Ad): void {
+    private onAdZoneSelected(currentAd: Ad): void {
         // Determine the "action type" and perform that specific action.
         if (
-            currentAd.action_type ===
-                adadaptedApiTypes.models.AdActionType.EXTERNAL &&
+            currentAd.action_type === AdActionType.EXTERNAL &&
             currentAd.action_path
         ) {
             // Action Type: EXTERNAL
             Linking.openURL(currentAd.action_path).then();
         } else if (
-            (currentAd.action_type ===
-                adadaptedApiTypes.models.AdActionType.POPUP ||
-                currentAd.action_type ===
-                    adadaptedApiTypes.models.AdActionType.LINK) &&
+            (currentAd.action_type === AdActionType.POPUP ||
+                currentAd.action_type === AdActionType.LINK) &&
             currentAd.action_path
         ) {
             // Action Type: POPUP or LINK
@@ -181,8 +252,7 @@ export class AdZone extends React.Component<Props, State> {
                 isAdPopupOpen: true,
             });
         } else if (
-            currentAd.action_type ===
-                adadaptedApiTypes.models.AdActionType.CONTENT &&
+            currentAd.action_type === AdActionType.CONTENT &&
             currentAd.payload &&
             currentAd.payload.detailed_list_items
         ) {
@@ -192,10 +262,7 @@ export class AdZone extends React.Component<Props, State> {
             );
         }
 
-        this.triggerReportAdEvent(
-            currentAd,
-            adadaptedApiTypes.models.ReportedEventType.INTERACTION
-        );
+        this.triggerReportAdEvent(currentAd, ReportedEventType.INTERACTION);
     }
 
     /**
@@ -204,8 +271,8 @@ export class AdZone extends React.Component<Props, State> {
      * @param eventType - The event type for the reported event.
      */
     private triggerReportAdEvent(
-        currentAd: adadaptedApiTypes.models.Ad,
-        eventType: adadaptedApiTypes.models.ReportedEventType
+        currentAd: Ad,
+        eventType: ReportedEventType
     ): void {
         // The event timestamp has to be sent as a unix timestamp.
         const currentTs = Math.round(new Date().getTime() / 1000);
@@ -295,7 +362,7 @@ export class AdZone extends React.Component<Props, State> {
         // Trigger an impression event for the ad.
         this.triggerReportAdEvent(
             this.props.adZoneData.ads[this.state.adIndexShown],
-            adadaptedApiTypes.models.ReportedEventType.IMPRESSION
+            ReportedEventType.IMPRESSION
         );
     }
 

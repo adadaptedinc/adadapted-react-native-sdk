@@ -2,20 +2,25 @@
  * Contains all API request mocks for the Rewards API.
  */
 import { AxiosResponse } from "axios";
-import { adadaptedApiTypes } from "./adadaptedApiTypes";
+import {
+    AdActionType,
+    AdSession,
+    InitializeSessionResponse,
+    KeywordIntercepts,
+    KeywordInterceptsResponse,
+    RefreshSessionDataResponse,
+    ReportAdEventResponse,
+    ReportInterceptEventResponse,
+} from "./adadaptedApiTypes";
 
 /**
  * Mocks the API call for initializing a session.
  * @returns a promise of an {@link AxiosResponse} of the mocked data.
  */
 export function initializeSession(): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.InitializeSessionResponse>
+    AxiosResponse<InitializeSessionResponse>
 > {
-    return new Promise<
-        AxiosResponse<
-            adadaptedApiTypes.responseModels.InitializeSessionResponse
-        >
-    >((resolve) => {
+    return new Promise<AxiosResponse<InitializeSessionResponse>>((resolve) => {
         resolve({
             data: AD_SESSION_DATA,
             then: undefined,
@@ -32,13 +37,9 @@ export function initializeSession(): Promise<
  * @returns a promise of an {@link AxiosResponse} of the mocked data.
  */
 export function refreshSessionData(): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.RefreshSessionDataResponse>
+    AxiosResponse<RefreshSessionDataResponse>
 > {
-    return new Promise<
-        AxiosResponse<
-            adadaptedApiTypes.responseModels.RefreshSessionDataResponse
-        >
-    >((resolve) => {
+    return new Promise<AxiosResponse<RefreshSessionDataResponse>>((resolve) => {
         resolve({
             data: REFRESHED_AD_SESSION_DATA,
             then: undefined,
@@ -54,12 +55,8 @@ export function refreshSessionData(): Promise<
  * Mocks the API call for reporting an ad event.
  * @returns a promise of an {@link AxiosResponse} of the mocked data.
  */
-export function reportAdEvent(): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.ReportAdEventResponse>
-> {
-    return new Promise<
-        AxiosResponse<adadaptedApiTypes.responseModels.ReportAdEventResponse>
-    >((resolve) => {
+export function reportAdEvent(): Promise<AxiosResponse<ReportAdEventResponse>> {
+    return new Promise<AxiosResponse<ReportAdEventResponse>>((resolve) => {
         resolve({
             data: {
                 results: ["Ok"],
@@ -78,13 +75,9 @@ export function reportAdEvent(): Promise<
  * @returns a promise of an {@link AxiosResponse} of the mocked data.
  */
 export function getKeywordIntercepts(): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.KeywordInterceptsResponse>
+    AxiosResponse<KeywordInterceptsResponse>
 > {
-    return new Promise<
-        AxiosResponse<
-            adadaptedApiTypes.responseModels.KeywordInterceptsResponse
-        >
-    >((resolve) => {
+    return new Promise<AxiosResponse<KeywordInterceptsResponse>>((resolve) => {
         resolve({
             data: KEYWORD_INTERCEPT_DATA,
             then: undefined,
@@ -101,30 +94,28 @@ export function getKeywordIntercepts(): Promise<
  * @returns a promise of an {@link AxiosResponse} of the mocked data.
  */
 export function reportInterceptEvent(): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.ReportInterceptEventResponse>
+    AxiosResponse<ReportInterceptEventResponse>
 > {
-    return new Promise<
-        AxiosResponse<
-            adadaptedApiTypes.responseModels.ReportInterceptEventResponse
-        >
-    >((resolve) => {
-        resolve({
-            data: {
-                results: ["Ok"],
-            },
-            then: undefined,
-            config: {},
-            headers: {},
-            status: 200,
-            statusText: "200",
-        });
-    });
+    return new Promise<AxiosResponse<ReportInterceptEventResponse>>(
+        (resolve) => {
+            resolve({
+                data: {
+                    results: ["Ok"],
+                },
+                then: undefined,
+                config: {},
+                headers: {},
+                status: 200,
+                statusText: "200",
+            });
+        }
+    );
 }
 
 /**
- * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
+ * Mock data for an {@link AdSession} object.
  */
-const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
+const AD_SESSION_DATA: AdSession = {
     session_id: "TEST_SESSION_ID",
     will_serve_ads: true,
     active_campaigns: true,
@@ -147,7 +138,7 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                     creative_url:
                         "https://testurl.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
                     tracking_html: "<html></html>",
-                    action_type: adadaptedApiTypes.models.AdActionType.CONTENT,
+                    action_type: AdActionType.CONTENT,
                     action_path: "",
                     payload: {
                         detailed_list_items: [
@@ -179,9 +170,9 @@ const AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
 };
 
 /**
- * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
+ * Mock data for an {@link AdSession} object.
  */
-const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
+const REFRESHED_AD_SESSION_DATA: AdSession = {
     session_id: "TEST_SESSION_ID",
     will_serve_ads: true,
     active_campaigns: true,
@@ -204,7 +195,7 @@ const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
                     creative_url:
                         "https://testurl.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
                     tracking_html: "<html></html>",
-                    action_type: adadaptedApiTypes.models.AdActionType.CONTENT,
+                    action_type: AdActionType.CONTENT,
                     action_path: "",
                     payload: {
                         detailed_list_items: [
@@ -236,9 +227,9 @@ const REFRESHED_AD_SESSION_DATA: adadaptedApiTypes.models.AdSession = {
 };
 
 /**
- * Mock data for an {@link adadaptedApiTypes.models.AdSession} object.
+ * Mock data for an {@link AdSession} object.
  */
-const KEYWORD_INTERCEPT_DATA: adadaptedApiTypes.models.KeywordIntercepts = {
+const KEYWORD_INTERCEPT_DATA: KeywordIntercepts = {
     search_id: "test-search-id",
     min_match_length: 3,
     terms: [

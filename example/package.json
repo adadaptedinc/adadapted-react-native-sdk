@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "react-native start",
+    "start": "react-native start --reset-cache",
     "run-android": "react-native run-android",
     "log-android": "react-native log-android",
     "run-ios": "react-native run-ios",
