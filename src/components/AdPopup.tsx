@@ -17,7 +17,7 @@ import {
     View,
     ViewStyle,
 } from "react-native";
-import { adadaptedApiTypes } from "../api/adadaptedApiTypes";
+import { Ad, AdActionType, DetailedListItem } from "../api/adadaptedApiTypes";
 import { safeInvoke } from "../util";
 
 /**
@@ -27,7 +27,7 @@ interface Props {
     /**
      * The add to display in the popup.
      */
-    ad: adadaptedApiTypes.models.Ad;
+    ad: Ad;
     /**
      * If true, the ad popup is displayed.
      */
@@ -41,9 +41,7 @@ interface Props {
      * the item should be "added to list".
      * @param item - The item to add to list.
      */
-    onAddToListItemClicked(
-        item: adadaptedApiTypes.models.DetailedListItem
-    ): void;
+    onAddToListItemClicked(item: DetailedListItem): void;
 }
 
 /**
@@ -225,15 +223,13 @@ export class AdPopup extends React.Component<Props, State> {
                         style={styles.webView}
                         javaScriptEnabled={true}
                         injectedJavaScript={
-                            this.props.ad.action_type ===
-                                adadaptedApiTypes.models.AdActionType.POPUP ||
-                            this.props.ad.action_type ===
-                                adadaptedApiTypes.models.AdActionType.LINK
+                            this.props.ad.action_type === AdActionType.POPUP ||
+                            this.props.ad.action_type === AdActionType.LINK
                                 ? this.getAddToListCircularJavascript()
                                 : ""
                         }
                         onMessage={(event) => {
-                            const responseObj: adadaptedApiTypes.models.DetailedListItem = JSON.parse(
+                            const responseObj: DetailedListItem = JSON.parse(
                                 event.nativeEvent.data
                             );
 
