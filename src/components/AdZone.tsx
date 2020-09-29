@@ -201,7 +201,6 @@ export class AdZone extends React.Component<Props, State> {
                                             touchEndCoords.y
                                     ) < this.props.xyDragDistanceAllowed
                                 ) {
-                                    console.log("jdfjshgfjdsgfdshjfgafgdskahjfghfagdsjfdshgf");
                                     this.onAdZoneSelected(currentAd);
                                 }
 
