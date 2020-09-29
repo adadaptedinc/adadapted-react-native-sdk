@@ -12,7 +12,12 @@ import {
     TouchableOpacity,
     SafeAreaView,
 } from "react-native";
-import { AdadaptedReactNativeSdk } from "../../src/index";
+import {
+    AdadaptedReactNativeSdk,
+    AdZoneInfo,
+    ApiEnv,
+    KeywordSearchResult,
+} from "../../src/index";
 
 /**
  * Props interface for {@link App}.
@@ -30,7 +35,7 @@ interface State {
     /**
      * The Ad Zone Info list.
      */
-    adZoneInfoList: AdadaptedReactNativeSdk.AdZoneInfo[] | undefined;
+    adZoneInfoList: AdZoneInfo[] | undefined;
     /**
      * The test search term value.
      */
@@ -42,7 +47,7 @@ interface State {
     /**
      * AdAdapted SDK Keyword Search result item list.
      */
-    aasdkSearchResultItemList: AdadaptedReactNativeSdk.KeywordSearchResult[];
+    aasdkSearchResultItemList: KeywordSearchResult[];
     /**
      * The selected item list.
      */
@@ -54,9 +59,9 @@ interface State {
  */
 export class App extends React.Component<Props, State> {
     /**
-     * The {@link AdadaptedReactNativeSdk.Sdk} instance.
+     * The {@link AdadaptedReactNativeSdk} instance.
      */
-    private readonly aaSdk: AdadaptedReactNativeSdk.Sdk;
+    private readonly aaSdk: AdadaptedReactNativeSdk;
 
     /**
      * @inheritDoc
@@ -65,7 +70,7 @@ export class App extends React.Component<Props, State> {
         super(props, context);
 
         // Assign a reference to the SDK.
-        this.aaSdk = new AdadaptedReactNativeSdk.Sdk();
+        this.aaSdk = new AdadaptedReactNativeSdk();
 
         this.state = {
             sessionId: undefined,
@@ -84,7 +89,8 @@ export class App extends React.Component<Props, State> {
         this.aaSdk
             .initialize({
                 appId: "PUT_APP_TEST_ID_HERE",
-                apiEnv: AdadaptedReactNativeSdk.ApiEnv.Dev,
+                apiEnv: ApiEnv.Dev,
+                xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
                     this.setState({
                         sessionId: this.aaSdk.getSessionId(),
@@ -220,7 +226,7 @@ export class App extends React.Component<Props, State> {
         // Randomly choose one of the resulting terms to display.
         // You can add multiple randomly chosen terms here too
         // if you would like.
-        const finalAasdkSearchResults: AdadaptedReactNativeSdk.KeywordSearchResult[] = [];
+        const finalAasdkSearchResults: KeywordSearchResult[] = [];
 
         if (aasdkSearchResults.length > 0) {
             const randomIndex = Math.floor(
@@ -305,7 +311,7 @@ interface SelectedItem {
     /**
      * The object containing a keyword search item.
      */
-    item?: AdadaptedReactNativeSdk.KeywordSearchResult;
+    item?: KeywordSearchResult;
     /**
      * A standard product name.
      */

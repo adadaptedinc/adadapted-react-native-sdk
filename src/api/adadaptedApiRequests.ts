@@ -1,10 +1,21 @@
 /**
  * API requests focused around Settings.
  */
-import { adadaptedApiTypes } from "./adadaptedApiTypes";
+import {
+    InitializeSessionRequest,
+    InitializeSessionResponse,
+    KeywordInterceptsRequest,
+    KeywordInterceptsResponse,
+    RefreshSessionDataRequest,
+    RefreshSessionDataResponse,
+    ReportAdEventRequest,
+    ReportAdEventResponse,
+    ReportInterceptEventRequest,
+    ReportInterceptEventResponse,
+} from "./adadaptedApiTypes";
 import axios, { AxiosResponse } from "axios";
 import * as adadaptedApiRequestMocks from "./adadaptedApiRequests.mock";
-import { AdadaptedReactNativeSdk } from "../index";
+import { ApiEnv, DeviceOS } from "../index";
 
 /**
  * Makes an API request to initialize the session for the AdAdapted API.
@@ -14,13 +25,11 @@ import { AdadaptedReactNativeSdk } from "../index";
  * @returns a promise containing the response data.
  */
 export function initializeSession(
-    requestData: adadaptedApiTypes.requestModels.InitializeSessionRequest,
-    deviceOS: AdadaptedReactNativeSdk.DeviceOS,
-    apiEnv: AdadaptedReactNativeSdk.ApiEnv
-): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.InitializeSessionResponse>
-> {
-    return apiEnv === AdadaptedReactNativeSdk.ApiEnv.Mock
+    requestData: InitializeSessionRequest,
+    deviceOS: DeviceOS,
+    apiEnv: ApiEnv
+): Promise<AxiosResponse<InitializeSessionResponse>> {
+    return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.initializeSession()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/sessions/initialize`, {
               method: "POST",
@@ -40,13 +49,11 @@ export function initializeSession(
  * @returns a promise containing the response data.
  */
 export function refreshSessionData(
-    requestData: adadaptedApiTypes.requestModels.RefreshSessionDataRequest,
-    deviceOS: AdadaptedReactNativeSdk.DeviceOS,
-    apiEnv: AdadaptedReactNativeSdk.ApiEnv
-): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.RefreshSessionDataResponse>
-> {
-    return apiEnv === AdadaptedReactNativeSdk.ApiEnv.Mock
+    requestData: RefreshSessionDataRequest,
+    deviceOS: DeviceOS,
+    apiEnv: ApiEnv
+): Promise<AxiosResponse<RefreshSessionDataResponse>> {
+    return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.refreshSessionData()
         : axios(
               `${apiEnv}/v/0.9.5/${deviceOS}/ads/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}`,
@@ -68,13 +75,11 @@ export function refreshSessionData(
  * @returns a promise containing the response data.
  */
 export function reportAdEvent(
-    requestData: adadaptedApiTypes.requestModels.ReportAdEventRequest,
-    deviceOS: AdadaptedReactNativeSdk.DeviceOS,
-    apiEnv: AdadaptedReactNativeSdk.ApiEnv
-): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.ReportAdEventResponse>
-> {
-    return apiEnv === AdadaptedReactNativeSdk.ApiEnv.Mock
+    requestData: ReportAdEventRequest,
+    deviceOS: DeviceOS,
+    apiEnv: ApiEnv
+): Promise<AxiosResponse<ReportAdEventResponse>> {
+    return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportAdEvent()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/ads/events`, {
               method: "POST",
@@ -94,13 +99,11 @@ export function reportAdEvent(
  * @returns a promise containing the response data.
  */
 export function getKeywordIntercepts(
-    requestData: adadaptedApiTypes.requestModels.KeywordInterceptsRequest,
-    deviceOS: AdadaptedReactNativeSdk.DeviceOS,
-    apiEnv: AdadaptedReactNativeSdk.ApiEnv
-): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.KeywordInterceptsResponse>
-> {
-    return apiEnv === AdadaptedReactNativeSdk.ApiEnv.Mock
+    requestData: KeywordInterceptsRequest,
+    deviceOS: DeviceOS,
+    apiEnv: ApiEnv
+): Promise<AxiosResponse<KeywordInterceptsResponse>> {
+    return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.getKeywordIntercepts()
         : axios(
               `${apiEnv}/v/0.9.5/${deviceOS}/intercepts/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}`,
@@ -122,13 +125,11 @@ export function getKeywordIntercepts(
  * @returns a promise containing the response data.
  */
 export function reportInterceptEvent(
-    requestData: adadaptedApiTypes.requestModels.ReportInterceptEventRequest,
-    deviceOS: AdadaptedReactNativeSdk.DeviceOS,
-    apiEnv: AdadaptedReactNativeSdk.ApiEnv
-): Promise<
-    AxiosResponse<adadaptedApiTypes.responseModels.ReportInterceptEventResponse>
-> {
-    return apiEnv === AdadaptedReactNativeSdk.ApiEnv.Mock
+    requestData: ReportInterceptEventRequest,
+    deviceOS: DeviceOS,
+    apiEnv: ApiEnv
+): Promise<AxiosResponse<ReportInterceptEventResponse>> {
+    return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportInterceptEvent()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/intercepts/events`, {
               method: "POST",
