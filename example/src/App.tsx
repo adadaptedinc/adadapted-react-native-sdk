@@ -88,7 +88,7 @@ export class App extends React.Component<Props, State> {
     public componentDidMount(): void {
         this.aaSdk
             .initialize({
-                appId: "PUT_APP_TEST_ID_HERE",
+                appId: "NWY0NTM2YZDMMDQ0",
                 apiEnv: ApiEnv.Dev,
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
