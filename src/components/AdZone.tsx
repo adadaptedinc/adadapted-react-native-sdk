@@ -158,10 +158,11 @@ export class AdZone extends React.Component<Props, State> {
         // Generate the styles each render in case the ad is updated with
         // new settings that need to be reflected in the styles of the view.
         const styles = this.generateStyles();
-        const currentAd = this.props.adZoneData.ads[this.state.adIndexShown];
+        const currentAd: Ad | undefined =
+            this.props.adZoneData.ads[this.state.adIndexShown] || undefined;
         const finalMainViewStyle = styles.mainView;
 
-        if (!currentAd.creative_url) {
+        if (!currentAd || !currentAd.creative_url) {
             // If there is no ad to display, make the view take up no space.
             finalMainViewStyle.width = 0;
             finalMainViewStyle.height = 0;
@@ -169,7 +170,7 @@ export class AdZone extends React.Component<Props, State> {
 
         return (
             <View style={finalMainViewStyle}>
-                {currentAd.creative_url ? (
+                {currentAd && currentAd.creative_url ? (
                     <WebView
                         source={{
                             uri: currentAd.creative_url,
@@ -212,7 +213,7 @@ export class AdZone extends React.Component<Props, State> {
                         }}
                     />
                 ) : undefined}
-                {currentAd.creative_url ? (
+                {currentAd && currentAd.creative_url ? (
                     <AdPopup
                         ad={currentAd}
                         isOpen={this.state.isAdPopupOpen}
