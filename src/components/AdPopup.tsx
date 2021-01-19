@@ -213,9 +213,7 @@ export class AdPopup extends React.Component<Props, State> {
                     </SafeAreaView>
                     <WebView
                         source={{
-                            // uri: this.props.ad.action_path,
-                            uri:
-                                "http://10.0.2.2:8099/dev/index.html?cir=14&app=ourgroceriesi&str=1&plt=android&inapp=1&ifa={{udid}}&preview=1",
+                            uri: this.props.ad.action_path,
                         }}
                         ref={(ref) => {
                             this.webViewElementRef = ref;
