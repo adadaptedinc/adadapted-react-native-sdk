@@ -304,7 +304,7 @@ export class AdadaptedReactNativeSdk {
         const adZoneInfoList: AdZoneInfo[] = [];
 
         for (const adZoneId in adZones) {
-            if (adZones.hasOwnProperty(adZoneId)) {
+            if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
                 adZoneInfoList.push({
                     zoneId: adZones[adZoneId].id,
                     adZone: (
