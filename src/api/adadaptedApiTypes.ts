@@ -293,6 +293,70 @@ export interface ReportedInterceptEvent {
 }
 
 /**
+ * Interface defining the structure of an event to send when using List Manager.
+ */
+export interface ListManagerEvent {
+    /**
+     * The source of the list manager event.
+     */
+    event_source: ListManagerEventSource;
+    /**
+     * The timestamp this event occurred (unix time).
+     */
+    event_timestamp: number;
+    /**
+     * The event name.
+     */
+    event_name: ListManagerEventName;
+    /**
+     * The parameter the event is triggered for.
+     */
+    event_params: ListManagerEventParam;
+}
+
+/**
+ * Interface defining the structure of an Event Param for List Manager.
+ */
+export interface ListManagerEventParam {
+    /**
+     * The item name being reported.
+     */
+    item_name: string;
+    /**
+     * The list name being reported.
+     */
+    list_name?: string;
+}
+
+/**
+ * Enumeration that defines the possible values for a List Manager Event Source.
+ */
+export enum ListManagerEventSource {
+    /**
+     * The event was triggered from the app.
+     */
+    APP = "app",
+}
+
+/**
+ * Enumeration that defines the possible values for a List Manager Event Name.
+ */
+export enum ListManagerEventName {
+    /**
+     * The user added an item to their list.
+     */
+    ADDED_TO_LIST = "user_added_to_list",
+    /**
+     * The user crossed off an item from their list.
+     */
+    CROSSED_OFF_LIST = "user_crossed_off_list",
+    /**
+     * The user deleted an item from their list.
+     */
+    DELETED_FROM_LIST = "user_deleted_from_list",
+}
+
+/**
  * Enum defining the available ad action types.
  */
 export enum AdActionType {
@@ -516,6 +580,28 @@ export interface ReportInterceptEventRequest {
      * Events to report.
      */
     events: ReportedInterceptEvent[];
+}
+
+/**
+ * Interface for the request that reports List Manager data.
+ */
+export interface ReportListManagerDataRequest {
+    /**
+     * The app ID provided by the client using the API.
+     */
+    app_id: string;
+    /**
+     * The unique device ID.
+     */
+    udid: string;
+    /**
+     * The current session ID.
+     */
+    session_id: string;
+    /**
+     * The events to report.
+     */
+    events: ListManagerEvent[];
 }
 
 // =============================================================================

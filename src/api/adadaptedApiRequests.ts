@@ -12,10 +12,11 @@ import {
     ReportAdEventResponse,
     ReportInterceptEventRequest,
     ReportInterceptEventResponse,
+    ReportListManagerDataRequest,
 } from "./adadaptedApiTypes";
 import axios, { AxiosResponse } from "axios";
 import * as adadaptedApiRequestMocks from "./adadaptedApiRequests.mock";
-import { ApiEnv, DeviceOS } from "../index";
+import { ApiEnv, DeviceOS, ListManagerApiEnv } from "../index";
 
 /**
  * Makes an API request to initialize the session for the AdAdapted API.
@@ -132,6 +133,30 @@ export function reportInterceptEvent(
     return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportInterceptEvent()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/intercepts/events`, {
+              method: "POST",
+              data: requestData,
+              headers: {
+                  accept: "application/json",
+              },
+          });
+}
+
+/**
+ * Makes an API request to report List Manager events.
+ * A valid session is required for this API endpoint to respond successfully.
+ * @param requestData - The data to be sent with the request.
+ * @param deviceOS - The operating system being ran on the device.
+ * @param apiEnv - The API environment to use when making the API request.
+ * @returns a promise containing the response data.
+ */
+export function reportListManagerEvents(
+    requestData: ReportListManagerDataRequest,
+    deviceOS: DeviceOS,
+    apiEnv: ListManagerApiEnv
+): Promise<AxiosResponse<void>> {
+    return apiEnv === ListManagerApiEnv.Mock
+        ? adadaptedApiRequestMocks.reportListManagerEvents()
+        : axios(`${apiEnv}/v/1/${deviceOS}/events`, {
               method: "POST",
               data: requestData,
               headers: {

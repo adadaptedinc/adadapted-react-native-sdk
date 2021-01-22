@@ -9,8 +9,12 @@ import {
     DetailedListItem,
     KeywordIntercepts,
     KeywordSearchTerm,
+    ListManagerEvent,
+    ListManagerEventName,
+    ListManagerEventSource,
     ReportedEventType,
     ReportedInterceptEvent,
+    ReportListManagerDataRequest,
     Zone,
 } from "./api/adadaptedApiTypes";
 import { AdZone } from "./components/AdZone";
@@ -43,6 +47,24 @@ export enum ApiEnv {
      * The development API environment.
      */
     Dev = "https://sandbox.adadapted.com",
+    /**
+     * Used only for unit testing/mocking data.
+     */
+    Mock = "MOCK_DATA",
+}
+
+/**
+ * Enum defining the different API environments for List Manager.
+ */
+export enum ListManagerApiEnv {
+    /**
+     * The production API environment.
+     */
+    Prod = "https://ec.adadapted.com",
+    /**
+     * The development API environment.
+     */
+    Dev = "https://sandec.adadapted.com",
     /**
      * Used only for unit testing/mocking data.
      */
@@ -180,6 +202,10 @@ export class AdadaptedReactNativeSdk {
      */
     private apiEnv: ApiEnv;
     /**
+     * The API environment to use when making API calls for List Manager.
+     */
+    private listManagerApiEnv: ListManagerApiEnv;
+    /**
      * The device operating system.
      */
     private deviceOs: DeviceOS | undefined;
@@ -269,6 +295,7 @@ export class AdadaptedReactNativeSdk {
      */
     constructor() {
         this.apiEnv = ApiEnv.Prod;
+        this.listManagerApiEnv = ListManagerApiEnv.Prod;
         this.onAdZonesRefreshed = () => {
             // Defaulting to empty method.
         };
@@ -428,6 +455,42 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
+     * Gets all data needed to make a List Manager API request.
+     * @param eventSource - The event source.
+     * @param eventName - The event name.
+     * @param itemNames - The items to report.
+     * @param listName - The list associated to the items, if any.
+     * @returns the data required for the request.
+     */
+    private getListManagerApiRequestData(
+        eventSource: ListManagerEventSource,
+        eventName: ListManagerEventName,
+        itemNames: string[],
+        listName?: string
+    ): ReportListManagerDataRequest {
+        const eventList: ListManagerEvent[] = [];
+
+        for (const itemName of itemNames) {
+            eventList.push({
+                event_source: eventSource,
+                event_name: eventName,
+                event_timestamp: this.getCurrentUnixTimestamp(),
+                event_params: {
+                    item_name: itemName,
+                    list_name: listName,
+                },
+            });
+        }
+
+        return {
+            session_id: this.sessionId!,
+            app_id: this.appId,
+            udid: this.deviceInfo!.udid,
+            events: eventList,
+        };
+    }
+
+    /**
      * Initializes the session for the AdAdapted API and sets up the SDK.
      * @param props - The props used to initialize the SDK.
      * @returns a Promise of void.
@@ -442,6 +505,18 @@ export class AdadaptedReactNativeSdk {
             this.apiEnv = props.apiEnv;
         } else {
             this.apiEnv = ApiEnv.Prod;
+        }
+
+        // Base the List Manager API environment off what
+        // the user provides for the props.apiEnv value.
+        if (props.apiEnv) {
+            if (props.apiEnv === ApiEnv.Prod) {
+                this.listManagerApiEnv = ListManagerApiEnv.Prod;
+            } else {
+                this.listManagerApiEnv = ListManagerApiEnv.Dev;
+            }
+        } else {
+            this.listManagerApiEnv = ListManagerApiEnv.Prod;
         }
 
         // The ad zone touch drag sensitivity setting.
@@ -743,6 +818,84 @@ export class AdadaptedReactNativeSdk {
                     // Do nothing with the response for now...
                 });
         }
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are added to a list for reports we provide to the client.
+     * @param itemNames - The items to report.
+     * @param listName - The list to associate the items with, if any.
+     */
+    public reportItemsAddedToList(
+        itemNames: string[],
+        listName?: string
+    ): void {
+        const requestData = this.getListManagerApiRequestData(
+            ListManagerEventSource.APP,
+            ListManagerEventName.ADDED_TO_LIST,
+            itemNames,
+            listName
+        );
+
+        adadaptedApiRequests
+            .reportListManagerEvents(
+                requestData,
+                this.deviceOs!,
+                this.listManagerApiEnv
+            )
+            .then();
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are crossed off a list for reports we provide to the client.
+     * @param itemNames - The items to report.
+     * @param listName - The list the items are associated with, if any.
+     */
+    public reportItemsCrossedOffList(
+        itemNames: string[],
+        listName?: string
+    ): void {
+        const requestData = this.getListManagerApiRequestData(
+            ListManagerEventSource.APP,
+            ListManagerEventName.CROSSED_OFF_LIST,
+            itemNames,
+            listName
+        );
+
+        adadaptedApiRequests
+            .reportListManagerEvents(
+                requestData,
+                this.deviceOs!,
+                this.listManagerApiEnv
+            )
+            .then();
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are deleted from a list for reports we provide to the client.
+     * @param itemNames - The items to report.
+     * @param listName - The list the items are associated with, if any.
+     */
+    public reportItemsDeletedFromList(
+        itemNames: string[],
+        listName?: string
+    ): void {
+        const requestData = this.getListManagerApiRequestData(
+            ListManagerEventSource.APP,
+            ListManagerEventName.DELETED_FROM_LIST,
+            itemNames,
+            listName
+        );
+
+        adadaptedApiRequests
+            .reportListManagerEvents(
+                requestData,
+                this.deviceOs!,
+                this.listManagerApiEnv
+            )
+            .then();
     }
 
     /**

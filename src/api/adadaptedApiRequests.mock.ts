@@ -113,6 +113,23 @@ export function reportInterceptEvent(): Promise<
 }
 
 /**
+ * Mocks the API call for reporting List Manager events.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function reportListManagerEvents(): Promise<AxiosResponse<void>> {
+    return new Promise<AxiosResponse<void>>((resolve) => {
+        resolve({
+            data: undefined,
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200",
+        });
+    });
+}
+
+/**
  * Mock data for an {@link AdSession} object.
  */
 const AD_SESSION_DATA: AdSession = {

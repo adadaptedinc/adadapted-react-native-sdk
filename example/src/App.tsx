@@ -287,6 +287,12 @@ export class App extends React.Component<Props, State> {
             this.aaSdk.reportKeywordInterceptTermSelected(
                 selectedItem.item.term_id
             );
+
+            // Report the keyword as added to list.
+            this.aaSdk.reportItemsAddedToList(
+                [selectedItem.item.replacement],
+                "keywords_added"
+            );
         }
 
         this.setState((prevState) => {
