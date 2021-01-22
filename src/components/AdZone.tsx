@@ -175,6 +175,7 @@ export class AdZone extends React.Component<Props, State> {
                         source={{
                             uri: currentAd.creative_url,
                         }}
+                        androidHardwareAccelerationDisabled={true}
                         automaticallyAdjustContentInsets={false}
                         style={styles.webView}
                         onTouchStart={(e) => {
