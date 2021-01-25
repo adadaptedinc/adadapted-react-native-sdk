@@ -86,9 +86,11 @@ export class App extends React.Component<Props, State> {
      * @inheritDoc
      */
     public componentDidMount(): void {
+        // You can use the "AdAdapted SDK Tester (iOS)" app in Platform dev for testing.
         this.aaSdk
             .initialize({
-                appId: "PUT_APP_TEST_ID_HERE",
+                // appId: "PUT_APP_TEST_ID_HERE",
+                appId: "NWYZZTDJN2UWZDUX",
                 apiEnv: ApiEnv.Dev,
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
@@ -284,6 +286,12 @@ export class App extends React.Component<Props, State> {
             // Report up the "selected" event to the AA SDK.
             this.aaSdk.reportKeywordInterceptTermSelected(
                 selectedItem.item.term_id
+            );
+
+            // Report the keyword as added to list.
+            this.aaSdk.reportItemsAddedToList(
+                [selectedItem.item.replacement],
+                "keywords_added"
             );
         }
 
