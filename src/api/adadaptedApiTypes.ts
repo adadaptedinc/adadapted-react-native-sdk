@@ -315,6 +315,24 @@ export interface ListManagerEvent {
 }
 
 /**
+ * Interface defining the structure of a payload tracking event.
+ */
+export interface PayloadTrackingEvent {
+    /**
+     * The source of the list manager event.
+     */
+    payload_id: string;
+    /**
+     * The status to report.
+     */
+    status: PayloadStatus;
+    /**
+     * The timestamp this event occurred (unix time).
+     */
+    event_timestamp: number;
+}
+
+/**
  * Interface defining the structure of an Event Param for List Manager.
  */
 export interface ListManagerEventParam {
@@ -419,6 +437,20 @@ export enum ReportedEventType {
      * Occurs when the user has selected a keyword intercept term.
      */
     SELECTED = "selected",
+}
+
+/**
+ * Enumeration defining the possible payload acknowledgment status values.
+ */
+export enum PayloadStatus {
+    /**
+     * The delivered status.
+     */
+    DELIVERED = "delivered",
+    /**
+     * The rejected status.
+     */
+    REJECTED = "rejected"
 }
 
 // =============================================================================
@@ -602,6 +634,28 @@ export interface ReportListManagerDataRequest {
      * The events to report.
      */
     events: ListManagerEvent[];
+}
+
+/**
+ * Interface for the request that reports List Manager data.
+ */
+export interface ReportPayloadDataRequest {
+    /**
+     * The app ID provided by the client using the API.
+     */
+    app_id: string;
+    /**
+     * The unique device ID.
+     */
+    udid: string;
+    /**
+     * The current session ID.
+     */
+    session_id: string;
+    /**
+     * The payload tracking events.
+     */
+    tracking: PayloadTrackingEvent[];
 }
 
 // =============================================================================

@@ -2,7 +2,7 @@
  * The AdadaptedReactNativeSdk package/module definition.
  */
 import * as React from "react";
-import { NativeModules } from "react-native";
+import { AppState, Linking, NativeModules } from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
     AdSession,
@@ -12,14 +12,16 @@ import {
     ListManagerEvent,
     ListManagerEventName,
     ListManagerEventSource,
+    PayloadStatus,
     ReportedEventType,
     ReportedInterceptEvent,
     ReportListManagerDataRequest,
-    Zone,
+    Zone
 } from "./api/adadaptedApiTypes";
 import { AdZone } from "./components/AdZone";
 import { safeInvoke } from "./util";
 import packageJson from "../package.json";
+import base64 from "react-native-base64";
 
 /**
  * Enum representing possible device operating systems.
@@ -72,6 +74,24 @@ export enum ListManagerApiEnv {
 }
 
 /**
+ * Enum defining the different API environments for the Payload Server.
+ */
+export enum PayloadApiEnv {
+    /**
+     * The production API environment.
+     */
+    Prod = "https://payload.adadapted.com",
+    /**
+     * The development API environment.
+     */
+    Dev = "https://sandpayload.adadapted.com",
+    /**
+     * Used only for unit testing/mocking data.
+     */
+    Mock = "MOCK_DATA",
+}
+
+/**
  * Interface defining inputs to the {@link Sdk.initialize} method.
  */
 export interface InitializeProps {
@@ -101,8 +121,12 @@ export interface InitializeProps {
     /**
      * Callback that gets triggered when an "add to list" item/items are clicked.
      * @param items - The array of items to "add to list".
+     * @param isExternalPayload - If true, the items are from an external payload.
      */
-    onAddToListTriggered?(items: DetailedListItem[]): void;
+    onAddToListTriggered?(
+        items: DetailedListItem[],
+        isExternalPayload?: boolean
+    ): void;
 }
 
 /**
@@ -206,6 +230,10 @@ export class AdadaptedReactNativeSdk {
      */
     private listManagerApiEnv: ListManagerApiEnv;
     /**
+     * The API environment to use when making API calls for the Payload server.
+     */
+    private payloadApiEnv: PayloadApiEnv;
+    /**
      * The device operating system.
      */
     private deviceOs: DeviceOS | undefined;
@@ -258,12 +286,20 @@ export class AdadaptedReactNativeSdk {
      */
     private keywordIntercepts: KeywordIntercepts | undefined;
     /**
+     * The Payload ID received from an "out of app" add to list event.
+     * This ID will be available only when we receive a deep link
+     * or payload from the payload server.
+     */
+    private payloadId: string | undefined;
+    /**
      * If provided, triggers when an "add to list" item is
      * clicked in an ad zone or in-app popup.
      * @param items - The array of items to "add to list".
+     * @param isExternalPayload - If true, the items are from an external payload.
      */
     private onAddToListTriggered: (
-        items: DetailedListItem[]
+        items: DetailedListItem[],
+        isExternalPayload?: boolean
     ) => void | undefined;
 
     /**
@@ -296,6 +332,7 @@ export class AdadaptedReactNativeSdk {
     constructor() {
         this.apiEnv = ApiEnv.Prod;
         this.listManagerApiEnv = ListManagerApiEnv.Prod;
+        this.payloadApiEnv = PayloadApiEnv.Prod;
         this.onAdZonesRefreshed = () => {
             // Defaulting to empty method.
         };
@@ -347,7 +384,7 @@ export class AdadaptedReactNativeSdk {
                             }
                             adZoneData={adZones[adZoneId]}
                             onAddToListTriggered={(items) => {
-                                safeInvoke(this.onAddToListTriggered, items);
+                                safeInvoke(this.onAddToListTriggered, items, false);
                             }}
                         />
                     ),
@@ -491,6 +528,54 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
+     * Takes the deep link URL and extracts out the payload items data to
+     * send to the client for adding to a user's list.
+     * @param event - The event containing URL related info.
+     */
+    private handleDeepLink(event: any): void {
+        const searchStr = "data=";
+        const dataIndex: number = event["url"].indexOf(searchStr);
+
+        if (dataIndex !== -1) {
+            const encodedData = event.url.substr(dataIndex + searchStr.length);
+            const payloadData = JSON.parse(base64.decode(encodedData));
+            const payloadId = payloadData["payload_id"];
+            const itemDataList = payloadData["detailed_list_items"];
+
+            this.payloadId = payloadId;
+
+            if (itemDataList && itemDataList.length > 0) {
+                const finalItemList: DetailedListItem[] = [];
+
+                for (const itemData of itemDataList) {
+                    finalItemList.push({
+                        product_title: itemData["product_title"],
+                        product_brand: itemData["product_brand"],
+                        product_category: itemData["product_category"],
+                        product_barcode: itemData["product_barcode"],
+                        product_discount: itemData["product_discount"],
+                        product_image: itemData["product_image"],
+                        product_sku: itemData["product_sku"]
+                    });
+                }
+
+                // Send the items to the client, so they can add them to the list.
+                safeInvoke(this.onAddToListTriggered, finalItemList, true);
+            }
+        }
+    }
+
+    /**
+     *
+     */
+    private handleAppStateChange(state: string): void {
+        if (state === "active") {
+            // TODO: Get payload server items if any exist.
+            console.log("STATE CHANGED");
+        }
+    }
+
+    /**
      * Initializes the session for the AdAdapted API and sets up the SDK.
      * @param props - The props used to initialize the SDK.
      * @returns a Promise of void.
@@ -591,6 +676,23 @@ export class AdadaptedReactNativeSdk {
                             // We don't need to wait for this to complete
                             // prior to resolving initialization of the SDK.
                             this.getKeywordIntercepts();
+
+                            // Intercept an initial deep link here, if needed.
+                            Linking.getInitialURL().then((url) => {
+                                if (url) {
+                                    // Pass in as an object so it mimics the "url"
+                                    // property of the Linking.addEventListener("url") method.
+                                    this.handleDeepLink({
+                                        url
+                                    });
+                                }
+                            });
+
+                            // Initialize an event listener to intercept deep links while the app is running.
+                            Linking.addEventListener("url", this.handleDeepLink);
+
+                            // Initialize an event listener to intercept App state changes.
+                            AppState.addEventListener("change", this.handleAppStateChange);
 
                             resolve();
                         })
@@ -899,6 +1001,55 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
+     * Client must trigger this method when any items
+     * are deleted from a list for reports we provide to the client.
+     */
+    public markPayloadContentAcknowledged(): void {
+        if (this.payloadId) {
+            console.log({payload: this.payloadId});
+            adadaptedApiRequests
+                .reportPayloadContentStatus(
+                    {
+                        app_id: this.appId,
+                        session_id: this.sessionId!,
+                        udid: this.deviceInfo!.udid,
+                        tracking: [{
+                            payload_id: this.payloadId,
+                            status: PayloadStatus.DELIVERED,
+                            event_timestamp: this.getCurrentUnixTimestamp()
+                        }]
+                    },
+                    this.payloadApiEnv
+                )
+                .then();
+        }
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are deleted from a list for reports we provide to the client.
+     */
+    public markPayloadContentRejected(): void {
+        if (this.payloadId) {
+            adadaptedApiRequests
+                .reportPayloadContentStatus(
+                    {
+                        app_id: this.appId,
+                        session_id: this.sessionId!,
+                        udid: this.deviceInfo!.udid,
+                        tracking: [{
+                            payload_id: this.payloadId,
+                            status: PayloadStatus.REJECTED,
+                            event_timestamp: this.getCurrentUnixTimestamp()
+                        }]
+                    },
+                    this.payloadApiEnv
+                )
+                .then();
+        }
+    }
+
+    /**
      * Performs all clean up tasks for the SDK. Call this method when
      * the component that references this SDK will "unmount", otherwise you
      * can experience memory leaks.
@@ -907,5 +1058,8 @@ export class AdadaptedReactNativeSdk {
         if (this.refreshAdZonesTimer) {
             clearTimeout(this.refreshAdZonesTimer);
         }
+
+        Linking.removeEventListener("url", this.handleDeepLink);
+        AppState.removeEventListener("change", this.handleAppStateChange);
     }
 }

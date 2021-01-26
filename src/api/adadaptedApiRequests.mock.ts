@@ -130,6 +130,23 @@ export function reportListManagerEvents(): Promise<AxiosResponse<void>> {
 }
 
 /**
+ * Mocks the API call for reporting Payload content status.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function reportPayloadContentStatus(): Promise<AxiosResponse<void>> {
+    return new Promise<AxiosResponse<void>>((resolve) => {
+        resolve({
+            data: undefined,
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200",
+        });
+    });
+}
+
+/**
  * Mock data for an {@link AdSession} object.
  */
 const AD_SESSION_DATA: AdSession = {
