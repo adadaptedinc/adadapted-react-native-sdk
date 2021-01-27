@@ -117,7 +117,41 @@ export interface Ad {
  */
 export interface AdPayload {
     /**
-     * ?
+     * The array of list items.
+     */
+    detailed_list_items: DetailedListItem[];
+}
+
+/**
+ * The definition of an "out of app" data payload.
+ */
+export interface OutOfAppDataPayload {
+    /**
+     * The payload ID associated to the provided list items.
+     */
+    payload_id: string;
+    /**
+     * The payload message.
+     */
+    payload_message?: string;
+    /**
+     * The payload image.
+     */
+    payload_image?: string;
+    /**
+     * The campaign ID.
+     */
+    campaign_id?: string;
+    /**
+     * The app ID.
+     */
+    app_id?: string;
+    /**
+     * Expiration time in seconds.
+     */
+    expire_seconds?: number;
+    /**
+     * The array of list items.
      */
     detailed_list_items: DetailedListItem[];
 }
@@ -154,6 +188,10 @@ export interface DetailedListItem {
      * The name/title of the product.
      */
     product_title: string;
+    /**
+     * The tracking ID.
+     */
+    tracking_id?: string;
 }
 
 /**
@@ -450,12 +488,30 @@ export enum PayloadStatus {
     /**
      * The rejected status.
      */
-    REJECTED = "rejected"
+    REJECTED = "rejected",
 }
 
 // =============================================================================
 // REQUEST MODELS
 // =============================================================================
+/**
+ * The base request inputs that most requests will use.
+ */
+export interface BaseRequestInputs {
+    /**
+     * The app ID provided by the client using the API.
+     */
+    app_id: string;
+    /**
+     * The unique device ID.
+     */
+    udid: string;
+    /**
+     * The current session ID.
+     */
+    session_id: string;
+}
+
 /**
  * Interface for the request of the Initialize Session API call.
  */
@@ -555,19 +611,7 @@ export interface RefreshSessionDataRequest {
 /**
  * Interface for the request that reports an ad event.
  */
-export interface ReportAdEventRequest {
-    /**
-     * The app ID provided by the client using the API.
-     */
-    app_id: string;
-    /**
-     * The unique device ID.
-     */
-    udid: string;
-    /**
-     * The current session ID.
-     */
-    session_id: string;
+export interface ReportAdEventRequest extends BaseRequestInputs {
     /**
      * Events to report.
      */
@@ -595,19 +639,7 @@ export interface KeywordInterceptsRequest {
 /**
  * Interface for the request that reports an intercept event.
  */
-export interface ReportInterceptEventRequest {
-    /**
-     * The app ID provided by the client using the API.
-     */
-    app_id: string;
-    /**
-     * The unique device ID.
-     */
-    udid: string;
-    /**
-     * The current session ID.
-     */
-    session_id: string;
+export interface ReportInterceptEventRequest extends BaseRequestInputs {
     /**
      * Events to report.
      */
@@ -617,19 +649,7 @@ export interface ReportInterceptEventRequest {
 /**
  * Interface for the request that reports List Manager data.
  */
-export interface ReportListManagerDataRequest {
-    /**
-     * The app ID provided by the client using the API.
-     */
-    app_id: string;
-    /**
-     * The unique device ID.
-     */
-    udid: string;
-    /**
-     * The current session ID.
-     */
-    session_id: string;
+export interface ReportListManagerDataRequest extends BaseRequestInputs {
     /**
      * The events to report.
      */
@@ -637,26 +657,19 @@ export interface ReportListManagerDataRequest {
 }
 
 /**
- * Interface for the request that reports List Manager data.
+ * Interface for the request that reports Payload tracking data.
  */
-export interface ReportPayloadDataRequest {
-    /**
-     * The app ID provided by the client using the API.
-     */
-    app_id: string;
-    /**
-     * The unique device ID.
-     */
-    udid: string;
-    /**
-     * The current session ID.
-     */
-    session_id: string;
+export interface ReportPayloadDataRequest extends BaseRequestInputs {
     /**
      * The payload tracking events.
      */
     tracking: PayloadTrackingEvent[];
 }
+
+/**
+ * Interface for the request that gets Payload server data.
+ */
+export interface RetrievePayloadItemDataRequest extends BaseRequestInputs {}
 
 // =============================================================================
 // RESPONSE MODELS
@@ -696,4 +709,14 @@ export interface ReportInterceptEventResponse {
      * on the same order of the events sent to the request.
      */
     results: string[];
+}
+
+/**
+ * Interface for the response of the Retrieve Payload Item Data API request.
+ */
+export interface RetrievePayloadItemDataResponse {
+    /**
+     * Array containing all current payloads for the provided user.
+     */
+    payloads: OutOfAppDataPayload[];
 }

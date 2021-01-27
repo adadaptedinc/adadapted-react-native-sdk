@@ -91,8 +91,8 @@ export class App extends React.Component<Props, State> {
         this.aaSdk
             .initialize({
                 // appId: "PUT_APP_TEST_ID_HERE",
-                appId: "NWYZZTDJN2UWZDUX",
-                apiEnv: ApiEnv.Dev,
+                appId: "NWZMMZG5M2NJMTC5",
+                apiEnv: ApiEnv.Prod,
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
                     this.setState({
@@ -100,7 +100,7 @@ export class App extends React.Component<Props, State> {
                         adZoneInfoList: this.aaSdk.getAdZones(),
                     });
                 },
-                onAddToListTriggered: (items, isExternalPayload) => {
+                onAddToListTriggered: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
                     for (const item of items) {
@@ -108,11 +108,21 @@ export class App extends React.Component<Props, State> {
                             itemName: item.product_title,
                         });
                     }
+                },
+                onOutOfAppPayloadAvailable: (payloads) => {
+                    // Demonstrate adding all provided items to the
+                    // client side list.
+                    for (const payload of payloads) {
+                        for (const item of payload.detailed_list_items) {
+                            this.selectItem({
+                                itemName: item.product_title,
+                            });
+                        }
 
-                    if (isExternalPayload) {
-                        // If the items were from an external payload,
-                        // let the SDK know that we received them.
-                        this.aaSdk.markPayloadContentAcknowledged();
+                        // Mark this payload as acknowledged.
+                        this.aaSdk.markPayloadContentAcknowledged(
+                            payload.payload_id
+                        );
                     }
                 },
             })
@@ -167,24 +177,28 @@ export class App extends React.Component<Props, State> {
                             <Text style={styles.searchResultsTitle}>
                                 Search Results:
                             </Text>
-                            {this.state.aasdkSearchResultItemList.map((itemObj) => (
-                                <TouchableOpacity
-                                    key={itemObj.term_id}
-                                    style={styles.searchResultContainer}
-                                    onPress={() => {
-                                        this.selectItem({
-                                            item: itemObj,
-                                        });
-                                    }}
-                                >
-                                    <Text style={styles.searchResultText}>
-                                        {itemObj.replacement}
-                                    </Text>
-                                    <Text style={styles.searchResultAdBadge}>
-                                        AD
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
+                            {this.state.aasdkSearchResultItemList.map(
+                                (itemObj) => (
+                                    <TouchableOpacity
+                                        key={itemObj.term_id}
+                                        style={styles.searchResultContainer}
+                                        onPress={() => {
+                                            this.selectItem({
+                                                item: itemObj,
+                                            });
+                                        }}
+                                    >
+                                        <Text style={styles.searchResultText}>
+                                            {itemObj.replacement}
+                                        </Text>
+                                        <Text
+                                            style={styles.searchResultAdBadge}
+                                        >
+                                            AD
+                                        </Text>
+                                    </TouchableOpacity>
+                                )
+                            )}
                             {this.state.standardProductSearchResultItemList.map(
                                 (itemName, idx) => (
                                     <TouchableOpacity
@@ -197,8 +211,13 @@ export class App extends React.Component<Props, State> {
 
                                             let isKeywordIntercept = false;
 
-                                            for (const keywordSearchResultObj of this.state.aasdkSearchResultItemList) {
-                                                if (keywordSearchResultObj.replacement === itemName) {
+                                            for (const keywordSearchResultObj of this
+                                                .state
+                                                .aasdkSearchResultItemList) {
+                                                if (
+                                                    keywordSearchResultObj.replacement ===
+                                                    itemName
+                                                ) {
                                                     isKeywordIntercept = true;
                                                 }
                                             }
@@ -315,9 +334,7 @@ export class App extends React.Component<Props, State> {
             );
         } else {
             // Report the non-ad item as added to list.
-            this.aaSdk.reportItemsAddedToList(
-                [selectedItem.itemName!]
-            );
+            this.aaSdk.reportItemsAddedToList([selectedItem.itemName!]);
         }
 
         this.setState((prevState) => {

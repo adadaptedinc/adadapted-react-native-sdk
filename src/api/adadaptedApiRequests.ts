@@ -12,7 +12,10 @@ import {
     ReportAdEventResponse,
     ReportInterceptEventRequest,
     ReportInterceptEventResponse,
-    ReportListManagerDataRequest, ReportPayloadDataRequest
+    ReportListManagerDataRequest,
+    ReportPayloadDataRequest,
+    RetrievePayloadItemDataRequest,
+    RetrievePayloadItemDataResponse,
 } from "./adadaptedApiTypes";
 import axios, { AxiosResponse } from "axios";
 import * as adadaptedApiRequestMocks from "./adadaptedApiRequests.mock";
@@ -180,10 +183,32 @@ export function reportPayloadContentStatus(
     return apiEnv === PayloadApiEnv.Mock
         ? adadaptedApiRequestMocks.reportPayloadContentStatus()
         : axios(`${apiEnv}/v/1/tracking`, {
-            method: "POST",
-            data: requestData,
-            headers: {
-                accept: "application/json",
-            },
-        });
+              method: "POST",
+              data: requestData,
+              headers: {
+                  accept: "application/json",
+              },
+          });
+}
+
+/**
+ * Makes an API request to get all outstanding add to list payloads for a given user.
+ * A valid session is required for this API endpoint to respond successfully.
+ * @param requestData - The data to be sent with the request.
+ * @param apiEnv - The API environment to use when making the API request.
+ * @returns a promise containing the response data.
+ */
+export function retrievePayloadContent(
+    requestData: RetrievePayloadItemDataRequest,
+    apiEnv: PayloadApiEnv
+): Promise<AxiosResponse<RetrievePayloadItemDataResponse>> {
+    return apiEnv === PayloadApiEnv.Mock
+        ? adadaptedApiRequestMocks.retrievePayloadContent()
+        : axios(`${apiEnv}/v/1/pickup`, {
+              method: "POST",
+              data: requestData,
+              headers: {
+                  accept: "application/json",
+              },
+          });
 }
