@@ -90,9 +90,8 @@ export class App extends React.Component<Props, State> {
         // You can use the "AdAdapted SDK Tester (iOS)" app in Platform dev for testing.
         this.aaSdk
             .initialize({
-                // appId: "PUT_APP_TEST_ID_HERE",
-                appId: "NWZMMZG5M2NJMTC5",
-                apiEnv: ApiEnv.Prod,
+                appId: "NWYZZTDJN2UWZDUX",
+                apiEnv: ApiEnv.Dev,
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
                     this.setState({

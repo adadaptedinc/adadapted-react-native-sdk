@@ -1133,7 +1133,10 @@ export class AdadaptedReactNativeSdk {
                 },
                 this.payloadApiEnv
             )
-            .then();
+            .then()
+            .catch(() => {
+                // Do nothing.
+            });
     }
 
     /**
