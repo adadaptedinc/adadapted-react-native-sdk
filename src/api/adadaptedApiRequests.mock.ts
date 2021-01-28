@@ -11,6 +11,7 @@ import {
     RefreshSessionDataResponse,
     ReportAdEventResponse,
     ReportInterceptEventResponse,
+    RetrievePayloadItemDataResponse,
 } from "./adadaptedApiTypes";
 
 /**
@@ -101,6 +102,78 @@ export function reportInterceptEvent(): Promise<
             resolve({
                 data: {
                     results: ["Ok"],
+                },
+                then: undefined,
+                config: {},
+                headers: {},
+                status: 200,
+                statusText: "200",
+            });
+        }
+    );
+}
+
+/**
+ * Mocks the API call for reporting List Manager events.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function reportListManagerEvents(): Promise<AxiosResponse<void>> {
+    return new Promise<AxiosResponse<void>>((resolve) => {
+        resolve({
+            data: undefined,
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200",
+        });
+    });
+}
+
+/**
+ * Mocks the API call for reporting Payload content status.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function reportPayloadContentStatus(): Promise<AxiosResponse<void>> {
+    return new Promise<AxiosResponse<void>>((resolve) => {
+        resolve({
+            data: undefined,
+            then: undefined,
+            config: {},
+            headers: {},
+            status: 200,
+            statusText: "200",
+        });
+    });
+}
+
+/**
+ * Mocks the API call for reporting Payload content status.
+ * @returns a promise of an {@link AxiosResponse} of the mocked data.
+ */
+export function retrievePayloadContent(): Promise<
+    AxiosResponse<RetrievePayloadItemDataResponse>
+> {
+    return new Promise<AxiosResponse<RetrievePayloadItemDataResponse>>(
+        (resolve) => {
+            resolve({
+                data: {
+                    payloads: [
+                        {
+                            payload_id: "TEST_PAYLOAD_1",
+                            detailed_list_items: [
+                                {
+                                    product_title: "Test Product 1",
+                                    product_barcode: "",
+                                    product_sku: "",
+                                    product_image: "",
+                                    product_discount: "",
+                                    product_brand: "",
+                                    product_category: "",
+                                },
+                            ],
+                        },
+                    ],
                 },
                 then: undefined,
                 config: {},

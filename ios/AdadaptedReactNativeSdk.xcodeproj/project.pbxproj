@@ -11,6 +11,16 @@
 		B933D719401946E7AB553B09 /* libRNCWebView.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9DA8E8C2BE7F46DA88253211 /* libRNCWebView.a */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		6BE47A9A25BF55140004394F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5C06D3F9EFE843778CF4C149 /* RNCWebView.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 134814201AA4EA6300B7C361;
+			remoteInfo = RNCWebView;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		58B511D91A9E6C8500147676 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -25,10 +35,10 @@
 
 /* Begin PBXFileReference section */
 		134814201AA4EA6300B7C361 /* libAdadaptedReactNativeSdk.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libAdadaptedReactNativeSdk.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		5C06D3F9EFE843778CF4C149 /* RNCWebView.xcodeproj */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = "wrapper.pb-project"; name = RNCWebView.xcodeproj; path = "../node_modules/react-native-webview/ios/RNCWebView.xcodeproj"; sourceTree = "<group>"; };
+		9DA8E8C2BE7F46DA88253211 /* libRNCWebView.a */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = archive.ar; path = libRNCWebView.a; sourceTree = "<group>"; };
 		B3E7B5881CC2AC0600A0062D /* AdadaptedReactNativeSdk.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AdadaptedReactNativeSdk.h; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* AdadaptedReactNativeSdk.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AdadaptedReactNativeSdk.m; sourceTree = "<group>"; };
-		5C06D3F9EFE843778CF4C149 /* RNCWebView.xcodeproj */ = {isa = PBXFileReference; name = "RNCWebView.xcodeproj"; path = "../node_modules/react-native-webview/ios/RNCWebView.xcodeproj"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = wrapper.pb-project; explicitFileType = undefined; includeInIndex = 0; };
-		9DA8E8C2BE7F46DA88253211 /* libRNCWebView.a */ = {isa = PBXFileReference; name = "libRNCWebView.a"; path = "libRNCWebView.a"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = archive.ar; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,17 +68,33 @@
 				B3E7B5891CC2AC0600A0062D /* AdadaptedReactNativeSdk.m */,
 				134814211AA4EA7D00B7C361 /* Products */,
 				9142FCDA141D41968EBC9AB7 /* Libraries */,
+				6BE47A9625BF55140004394F /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
+		6BE47A9625BF55140004394F /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				9DA8E8C2BE7F46DA88253211 /* libRNCWebView.a */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		6BE47A9725BF55140004394F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6BE47A9B25BF55140004394F /* libRNCWebView.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		9142FCDA141D41968EBC9AB7 /* Libraries */ = {
-			isa = "PBXGroup";
+			isa = PBXGroup;
 			children = (
 				5C06D3F9EFE843778CF4C149 /* RNCWebView.xcodeproj */,
 			);
 			name = Libraries;
 			sourceTree = "<group>";
-			path = "";
 		};
 /* End PBXGroup section */
 
@@ -109,17 +135,34 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = 58B511D21A9E6C8500147676;
 			productRefGroup = 58B511D21A9E6C8500147676;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 6BE47A9725BF55140004394F /* Products */;
+					ProjectRef = 5C06D3F9EFE843778CF4C149 /* RNCWebView.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				58B511DA1A9E6C8500147676 /* AdadaptedReactNativeSdk */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		6BE47A9B25BF55140004394F /* libRNCWebView.a */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			path = libRNCWebView.a;
+			remoteRef = 6BE47A9A25BF55140004394F /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXSourcesBuildPhase section */
 		58B511D71A9E6C8500147676 /* Sources */ = {

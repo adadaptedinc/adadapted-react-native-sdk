@@ -2,20 +2,27 @@
  * The AdadaptedReactNativeSdk package/module definition.
  */
 import * as React from "react";
-import { NativeModules } from "react-native";
+import { AppState, Linking, NativeModules } from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
     AdSession,
     DetailedListItem,
     KeywordIntercepts,
     KeywordSearchTerm,
+    ListManagerEvent,
+    ListManagerEventName,
+    ListManagerEventSource,
+    OutOfAppDataPayload,
+    PayloadStatus,
     ReportedEventType,
     ReportedInterceptEvent,
+    ReportListManagerDataRequest,
     Zone,
 } from "./api/adadaptedApiTypes";
 import { AdZone } from "./components/AdZone";
 import { safeInvoke } from "./util";
 import packageJson from "../package.json";
+import base64 from "react-native-base64";
 
 /**
  * Enum representing possible device operating systems.
@@ -43,6 +50,42 @@ export enum ApiEnv {
      * The development API environment.
      */
     Dev = "https://sandbox.adadapted.com",
+    /**
+     * Used only for unit testing/mocking data.
+     */
+    Mock = "MOCK_DATA",
+}
+
+/**
+ * Enum defining the different API environments for List Manager.
+ */
+export enum ListManagerApiEnv {
+    /**
+     * The production API environment.
+     */
+    Prod = "https://ec.adadapted.com",
+    /**
+     * The development API environment.
+     */
+    Dev = "https://sandec.adadapted.com",
+    /**
+     * Used only for unit testing/mocking data.
+     */
+    Mock = "MOCK_DATA",
+}
+
+/**
+ * Enum defining the different API environments for the Payload Server.
+ */
+export enum PayloadApiEnv {
+    /**
+     * The production API environment.
+     */
+    Prod = "https://payload.adadapted.com",
+    /**
+     * The development API environment.
+     */
+    Dev = "https://sandpayload.adadapted.com",
     /**
      * Used only for unit testing/mocking data.
      */
@@ -81,6 +124,12 @@ export interface InitializeProps {
      * @param items - The array of items to "add to list".
      */
     onAddToListTriggered?(items: DetailedListItem[]): void;
+    /**
+     * Callback that gets triggered when an "add to list"
+     * occurs by means of an "out of app" data payload.
+     * @param payloads - All payloads the client must go through.
+     */
+    onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
 }
 
 /**
@@ -180,6 +229,14 @@ export class AdadaptedReactNativeSdk {
      */
     private apiEnv: ApiEnv;
     /**
+     * The API environment to use when making API calls for List Manager.
+     */
+    private listManagerApiEnv: ListManagerApiEnv;
+    /**
+     * The API environment to use when making API calls for the Payload server.
+     */
+    private payloadApiEnv: PayloadApiEnv;
+    /**
      * The device operating system.
      */
     private deviceOs: DeviceOS | undefined;
@@ -235,11 +292,20 @@ export class AdadaptedReactNativeSdk {
      * If provided, triggers when an "add to list" item is
      * clicked in an ad zone or in-app popup.
      * @param items - The array of items to "add to list".
+     * @param isExternalPayload - If true, the items are from an external payload.
      */
     private onAddToListTriggered: (
-        items: DetailedListItem[]
+        items: DetailedListItem[],
+        isExternalPayload?: boolean
     ) => void | undefined;
-
+    /**
+     * If provided, triggers when an "add to list"
+     * occurs by means of an "out of app" data payload.
+     * @param payloads - All payloads the client must go through.
+     */
+    private onOutOfAppPayloadAvailable: (
+        payloads: OutOfAppDataPayload[]
+    ) => void | undefined;
     /**
      * Gets the Session ID.
      * @returns the Session ID.
@@ -269,16 +335,23 @@ export class AdadaptedReactNativeSdk {
      */
     constructor() {
         this.apiEnv = ApiEnv.Prod;
+        this.listManagerApiEnv = ListManagerApiEnv.Prod;
+        this.payloadApiEnv = PayloadApiEnv.Prod;
         this.onAdZonesRefreshed = () => {
             // Defaulting to empty method.
         };
         this.onAddToListTriggered = () => {
             // Defaulting to empty method.
         };
+        this.onOutOfAppPayloadAvailable = () => {
+            // Defaulting to empty method.
+        };
         this.keywordInterceptSearchValue = "";
 
         this.initialize = this.initialize.bind(this);
         this.unmount = this.unmount.bind(this);
+        this.handleAppStateChange = this.handleAppStateChange.bind(this);
+        this.handleDeepLink = this.handleDeepLink.bind(this);
     }
 
     /**
@@ -304,7 +377,7 @@ export class AdadaptedReactNativeSdk {
         const adZoneInfoList: AdZoneInfo[] = [];
 
         for (const adZoneId in adZones) {
-            if (adZones.hasOwnProperty(adZoneId)) {
+            if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
                 adZoneInfoList.push({
                     zoneId: adZones[adZoneId].id,
                     adZone: (
@@ -428,6 +501,139 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
+     * Gets all data needed to make a List Manager API request.
+     * @param eventSource - The event source.
+     * @param eventName - The event name.
+     * @param itemNames - The items to report.
+     * @param listName - The list associated to the items, if any.
+     * @returns the data required for the request.
+     */
+    private getListManagerApiRequestData(
+        eventSource: ListManagerEventSource,
+        eventName: ListManagerEventName,
+        itemNames: string[],
+        listName?: string
+    ): ReportListManagerDataRequest {
+        const eventList: ListManagerEvent[] = [];
+
+        for (const itemName of itemNames) {
+            eventList.push({
+                event_source: eventSource,
+                event_name: eventName,
+                event_timestamp: this.getCurrentUnixTimestamp(),
+                event_params: {
+                    item_name: itemName,
+                    list_name: listName,
+                },
+            });
+        }
+
+        return {
+            session_id: this.sessionId!,
+            app_id: this.appId,
+            udid: this.deviceInfo!.udid,
+            events: eventList,
+        };
+    }
+
+    /**
+     * Takes the deep link URL and extracts out the payload items data to
+     * send to the client for adding to a user's list.
+     * @param event - The event containing URL related info.
+     */
+    private handleDeepLink(event: any): void {
+        const searchStr = "data=";
+        const dataIndex: number = event["url"].indexOf(searchStr);
+
+        if (dataIndex !== -1) {
+            const encodedData = event.url.substr(dataIndex + searchStr.length);
+            const payloadData = JSON.parse(base64.decode(encodedData));
+            const payloadId = payloadData["payload_id"];
+            const itemDataList = payloadData["detailed_list_items"];
+
+            if (itemDataList && itemDataList.length > 0) {
+                const finalItemList: OutOfAppDataPayload[] = [];
+
+                for (const itemData of itemDataList) {
+                    finalItemList.push({
+                        payload_id: payloadId,
+                        detailed_list_items: [
+                            {
+                                product_title: itemData["product_title"],
+                                product_brand: itemData["product_brand"],
+                                product_category: itemData["product_category"],
+                                product_barcode: itemData["product_barcode"],
+                                product_discount: itemData["product_discount"],
+                                product_image: itemData["product_image"],
+                                product_sku: itemData["product_sku"],
+                            },
+                        ],
+                    });
+                }
+
+                // Send the items to the client, so they can add them to the list.
+                safeInvoke(this.onOutOfAppPayloadAvailable, finalItemList);
+            }
+        }
+    }
+
+    /**
+     * Triggered when the state of the app changes.
+     * @param state - The current state of the app.
+     */
+    private handleAppStateChange(state: string): void {
+        if (state === "active") {
+            this.getPayloadItemData();
+        }
+    }
+
+    /**
+     * Gets all available Payload server item data for the user.
+     */
+    private getPayloadItemData(): void {
+        adadaptedApiRequests
+            .retrievePayloadContent(
+                {
+                    app_id: this.appId,
+                    session_id: this.sessionId!,
+                    udid: this.deviceInfo!.udid,
+                },
+                this.payloadApiEnv
+            )
+            .then((response) => {
+                const finalItemList: OutOfAppDataPayload[] = [];
+
+                for (const payload of response.data.payloads) {
+                    for (const itemData of payload.detailed_list_items) {
+                        finalItemList.push({
+                            payload_id: payload.payload_id,
+                            detailed_list_items: [
+                                {
+                                    product_title: itemData["product_title"],
+                                    product_brand: itemData["product_brand"],
+                                    product_category:
+                                        itemData["product_category"],
+                                    product_barcode:
+                                        itemData["product_barcode"],
+                                    product_discount:
+                                        itemData["product_discount"],
+                                    product_image: itemData["product_image"],
+                                    product_sku: itemData["product_sku"],
+                                },
+                            ],
+                        });
+                    }
+                }
+
+                // Send the items to the client, so they can add them to the list.
+                safeInvoke(this.onOutOfAppPayloadAvailable, finalItemList);
+            })
+            .catch(() => {
+                // Do nothing.
+            });
+    }
+
+    /**
      * Initializes the session for the AdAdapted API and sets up the SDK.
      * @param props - The props used to initialize the SDK.
      * @returns a Promise of void.
@@ -442,6 +648,18 @@ export class AdadaptedReactNativeSdk {
             this.apiEnv = props.apiEnv;
         } else {
             this.apiEnv = ApiEnv.Prod;
+        }
+
+        // Base the List Manager API environment off what
+        // the user provides for the props.apiEnv value.
+        if (props.apiEnv) {
+            if (props.apiEnv === ApiEnv.Prod) {
+                this.listManagerApiEnv = ListManagerApiEnv.Prod;
+            } else {
+                this.listManagerApiEnv = ListManagerApiEnv.Dev;
+            }
+        } else {
+            this.listManagerApiEnv = ListManagerApiEnv.Prod;
         }
 
         // The ad zone touch drag sensitivity setting.
@@ -459,6 +677,12 @@ export class AdadaptedReactNativeSdk {
         // globally for use when the method needs to be triggered.
         if (props.onAddToListTriggered) {
             this.onAddToListTriggered = props.onAddToListTriggered;
+        }
+
+        // If the callback for onOutOfAppPayloadAvailable was provided, set it
+        // globally for use when the method needs to be triggered.
+        if (props.onOutOfAppPayloadAvailable) {
+            this.onOutOfAppPayloadAvailable = props.onOutOfAppPayloadAvailable;
         }
 
         return new Promise<void>((resolve, reject) => {
@@ -516,6 +740,33 @@ export class AdadaptedReactNativeSdk {
                             // We don't need to wait for this to complete
                             // prior to resolving initialization of the SDK.
                             this.getKeywordIntercepts();
+
+                            // Intercept an initial deep link here, if needed.
+                            Linking.getInitialURL().then((url) => {
+                                if (url) {
+                                    // Pass in as an object so it mimics the "url"
+                                    // property of the Linking.addEventListener("url") method.
+                                    this.handleDeepLink({
+                                        url,
+                                    });
+                                }
+                            });
+
+                            // Make the initial call to the Payload data server to see if
+                            // the user has any outstanding items to be added to list.
+                            this.getPayloadItemData();
+
+                            // Initialize an event listener to intercept deep links while the app is running.
+                            Linking.addEventListener(
+                                "url",
+                                this.handleDeepLink
+                            );
+
+                            // Initialize an event listener to intercept App state changes.
+                            AppState.addEventListener(
+                                "change",
+                                this.handleAppStateChange
+                            );
 
                             resolve();
                         })
@@ -746,6 +997,149 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
+     * Client must trigger this method when any items
+     * are added to a list for reports we provide to the client.
+     * @param itemNames - The items to report.
+     * @param listName - The list to associate the items with, if any.
+     */
+    public reportItemsAddedToList(
+        itemNames: string[],
+        listName?: string
+    ): void {
+        const requestData = this.getListManagerApiRequestData(
+            ListManagerEventSource.APP,
+            ListManagerEventName.ADDED_TO_LIST,
+            itemNames,
+            listName
+        );
+
+        adadaptedApiRequests
+            .reportListManagerEvents(
+                requestData,
+                this.deviceOs!,
+                this.listManagerApiEnv
+            )
+            .then()
+            .catch(() => {
+                // Do nothing.
+            });
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are crossed off a list for reports we provide to the client.
+     * @param itemNames - The items to report.
+     * @param listName - The list the items are associated with, if any.
+     */
+    public reportItemsCrossedOffList(
+        itemNames: string[],
+        listName?: string
+    ): void {
+        const requestData = this.getListManagerApiRequestData(
+            ListManagerEventSource.APP,
+            ListManagerEventName.CROSSED_OFF_LIST,
+            itemNames,
+            listName
+        );
+
+        adadaptedApiRequests
+            .reportListManagerEvents(
+                requestData,
+                this.deviceOs!,
+                this.listManagerApiEnv
+            )
+            .then()
+            .catch(() => {
+                // Do nothing.
+            });
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are deleted from a list for reports we provide to the client.
+     * @param itemNames - The items to report.
+     * @param listName - The list the items are associated with, if any.
+     */
+    public reportItemsDeletedFromList(
+        itemNames: string[],
+        listName?: string
+    ): void {
+        const requestData = this.getListManagerApiRequestData(
+            ListManagerEventSource.APP,
+            ListManagerEventName.DELETED_FROM_LIST,
+            itemNames,
+            listName
+        );
+
+        adadaptedApiRequests
+            .reportListManagerEvents(
+                requestData,
+                this.deviceOs!,
+                this.listManagerApiEnv
+            )
+            .then()
+            .catch(() => {
+                // Do nothing.
+            });
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are deleted from a list for reports we provide to the client.
+     * @param payloadId - The payload ID that we want to acknowledge.
+     */
+    public markPayloadContentAcknowledged(payloadId: string): void {
+        adadaptedApiRequests
+            .reportPayloadContentStatus(
+                {
+                    app_id: this.appId,
+                    session_id: this.sessionId!,
+                    udid: this.deviceInfo!.udid,
+                    tracking: [
+                        {
+                            payload_id: payloadId,
+                            status: PayloadStatus.DELIVERED,
+                            event_timestamp: this.getCurrentUnixTimestamp(),
+                        },
+                    ],
+                },
+                this.payloadApiEnv
+            )
+            .then()
+            .catch(() => {
+                // Do nothing.
+            });
+    }
+
+    /**
+     * Client must trigger this method when any items
+     * are deleted from a list for reports we provide to the client.
+     * @param payloadId - The payload ID that we want to acknowledge.
+     */
+    public markPayloadContentRejected(payloadId: string): void {
+        adadaptedApiRequests
+            .reportPayloadContentStatus(
+                {
+                    app_id: this.appId,
+                    session_id: this.sessionId!,
+                    udid: this.deviceInfo!.udid,
+                    tracking: [
+                        {
+                            payload_id: payloadId,
+                            status: PayloadStatus.REJECTED,
+                            event_timestamp: this.getCurrentUnixTimestamp(),
+                        },
+                    ],
+                },
+                this.payloadApiEnv
+            )
+            .then()
+            .catch(() => {
+                // Do nothing.
+            });
+    }
+
+    /**
      * Performs all clean up tasks for the SDK. Call this method when
      * the component that references this SDK will "unmount", otherwise you
      * can experience memory leaks.
@@ -754,5 +1148,8 @@ export class AdadaptedReactNativeSdk {
         if (this.refreshAdZonesTimer) {
             clearTimeout(this.refreshAdZonesTimer);
         }
+
+        Linking.removeEventListener("url", this.handleDeepLink);
+        AppState.removeEventListener("change", this.handleAppStateChange);
     }
 }
