@@ -57,3 +57,21 @@ react-native run-android
 This will run the test application within the Android emulator once it has finished building (might take a minute or two in order to complete the initial build).
 
 **NOTE:** _You must have Android Studio installed and setup in order to run the iOS emulator. You can download Android Studio [here](https://developer.android.com/studio). You will also need to have Java installed as well and can download it [here](https://www.oracle.com/java/technologies/javase-downloads.html)._
+
+---
+
+### Testing Deep Links
+
+To quickly test deep links, you can use `uri-scheme` directly from the `/example` root folder in your console.
+
+Close the app that's running in the emulator and then run the following to open the app using the deeplink:
+
+For running in Android, run the following:
+```shell
+npx uri-scheme open "example://adadapted.com/addit_add_list_items?data=eyJwYXlsb2FkX2lkIjoiVEVTVF9QQVlMT0FEX0lEIiwicGF5bG9hZF9tZXNzYWdlIjoiU2luZ2xlIFNhbXBsZSBQcm9kdWN0IiwicGF5bG9hZF9pbWFnZSI6IjIwMTkwMTIyXzIwNTA0MV90ZXN0X2ltYWdlXzIucG5nIiwiY2FtcGFpZ25faWQiOiIxMjMiLCJhcHBfaWQiOiJleGFtcGxlIiwiZXhwaXJlX3NlY29uZHMiOjYwNDgwMCwiZGV0YWlsZWRfbGlzdF9pdGVtcyI6W3sidHJhY2tpbmdfaWQiOiJ0cmFja2luZ19pZF8xIiwicHJvZHVjdF90aXRsZSI6IlNpbmdsZSBTYW1wbGUgUHJvZHVjdCIsInByb2R1Y3RfYnJhbmQiOiJTYW1wbGUgQnJhbmQiLCJwcm9kdWN0X2NhdGVnb3J5IjoiIiwicHJvZHVjdF9iYXJjb2RlIjoiMDEyMzQiLCJwcm9kdWN0X3NrdSI6IjU2Nzg5IiwicHJvZHVjdF9kaXNjb3VudCI6IiIsInByb2R1Y3RfaW1hZ2UiOiJodHRwczovL2ltYWdlcy5hZGFkYXB0ZWQuY29tLzIwMTkwMTIyXzIwNTA0MV90ZXN0X2ltYWdlXzIucG5nIn1dfQ==" --android
+```
+
+For running in iOS, run the following:
+```shell
+npx uri-scheme open "example://adadapted.com/addit_add_list_items?data=eyJwYXlsb2FkX2lkIjoiVEVTVF9QQVlMT0FEX0lEIiwicGF5bG9hZF9tZXNzYWdlIjoiU2luZ2xlIFNhbXBsZSBQcm9kdWN0IiwicGF5bG9hZF9pbWFnZSI6IjIwMTkwMTIyXzIwNTA0MV90ZXN0X2ltYWdlXzIucG5nIiwiY2FtcGFpZ25faWQiOiIxMjMiLCJhcHBfaWQiOiJleGFtcGxlIiwiZXhwaXJlX3NlY29uZHMiOjYwNDgwMCwiZGV0YWlsZWRfbGlzdF9pdGVtcyI6W3sidHJhY2tpbmdfaWQiOiJ0cmFja2luZ19pZF8xIiwicHJvZHVjdF90aXRsZSI6IlNpbmdsZSBTYW1wbGUgUHJvZHVjdCIsInByb2R1Y3RfYnJhbmQiOiJTYW1wbGUgQnJhbmQiLCJwcm9kdWN0X2NhdGVnb3J5IjoiIiwicHJvZHVjdF9iYXJjb2RlIjoiMDEyMzQiLCJwcm9kdWN0X3NrdSI6IjU2Nzg5IiwicHJvZHVjdF9kaXNjb3VudCI6IiIsInByb2R1Y3RfaW1hZ2UiOiJodHRwczovL2ltYWdlcy5hZGFkYXB0ZWQuY29tLzIwMTkwMTIyXzIwNTA0MV90ZXN0X2ltYWdlXzIucG5nIn1dfQ==" --ios
+```
