@@ -727,7 +727,9 @@ export class AdadaptedReactNativeSdk {
                             this.apiEnv
                         )
                         .then((response) => {
-                            NativeModules.AdadaptedReactNativeSdk.storeCurrentSessionId(response.data.session_id);
+                            NativeModules.AdadaptedReactNativeSdk.storeCurrentSessionId(
+                                response.data.session_id
+                            );
                             this.sessionId = response.data.session_id;
                             this.sessionInfo = response.data;
                             this.adZones = this.generateAdZones(
