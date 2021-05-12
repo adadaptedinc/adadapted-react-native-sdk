@@ -29,6 +29,7 @@ RCT_REMAP_METHOD(
     NSString *deviceLocal = [[NSLocale preferredLanguages] objectAtIndex:0];
     NSString *timezoneName = [[NSTimeZone localTimeZone] name];
     NSNumber *isAdTrackingEnabled = [NSNumber numberWithBool: [[ASIdentifierManager sharedManager] isAdvertisingTrackingEnabled]];
+    NSString *getUdid = [self getUdid:isAdTrackingEnabled idfa:idfaString];
 
     NSString *carrierName = [carrierInfo carrierName];
 
@@ -38,7 +39,7 @@ RCT_REMAP_METHOD(
 
     // Create the dictionary that will be turned into the final JSON result.
     NSDictionary *finalDeviceData = @{
-        @"udid": idfaString,
+        @"udid": getUdid,
         @"deviceName": deviceInfo.model,
         @"systemName": @"ios",
         @"systemVersion": deviceInfo.systemVersion,
@@ -62,6 +63,24 @@ RCT_REMAP_METHOD(
     ];
 
     resolve([[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding]);
+}
+
+- (NSString *)getUdid:(BOOL) adTrackingEnabled idfa:(NSString*) idfa {
+    if(adTrackingEnabled == 1) {
+        NSString *sessionId = [[NSUserDefaults standardUserDefaults]
+            stringForKey:@"aasdkSessionIdKey"];
+        if (sessionId) {
+            return sessionId;
+        } else {
+            return @"0000000-0000-0000-0000-000000000000";
+        }
+    }
+    return idfa;
+}
+
+RCT_EXPORT_METHOD(storeCurrentSessionId:(NSString *) sessionId) {
+    [[NSUserDefaults standardUserDefaults] setObject:sessionId forKey:@"aasdkSessionIdKey"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
 }
 
 @end
