@@ -92,8 +92,8 @@ export class App extends React.Component<Props, State> {
             .initialize({
                 appId: "NWYZZTDJN2UWZDUX",
                 apiEnv: ApiEnv.Dev,
-                // iOS Optional Param - You can Pass in Custom udid here.
-                params: { customId: "CUSTOM-ID-REACT-NATIVE-TEST" },
+                // iOS Optional custom advertiserID - Delete next line to use IDFA instead.
+                advertiserId: "ADVERTISER-ID-REACT-NATIVE-TEST",
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
                     this.setState({

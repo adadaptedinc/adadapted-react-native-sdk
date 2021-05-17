@@ -106,10 +106,9 @@ export interface InitializeProps {
      */
     apiEnv?: ApiEnv;
     /**
-     * Optional params.
-     * Can be used to pass custom udid - ios only.
+     * Optional custom sdvertiser id - ios only.
      */
-    params?: { [key: string]: string };
+    advertiserId?: string;
     /**
      * The touch sensitivity of the Ad Zone in both the X and Y directions.
      * This is used to determine the click/press sensitivity when the
@@ -701,12 +700,8 @@ export class AdadaptedReactNativeSdk {
                             : DeviceOS.ANDROID;
                     // Pass custom udid - ios only
                     if (Platform.OS === "ios") {
-                        if (!(props.params === undefined)) {
-                            for (const key in props.params) {
-                                if (key === "customId") {
-                                    deviceInfo.udid = props.params[key];
-                                }
-                            }
+                        if (!(props.advertiserId === undefined)) {
+                            deviceInfo.udid = props.advertiserId;
                         }
                     }
                     // Pass device info along with API call
