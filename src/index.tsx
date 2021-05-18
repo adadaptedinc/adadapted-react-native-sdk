@@ -51,7 +51,7 @@ export enum ApiEnv {
      */
     Dev = "https://sandbox.adadapted.com",
     /**
-     * Used only for unit testing/mocking data.
+     * Used only for unit testing/mock data.
      */
     Mock = "MOCK_DATA",
 }
