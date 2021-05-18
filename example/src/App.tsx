@@ -93,7 +93,7 @@ export class App extends React.Component<Props, State> {
                 appId: "NWYZZTDJN2UWZDUX",
                 apiEnv: ApiEnv.Dev,
                 // iOS Optional custom advertiserID - Delete next line to use IDFA instead.
-                advertiserId: "ADVERTISER-ID-REACT-NATIVE-TEST",
+                advertiserId: "REACT-NATIVE-TEST-ADVERTISER-ID",
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
                     this.setState({
