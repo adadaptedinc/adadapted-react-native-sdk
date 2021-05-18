@@ -2,7 +2,7 @@
  * The AdadaptedReactNativeSdk package/module definition.
  */
 import * as React from "react";
-import { AppState, Linking, NativeModules } from "react-native";
+import { AppState, Linking, NativeModules, Platform } from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
     AdSession,
@@ -105,6 +105,10 @@ export interface InitializeProps {
      * If undefined, defaults to production.
      */
     apiEnv?: ApiEnv;
+    /**
+     * Optional custom sdvertiser id - ios only.
+     */
+    advertiserId?: string;
     /**
      * The touch sensitivity of the Ad Zone in both the X and Y directions.
      * This is used to determine the click/press sensitivity when the
@@ -694,7 +698,12 @@ export class AdadaptedReactNativeSdk {
                         deviceInfo.systemName === "ios"
                             ? DeviceOS.IOS
                             : DeviceOS.ANDROID;
-
+                    // Pass custom udid - ios only
+                    if (Platform.OS === "ios") {
+                        if (!(props.advertiserId === undefined)) {
+                            deviceInfo.udid = props.advertiserId;
+                        }
+                    }
                     // Pass device info along with API call
                     adadaptedApiRequests
                         .initializeSession(
