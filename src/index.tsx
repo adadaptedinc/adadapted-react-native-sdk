@@ -106,7 +106,7 @@ export interface InitializeProps {
      */
     apiEnv?: ApiEnv;
     /**
-     * Optional custom advertiserId - ios only.
+     * Optional custom advertiserId to replace IDFA - ios only.
      */
     advertiserId?: string;
     /**
