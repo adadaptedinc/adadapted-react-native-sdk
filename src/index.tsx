@@ -106,7 +106,7 @@ export interface InitializeProps {
      */
     apiEnv?: ApiEnv;
     /**
-     * Optional custom sdvertiser id - ios only.
+     * Optional custom advertiserId - ios only.
      */
     advertiserId?: string;
     /**
@@ -698,7 +698,7 @@ export class AdadaptedReactNativeSdk {
                         deviceInfo.systemName === "ios"
                             ? DeviceOS.IOS
                             : DeviceOS.ANDROID;
-                    // Pass custom udid - ios only
+                    // Pass custom advertiserId - ios only
                     if (Platform.OS === "ios") {
                         if (!(props.advertiserId === undefined)) {
                             deviceInfo.udid = props.advertiserId;
