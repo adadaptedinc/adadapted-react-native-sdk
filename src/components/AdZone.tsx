@@ -265,6 +265,10 @@ export class AdZone extends React.Component<Props, State> {
         }
 
         this.triggerReportAdEvent(currentAd, ReportedEventType.INTERACTION);
+        if (this.cycleAdTimer) {
+            clearTimeout(this.cycleAdTimer);
+        }
+        this.cycleDisplayedAd();
     }
 
     /**

@@ -828,27 +828,7 @@ export class AdadaptedReactNativeSdk {
                     // If the term starts with the search term,
                     // add it to the finalResultListStartsWith list.
                     finalResultListStartsWith.push(termObj);
-                } else if (
-                    termObj.term
-                        .toLowerCase()
-                        .indexOf(searchTerm.toLowerCase()) !== -1
-                ) {
-                    // If the term din't start with the search term, but
-                    // still contains the search term, add it to the
-                    // finalResultListContains list.
-                    finalResultListContains.push(termObj);
-                }
 
-                if (
-                    termObj.term
-                        .toLowerCase()
-                        .startsWith(searchTerm.toLowerCase()) ||
-                    termObj.term
-                        .toLowerCase()
-                        .indexOf(searchTerm.toLowerCase()) !== -1
-                ) {
-                    // Add the event to the list so we can report the
-                    // "matched" event for this term.
                     finalEventsList.push({
                         term_id: termObj.term_id,
                         search_id: this.keywordIntercepts.search_id,
