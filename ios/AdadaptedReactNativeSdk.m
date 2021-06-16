@@ -22,14 +22,13 @@ RCT_REMAP_METHOD(
     UIDevice *deviceInfo = [UIDevice currentDevice];
     NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
     NSString *bundleVersion = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"];
-    NSString *idfaString = [[[ASIdentifierManager sharedManager] advertisingIdentifier] UUIDString];
     NSString *deviceWidth = [NSString stringWithFormat:@"%1.0f", screenSize.width];
     NSString *deviceHeight = [NSString stringWithFormat:@"%1.0f", screenSize.height];
     NSString *deviceScreenDensity = [NSString stringWithFormat:@"%0.0f", [[UIScreen mainScreen] scale]];
     NSString *deviceLocal = [[NSLocale preferredLanguages] objectAtIndex:0];
     NSString *timezoneName = [[NSTimeZone localTimeZone] name];
     NSNumber *isAdTrackingEnabled = [NSNumber numberWithBool: [[ASIdentifierManager sharedManager] isAdvertisingTrackingEnabled]];
-    NSString *getUdid = [self getUdid:isAdTrackingEnabled idfa:idfaString];
+    NSString *udid = [self identifierForAdvertising];
 
     NSString *carrierName = [carrierInfo carrierName];
 
@@ -39,7 +38,7 @@ RCT_REMAP_METHOD(
 
     // Create the dictionary that will be turned into the final JSON result.
     NSDictionary *finalDeviceData = @{
-        @"udid": getUdid,
+        @"udid": udid,
         @"deviceName": deviceInfo.model,
         @"systemName": @"ios",
         @"systemVersion": deviceInfo.systemVersion,
@@ -65,17 +64,30 @@ RCT_REMAP_METHOD(
     resolve([[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding]);
 }
 
-- (NSString *)getUdid:(BOOL) adTrackingEnabled idfa:(NSString*) idfa {
-    if(adTrackingEnabled == 1) {
+-(BOOL)isAdTrackingEnabled {
+    if(@available(iOS 14.0, *)) {
+        ATTrackingManagerAuthorizationStatus status = [ATTrackingManager trackingAuthorizationStatus];
+            if(status == ATTrackingManagerAuthorizationStatusAuthorized) {
+                return YES;
+            }
+    } else if([[ASIdentifierManager sharedManager] isAdvertisingTrackingEnabled]) {
+        return YES;
+    }
+    return NO;
+}
+
+- (NSString *)identifierForAdvertising {
+    if([self isAdTrackingEnabled]) {
+        NSUUID *identifier = [[ASIdentifierManager sharedManager] advertisingIdentifier];
+        return [identifier UUIDString];
+    } else {
         NSString *sessionId = [[NSUserDefaults standardUserDefaults]
             stringForKey:@"aasdkSessionIdKey"];
         if (sessionId) {
             return sessionId;
-        } else {
-            return @"0000000-0000-0000-0000-000000000000";
-        }
+        } 
     }
-    return idfa;
+    return @"0000000-0000-0000-0000-000000000000";
 }
 
 RCT_EXPORT_METHOD(storeCurrentSessionId:(NSString *) sessionId) {
