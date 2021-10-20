@@ -107,4 +107,9 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
         Log.w(TAG, "Problem retrieving Google Play Advertiser Info");
         Log.w(TAG, "GAID_UNAVAILABLE");
     }
+
+    @ReactMethod
+    fun storeCurrentSessionId() {
+        // noop
+    }
 }
