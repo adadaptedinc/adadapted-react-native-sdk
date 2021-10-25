@@ -109,7 +109,7 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
     }
 
     @ReactMethod
-    fun storeCurrentSessionId() {
+    fun storeCurrentSessionId(sessionId: String) {
         // noop
     }
 }
