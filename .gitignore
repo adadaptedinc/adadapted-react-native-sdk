@@ -34,11 +34,12 @@ project.xcworkspace
 .idea
 .gradle
 local.properties
-android.iml
+*.iml
+*.hprof
 
-# Cocoapods
-#
-example/ios/Pods
+# Ruby / CocoaPods
+/ios/Pods/
+/vendor/bundle/
 
 # node.js
 #

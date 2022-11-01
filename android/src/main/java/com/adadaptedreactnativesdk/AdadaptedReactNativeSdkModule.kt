@@ -83,7 +83,7 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
         }
 
         // Create the HashMap that will be turned into a final JSON result.
-        var finalDeviceData: HashMap<String, Any> = HashMap<String, Any>();
+        var finalDeviceData: HashMap<Any?, Any?> = HashMap<Any?, Any?>();
 
         finalDeviceData.put("udid", gaid);
         finalDeviceData.put("deviceName", android.os.Build.DEVICE);
