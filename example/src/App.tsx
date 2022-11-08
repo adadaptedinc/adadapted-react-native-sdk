@@ -90,7 +90,7 @@ export class App extends React.Component<Props, State> {
         // You can use the "AdAdapted SDK Tester (iOS)" app in Platform dev for testing.
         this.aaSdk
             .initialize({
-                appId: "7D58810X6333241C",
+                appId: "NWYZZTDJN2UWZDUX",
                 apiEnv: ApiEnv.Dev,
                 // iOS Optional custom advertiserID - Delete next line to use IDFA instead.
                 advertiserId: "REACT-NATIVE-TEST-ADVERTISER-ID",

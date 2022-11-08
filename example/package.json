@@ -12,17 +12,17 @@
   },
   "dependencies": {
     "axios": "^0.19.2",
+    "react": "16.13.1",
+    "react-native": "^0.62.2",
     "react-native-base64": "^0.2.1",
-    "react-native-modal": "^11.5.6"
+    "react-native-modal": "^11.5.6",
+    "react-native-webview": "^9.4.0",
+    "react-router-native": "^5.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.9.6",
     "@babel/runtime": "^7.9.6",
     "@types/react-router-native": "^5.1.0",
-    "metro-react-native-babel-preset": "^0.59.0",
-    "react": "17.0.2",
-    "react-native": "0.68.4",
-    "react-native-webview": "^11.0.0",
-    "react-router-native": "^5.2.0"
+    "metro-react-native-babel-preset": "^0.59.0"
   }
 }

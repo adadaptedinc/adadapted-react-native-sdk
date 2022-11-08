@@ -294,7 +294,7 @@ export class AdadaptedReactNativeSdk {
     private keywordIntercepts: KeywordIntercepts | undefined;
     /**
      * If provided, triggers when an "add to list" item is
-     * clicked in an ad zone.
+     * clicked in an ad zone or in-app popup.
      * @param items - The array of items to "add to list".
      * @param isExternalPayload - If true, the items are from an external payload.
      */

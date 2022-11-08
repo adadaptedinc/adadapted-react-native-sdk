@@ -2,17 +2,18 @@
 
 buildscript {
     ext {
-        buildToolsVersion = "31.0.0"
-        minSdkVersion = 21
-        compileSdkVersion = 31
-        targetSdkVersion = 31
+        buildToolsVersion = "28.0.3"
+        minSdkVersion = 16
+        compileSdkVersion = 28
+        targetSdkVersion = 28
     }
     repositories {
         google()
-        mavenCentral()
+        jcenter()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:7.2.1")
+        classpath("com.android.tools.build:gradle:3.4.2")
+
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
@@ -31,7 +32,7 @@ allprojects {
         }
 
         google()
-        mavenCentral()
+        jcenter()
         maven { url 'https://jitpack.io' }
     }
 }
