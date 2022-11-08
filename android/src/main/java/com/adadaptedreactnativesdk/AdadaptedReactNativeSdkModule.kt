@@ -100,7 +100,7 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
         finalDeviceData.put("deviceTimezone", TimeZone.getDefault().getID());
         finalDeviceData.put("isAdTrackingEnabled", adTrackingEnabled);
 
-        promise.resolve(JSONObject(finalDeviceData).toString());
+        promise.resolve(JSONObject(finalDeviceData as Map<*, *>?).toString());
     }
 
     fun logGaidException() {

@@ -106,10 +106,6 @@ export interface Ad {
      * ?
      */
     payload: AdPayload;
-    /**
-     * ?
-     */
-    popup: AdPopup;
 }
 
 /**
@@ -192,44 +188,6 @@ export interface DetailedListItem {
      * The tracking ID.
      */
     tracking_id?: string;
-}
-
-/**
- * The definition of an Ad Popup.
- */
-export interface AdPopup {
-    /**
-     * ?
-     */
-    alt_close_btn: string;
-    /**
-     * ?
-     */
-    background_color: string;
-    /**
-     * ?
-     */
-    hide_banner: boolean;
-    /**
-     * ?
-     */
-    hide_browser_nav: boolean;
-    /**
-     * ?
-     */
-    hide_close_btn: boolean;
-    /**
-     * ?
-     */
-    text_color: string;
-    /**
-     * ?
-     */
-    title_text: string;
-    /**
-     * ?
-     */
-    type: string;
 }
 
 /**
@@ -426,16 +384,10 @@ export enum AdActionType {
     EXTERNAL = "e",
     /**
      * Used for opening URLs in a web view within the app.
-     * Works the same as {@link AdActionType.POPUP}.
      * NOTE: This one should probably be deprecated with the new
      *       platform redesign, since its not as obvious what it does.
      */
     LINK = "l",
-    /**
-     * Used for opening URLs in a web view within the app.
-     * Works the same as {@link AdActionType.LINK}.
-     */
-    POPUP = "p",
     /**
      * Used for opening app store URLs in the app store.
      */
