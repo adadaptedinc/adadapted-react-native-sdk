@@ -14,7 +14,6 @@ import {
 } from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
 import { ApiEnv, DeviceOS } from "../index";
-import { AdPopup } from "./AdPopup";
 import { safeInvoke } from "../util";
 
 /**
@@ -69,10 +68,6 @@ interface State {
      * Tracks the current ad index being shown.
      */
     adIndexShown: number;
-    /**
-     * If true, the ad popup(if available) is open.
-     */
-    isAdPopupOpen: boolean;
     /**
      * Tracks the coordinates when the user started touching the Ad View.
      */
@@ -130,7 +125,6 @@ export class AdZone extends React.Component<Props, State> {
 
         this.state = {
             adIndexShown: startingAdIndex,
-            isAdPopupOpen: false,
             touchStartCoords: undefined,
         };
     }
@@ -214,20 +208,6 @@ export class AdZone extends React.Component<Props, State> {
                         }}
                     />
                 ) : undefined}
-                {currentAd && currentAd.creative_url ? (
-                    <AdPopup
-                        ad={currentAd}
-                        isOpen={this.state.isAdPopupOpen}
-                        onClose={() => {
-                            this.setState({
-                                isAdPopupOpen: false,
-                            });
-                        }}
-                        onAddToListItemClicked={(item) => {
-                            safeInvoke(this.props.onAddToListTriggered, [item]);
-                        }}
-                    />
-                ) : undefined}
             </View>
         );
     }
@@ -244,15 +224,6 @@ export class AdZone extends React.Component<Props, State> {
         ) {
             // Action Type: EXTERNAL
             Linking.openURL(currentAd.action_path).then();
-        } else if (
-            (currentAd.action_type === AdActionType.POPUP ||
-                currentAd.action_type === AdActionType.LINK) &&
-            currentAd.action_path
-        ) {
-            // Action Type: POPUP or LINK
-            this.setState({
-                isAdPopupOpen: true,
-            });
         } else if (
             currentAd.action_type === AdActionType.CONTENT &&
             currentAd.payload &&
@@ -324,35 +295,21 @@ export class AdZone extends React.Component<Props, State> {
      * Cycles to the next ad to display in the current available sequence of ads.
      */
     private cycleDisplayedAd(): void {
-        if (!this.state.isAdPopupOpen) {
-            // Start by determining the next ad index to display.
-            let nextAdIndex = 0;
+        // Start by determining the next ad index to display.
+        let nextAdIndex = 0;
 
-            if (
-                this.state.adIndexShown <
-                this.props.adZoneData.ads.length - 1
-            ) {
-                nextAdIndex = this.state.adIndexShown + 1;
-            }
-
-            this.setState(
-                {
-                    adIndexShown: nextAdIndex,
-                },
-                () => {
-                    this.initializeAd();
-                }
-            );
-        } else {
-            // Create a new timer with a timer length of just 10 seconds.
-            // This will allow us to re-check if the popup is still open
-            // quicker and handle switching to the next ad sooner instead of
-            // just restarting the current timer. We do this, because we must
-            // maintain the current ad shown or the popup will cycle to the
-            // next ad while the user is actively engaged with it. Then when
-            // the user closes the popup, the ad will cycle to the next quickly.
-            this.createAdTimer(10000);
+        if (this.state.adIndexShown < this.props.adZoneData.ads.length - 1) {
+            nextAdIndex = this.state.adIndexShown + 1;
         }
+
+        this.setState(
+            {
+                adIndexShown: nextAdIndex,
+            },
+            () => {
+                this.initializeAd();
+            }
+        );
     }
 
     /**
