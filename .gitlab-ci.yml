@@ -40,13 +40,11 @@ release:
 deploy_master:
   stage: deploy
   image: node:12.10.0-stretch-slim
-  before_script:
-    - npm install -g npm-cli-login
   script:
     - npm install
     - npm audit fix
     - npm run prepare-build
-    - npm-cli-login -u $NPM_USER -p $NPM_PASS -e $NPM_EMAIL
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
     - npm publish --access public
   when: on_success
   only:
