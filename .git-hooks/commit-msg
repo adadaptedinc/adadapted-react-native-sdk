@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+# fix for windows systems
+PATH="/c/Program Files/nodejs:$HOME/AppData/Roaming/npm/:$PATH"
+
+# use git-conventional-commits, see https://github.com/qoomon/git-conventional-commits
+git-conventional-commits commit-msg-hook "$1"
