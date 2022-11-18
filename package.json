@@ -18,6 +18,7 @@
         "lint": "eslint --version && eslint ./",
         "compile": "tsc --version && tsc --project tsconfig.json --noEmit --noErrorTruncation --pretty",
         "test-coverage": "rm -rf coverage && jest --version --clearCache && jest --coverage --clearCache",
+        "enable-git-hooks": "git config core.hooksPath .git-hooks",
         "test": "jest --version --clearCache && jest",
         "prettier": "prettier --list-different \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "prepare-build": "bob build",
