@@ -2,7 +2,13 @@
  * The AdadaptedReactNativeSdk package/module definition.
  */
 import * as React from "react";
-import { AppState, EmitterSubscription, Linking, LinkingStatic, NativeModules, Platform } from "react-native";
+import {
+    AppState,
+    EmitterSubscription,
+    Linking,
+    NativeModules,
+    Platform,
+} from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
     AdSession,
@@ -784,7 +790,7 @@ export class AdadaptedReactNativeSdk {
                             );
 
                             // Initialize an event listener to intercept App state changes.
-                            
+
                             this.AppStateOnEventListener = AppState.addEventListener(
                                 "change",
                                 this.handleAppStateChange
