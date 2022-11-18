@@ -39,8 +39,6 @@ jobs:
               run: npm run lint
             - name: Build Validation
               run: npm run compile
-            # - name: Unit Test Validation
-            #   run: npm run test
       deploy_production:
         if: ${{ github.ref_name == 'master' }}
         needs: [code_validation]
