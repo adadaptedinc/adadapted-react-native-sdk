@@ -70,6 +70,6 @@ jobs:
             - name: Build Production Files
               run: npm run prepare-build
             - name: Get Access Token
-              run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+              run: echo "//registry.npmjs.org/:_authToken=${{secrets.NPM_TOKEN}}" > .npmrc
             - name: Publish
               run: npm publish --access public
