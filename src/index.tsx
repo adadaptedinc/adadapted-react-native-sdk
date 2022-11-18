@@ -2,7 +2,13 @@
  * The AdadaptedReactNativeSdk package/module definition.
  */
 import * as React from "react";
-import { AppState, Linking, NativeModules, Platform } from "react-native";
+import {
+    AppState,
+    EmitterSubscription,
+    Linking,
+    NativeModules,
+    Platform,
+} from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
     AdSession,
@@ -310,6 +316,14 @@ export class AdadaptedReactNativeSdk {
     private onOutOfAppPayloadAvailable: (
         payloads: OutOfAppDataPayload[]
     ) => void | undefined;
+    /**
+     * Deeplink event listener.
+     */
+    private deepLinkOnEventListener: EmitterSubscription | undefined;
+    /**
+     * AppState event listener.
+     */
+    private AppStateOnEventListener: EmitterSubscription | undefined;
     /**
      * Gets the Session ID.
      * @returns the Session ID.
@@ -769,13 +783,15 @@ export class AdadaptedReactNativeSdk {
                             this.getPayloadItemData();
 
                             // Initialize an event listener to intercept deep links while the app is running.
-                            Linking.addEventListener(
+
+                            this.deepLinkOnEventListener = Linking.addEventListener(
                                 "url",
                                 this.handleDeepLink
                             );
 
                             // Initialize an event listener to intercept App state changes.
-                            AppState.addEventListener(
+
+                            this.AppStateOnEventListener = AppState.addEventListener(
                                 "change",
                                 this.handleAppStateChange
                             );
@@ -1141,7 +1157,12 @@ export class AdadaptedReactNativeSdk {
             clearTimeout(this.refreshAdZonesTimer);
         }
 
-        Linking.removeEventListener("url", this.handleDeepLink);
-        AppState.removeEventListener("change", this.handleAppStateChange);
+        if (this.deepLinkOnEventListener) {
+            this.deepLinkOnEventListener.remove();
+        }
+
+        if (this.AppStateOnEventListener) {
+            this.AppStateOnEventListener.remove();
+        }
     }
 }
