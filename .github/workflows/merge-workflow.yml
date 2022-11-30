@@ -31,8 +31,8 @@ jobs:
                   node-version: 16
             - name: NPM Install
               run: npm install
-            - name: NPM Audit Fix
-              run: npm audit fix
+            # - name: NPM Audit Fix
+            #   run: npm audit fix
             - name: Prettier Validation
               run: npm run prettier
             - name: Linting Validation
