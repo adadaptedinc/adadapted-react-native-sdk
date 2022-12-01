@@ -1,6 +1,6 @@
 {
     "name": "@adadapted/react-native-sdk",
-    "version": "3.1.10",
+    "version": "3.1.11",
     "description": "The AdAdapted react-native SDK.",
     "main": "lib/commonjs/index.js",
     "module": "lib/module/index.js",
@@ -47,7 +47,8 @@
     "homepage": "https://gitlab.com/adadapted/adadapted-react-native-sdk#readme",
     "dependencies": {
         "axios": "^0.21.1",
-        "react-native-base64": "^0.2.1"
+        "react-native-base64": "^0.2.1",
+        "type-zoo": "^3.4.1"
     },
     "peerDependencies": {
         "react": "*",
@@ -88,7 +89,6 @@
         "react-native-webview": "11.23.1",
         "ts-jest": "^26.4.4",
         "tslint": "^6.1.3",
-        "type-zoo": "^3.4.1",
         "typescript": "^4.1.3"
     },
     "jest": {
