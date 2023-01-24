@@ -484,8 +484,7 @@ export class AdadaptedReactNativeSdk {
             )
             .then((response) => {
                 this.keywordIntercepts = response.data;
-
-                this.performKeywordSearch("mil");
+                // this.performKeywordSearch("mil");
             });
     }
 
@@ -883,8 +882,8 @@ export class AdadaptedReactNativeSdk {
                 .reportInterceptEvent(
                     {
                         app_id: this.appId,
-                        udid: this.deviceInfo.udid,
-                        session_id: this.sessionId,
+                        udid: this.deviceInfo!.udid,
+                        session_id: this.sessionId!,
                         events: finalEventsList,
                     },
                     this.deviceOs!,
