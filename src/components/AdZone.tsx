@@ -59,6 +59,10 @@ interface Props {
      * @param items - The array of items to "add to list".
      */
     onAddToListTriggered?(items: DetailedListItem[]): void;
+    /**
+     * Track the ad zone visibility in parent component.
+     */
+    adZoneInView?: boolean;
 }
 
 /**
@@ -114,11 +118,17 @@ export function AdZone(props: Props): JSX.Element {
      * Tracks the coordinates when the user started touching the Ad View.
      */
     const [touchStartCoords, setTouchStartCoords] = useState({ x: 0, y: 0 });
+    /**
+     * Track ad visibility (for off-screen ads).
+     */
+    const [isAdVisible, setIsAdVisibile] = useState(true);
 
     // - Define all useEffect triggers.
     useEffect(() => {
-        initializeAd();
-        return function cleanup(): void {
+        if (isAdVisible) {
+            sendAdImpression();
+        }
+        return () => {
             if (cycleAdTimer) {
                 clearTimeout(cycleAdTimer);
             }
@@ -126,8 +136,15 @@ export function AdZone(props: Props): JSX.Element {
     }, []);
 
     useEffect(() => {
-        initializeAd();
-    }, [adIndexShown]);
+        startAdTimer();
+        if (isAdVisible) {
+            sendAdImpression();
+        }
+    }, [adIndexShown, isAdVisible]);
+
+    useEffect(() => {
+        setIsAdVisibile(!isAdVisible);
+    }, [props.adZoneInView]);
 
     /**
      * Generates all component related styles.
@@ -169,8 +186,6 @@ export function AdZone(props: Props): JSX.Element {
             currentlyDisplayedAd.action_type === AdActionType.EXTERNAL &&
             currentlyDisplayedAd.action_path
         ) {
-            console.log(`--currentlyDisplayedAd if ad: ${currentlyDisplayedAd}`)
-
             // Action Type: EXTERNAL
             Linking.openURL(currentlyDisplayedAd.action_path).then();
         } else if (
@@ -246,31 +261,49 @@ export function AdZone(props: Props): JSX.Element {
      * Cycles to the next ad to display in the current available sequence of ads.
      */
     function cycleDisplayedAd(): void {
-        console.log(`CycleDisplayedAd: ${currentAd?.ad_id}`);
         // Start by determining the next ad index to display.
         let nextAdIndex = 0;
+        const lastAd = props.adZoneData.ads[adIndexShown]
 
         if (adIndexShown < props.adZoneData.ads.length - 1) {
             nextAdIndex = adIndexShown + 1;
+        }
+
+        if (nextAdIndex != adIndexShown && lastAd.impressionTracked) {
+            // Reset ad impression tracking status.
+            lastAd.impressionTracked = false;
+        } else {
+            // Send invisible ad impression if ad was not visible before end of timer cycle.
+            triggerReportAdEvent(lastAd, ReportedEventType.INVISIBLE_IMPRESSION);
         }
 
         setAdIndexShown(nextAdIndex);
     }
 
     /**
-     * Performs all ad initialization tasks when a new ad is being displayed.
+     * Start a timer when a new ad is being displayed.
      */
-    function initializeAd(): void {
-        console.log(`Initializing ad: ${currentAd?.ad_id}`);
+    function startAdTimer(): void {
         const refreshTime: number = props.adZoneData.ads[adIndexShown].refresh_time;
+
         // Create the new timer based on the new ad index.
         createAdTimer(refreshTime * 1000);
+    }
+
+    /**
+     * Send ad tracking impression.
+     */
+    function sendAdImpression() {
+        const ad = props.adZoneData.ads[adIndexShown]
 
         // Trigger an impression event for the ad.
-        triggerReportAdEvent(
-            props.adZoneData.ads[adIndexShown],
-            ReportedEventType.IMPRESSION
-        );
+        if (!ad.impressionTracked) {
+            triggerReportAdEvent(
+                ad,
+                ReportedEventType.IMPRESSION
+            );
+            ad.impressionTracked = true;
+        }
     }
 
     // Returned JSX.

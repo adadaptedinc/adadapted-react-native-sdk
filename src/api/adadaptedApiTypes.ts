@@ -106,6 +106,10 @@ export interface Ad {
      * ?
      */
     payload: AdPayload;
+    /**
+     * Track impression status.
+     */
+    impressionTracked?: boolean;
 }
 
 /**
@@ -406,6 +410,10 @@ export enum ReportedEventType {
      * Occurs when an ad is displayed to the user.
      */
     IMPRESSION = "impression",
+    /**
+     * 
+     */
+    INVISIBLE_IMPRESSION = "invisible_impression",
     /**
      * Occurs when the user interacts with an ad.
      */
