@@ -4,6 +4,7 @@
 import * as React from "react";
 import {
     AppState,
+    DeviceEventEmitter,
     EmitterSubscription,
     Linking,
     NativeModules,
@@ -140,6 +141,10 @@ export interface InitializeProps {
      * @param payloads - All payloads the client must go through.
      */
     onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
+    /**
+     * Change the optional ad zone visibility default setting.
+     */
+    defaultToInvisibleAdZone?: boolean;
 }
 
 /**
@@ -325,6 +330,14 @@ export class AdadaptedReactNativeSdk {
      */
     private AppStateOnEventListener: EmitterSubscription | undefined;
     /**
+     * Track ad zone visibility for off-screen ads.
+     */
+    private isAdZoneVisible: boolean = true;
+    /**
+     * Optional default ad zone visibility for off-screen ads.
+     */
+    private defaultAdZoneVisibility: boolean | undefined;
+    /**
      * Gets the Session ID.
      * @returns the Session ID.
      */
@@ -413,6 +426,10 @@ export class AdadaptedReactNativeSdk {
                             onAddToListTriggered={(items) => {
                                 safeInvoke(this.onAddToListTriggered, items);
                             }}
+                            isAdZoneVisible={!this.onAdZoneVisibilityChanged}
+                            defaultToInvisibleAdZone={
+                                this.defaultAdZoneVisibility
+                            }
                         />
                     ),
                 });
@@ -651,6 +668,22 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
+     * Notify the ad zone of visibility status change for off-screen ads.
+     */
+    public onAdZoneVisibilityChanged(): void {
+        const isVisible = !this.isAdZoneVisible;
+        this.isAdZoneVisible = isVisible;
+        DeviceEventEmitter.emit("visibility-event", isVisible);
+    }
+
+    /**
+     * Notify the adZone to send ad interaction report.
+     */
+    public acknowledge(itemName: string): void {
+        DeviceEventEmitter.emit("acknowledge", itemName);
+    }
+
+    /**
      * Initializes the session for the AdAdapted API and sets up the SDK.
      * @param props - The props used to initialize the SDK.
      * @returns a Promise of void.
@@ -700,6 +733,12 @@ export class AdadaptedReactNativeSdk {
         // globally for use when the method needs to be triggered.
         if (props.onOutOfAppPayloadAvailable) {
             this.onOutOfAppPayloadAvailable = props.onOutOfAppPayloadAvailable;
+        }
+
+        // If provided for off-screen ads, set the ad zone visibility for ad tracking.
+        if (props.defaultToInvisibleAdZone) {
+            this.defaultAdZoneVisibility = props.defaultToInvisibleAdZone;
+            this.onAdZoneVisibilityChanged();
         }
 
         return new Promise<void>((resolve, reject) => {
@@ -882,8 +921,8 @@ export class AdadaptedReactNativeSdk {
                 .reportInterceptEvent(
                     {
                         app_id: this.appId,
-                        udid: this.deviceInfo!.udid,
-                        session_id: this.sessionId!,
+                        udid: this.deviceInfo.udid,
+                        session_id: this.sessionId,
                         events: finalEventsList,
                     },
                     this.deviceOs!,

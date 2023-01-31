@@ -12,6 +12,7 @@ import {
     TextInput,
     TouchableOpacity,
     SafeAreaView,
+    Button,
 } from "react-native";
 import {
     AdadaptedReactNativeSdk,
@@ -29,7 +30,7 @@ export const App = () => {
      * Determine if this is first mount for useEffects.
      */
     const isInitialMount = useRef(true);
-    
+
     // - Define all useStates.
     const [sessionId, setSessionId] = useState<string | undefined>(undefined);
     const [adZoneInfoList, setAdZoneInfoList] = useState<
@@ -44,12 +45,13 @@ export const App = () => {
         KeywordSearchResult[]
     >([]);
     const [selectedItemList, setSelectedItemList] = useState<string[]>([]);
+    const [isVisible, setIsVisible] = useState<boolean>(true);
 
     /**
      * The {@link AdadaptedReactNativeSdk} instance.
      */
     const aaSdk = useMemo(() => {
-        return new AdadaptedReactNativeSdk()
+        return new AdadaptedReactNativeSdk();
     }, []);
 
     // - Define all useEffect triggers.
@@ -70,10 +72,9 @@ export const App = () => {
                     // Demonstrate adding all provided items to the
                     // client side list.
                     for (const item of items) {
-                        console.log(`**--itemName: ${item.product_title}`)
                         selectItem({
                             itemName: item.product_title,
-                        });  
+                        });
                     }
                 },
                 onOutOfAppPayloadAvailable: (payloads) => {
@@ -92,6 +93,8 @@ export const App = () => {
                         );
                     }
                 },
+                // Set to true if ad zone is off-screen at initial render.
+                defaultToInvisibleAdZone: false,
             })
             .then(() => {
                 setSessionId(aaSdk!.getSessionId());
@@ -117,15 +120,17 @@ export const App = () => {
     }, [searchValue]);
 
     useEffect(() => {
-        console.log(`selectedItemList useEffect: ${selectedItemList}`)
-    }, [selectedItemList]);
+        if (adZoneInfoList) {
+            aaSdk.onAdZoneVisibilityChanged();
+        }
+    }, [isVisible]);
 
     /**
      * Triggered when the search text field's value has changed.
      * @param searchValue - The search string.
      */
     function handleOnSearchValueChanged(searchValue: string): void {
-        if(aaSdk) {
+        if (aaSdk) {
             const aasdkSearchResults = aaSdk.performKeywordSearch(searchValue);
 
             // Randomly choose one of the resulting terms to display.
@@ -150,7 +155,6 @@ export const App = () => {
             const finalStandardProductSearchResultsStringContains: string[] = [];
 
             if (searchValue.trim().length > 0) {
-                console.log(`handleSearchValueChanged searchValue for if: ${searchValue}`)
                 for (const productName of AVAILABLE_PRODUCTS) {
                     if (
                         productName
@@ -186,37 +190,30 @@ export const App = () => {
      */
     function selectItem(selectedItem: SelectedItem): void {
         if (aaSdk) {
+            let listItem = "";
             if (selectedItem.item) {
-                console.log(`if selectedItem.item replacement: ${selectedItem.item.replacement}`)
-                // Report the ad item as added to list.
+                // Report the ad item as added to list manager.
                 aaSdk.reportItemsAddedToList(
                     [selectedItem.item.replacement],
-                    "Keyword Test List 1"
+                    "My grocery list"
                 );
-            } else {
-                console.log(`else selectedItem.itemName: ${selectedItem.itemName}`)
+                listItem = selectedItem.item.replacement;
+            } else if (selectedItem.itemName) {
+                // Acknowledge item added to user list for reporting.
+                aaSdk.acknowledge(selectedItem.itemName);
 
-                // Report the non-ad item as added to list.
-                aaSdk.reportItemsAddedToList([selectedItem.itemName!]);
-            }
-            console.log(`selectedItemsList before finalList: ${selectedItemList}`);
-
-            const finalList = selectedItemList;
-            if (finalList) {
-                console.log(`selectedItemList in finalList: ${selectedItemList}`)
-                console.log(`finalList: ${finalList}`)
-                if (selectedItem.item) {
-                    console.log(`selectedItem.item if: ${selectedItem.item.replacement}`)
-                    finalList.push(selectedItem.item.replacement);
-                } else if (selectedItem.itemName) {
-                    console.log(`selectedItem.itemName else: ${selectedItem.itemName}`)
-                    finalList.push(selectedItem.itemName);
-                }
-                console.log(`finalList for setSelectedItemsList: ${finalList}`)
-                setSelectedItemList([...finalList]);
+                // Report the non-ad item as added to list manager.
+                aaSdk.reportItemsAddedToList(
+                    [selectedItem.itemName],
+                    "My grocery list"
+                );
+                listItem = selectedItem.itemName;
             }
 
-            console.log(`selectedItemsList 2: ${selectedItemList}`);
+            setSelectedItemList((prevSelectedItemList) => [
+                ...prevSelectedItemList,
+                listItem,
+            ]);
         }
     }
 
@@ -279,7 +276,6 @@ export const App = () => {
                                         let isKeywordIntercept = false;
 
                                         for (const keywordSearchResultObj of aasdkSearchResultItemList) {
-                                            console.log(`aasdkSearchResultItemList in element: ${aasdkSearchResultItemList[0].term}`)
                                             if (
                                                 keywordSearchResultObj.replacement ===
                                                 itemName
@@ -304,6 +300,10 @@ export const App = () => {
                             )
                         )}
                     </View>
+                    <Button
+                        title="toggle visibility"
+                        onPress={() => setIsVisible(!isVisible)}
+                    ></Button>
                     {adZoneInfoList?.map((adZoneInfo, idx) => {
                         return (
                             <View key={idx} style={styles.adZoneContainer}>
@@ -316,7 +316,6 @@ export const App = () => {
                             My Shopping List:
                         </Text>
                         {selectedItemList?.map((item, idx) => {
-                            // console.log(`selectedItemList map: ${item}`)
                             return (
                                 <Text key={idx} style={styles.listItem}>
                                     {item}
@@ -328,7 +327,7 @@ export const App = () => {
             </SafeAreaView>
         </NativeRouter>
     );
-}
+};
 
 /**
  * Interfaced used to pass in an item to the {@link App.selectItem} method.
@@ -425,8 +424,4 @@ const styles = StyleSheet.create({
  * along with ad products provided by the AdAdapted SDK.
  * Add additional products here as necessary.
  */
-const AVAILABLE_PRODUCTS: string[] = [
-    "milk",
-    "coffee",
-    "cheese",
-];
+const AVAILABLE_PRODUCTS: string[] = ["milk", "coffee", "cheese"];

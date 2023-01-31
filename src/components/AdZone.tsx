@@ -3,7 +3,13 @@
  * @module
  */
 import * as React from "react";
-import { Linking, StyleSheet, View, ViewStyle } from "react-native";
+import {
+    DeviceEventEmitter,
+    Linking,
+    StyleSheet,
+    View,
+    ViewStyle,
+} from "react-native";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import {
     Ad,
@@ -62,7 +68,11 @@ interface Props {
     /**
      * Track the ad zone visibility in parent component.
      */
-    adZoneInView?: boolean;
+    isAdZoneVisible?: boolean;
+    /**
+     * Set default ad zone visibility to false.
+     */
+    defaultToInvisibleAdZone?: boolean;
 }
 
 /**
@@ -92,6 +102,11 @@ interface StyleDef {
      */
     webView: ViewStyle;
 }
+/**
+ * Timer used for cycling through ads in the zone
+ * based on the ad "refresh time" for each ad.
+ */
+let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
 
 /**
  * Creates the AdZone component.
@@ -99,12 +114,6 @@ interface StyleDef {
  * @returns an AdZone JSX Element.
  */
 export function AdZone(props: Props): JSX.Element {
-    /**
-     * Timer used for cycling through ads in the zone
-     * based on the ad "refresh time" for each ad.
-     */
-    let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
-
     // Generates a random number between 0 and (number of available ads - 1).
     const startingAdIndex = Math.floor(
         Math.random() * props.adZoneData.ads.length
@@ -121,17 +130,22 @@ export function AdZone(props: Props): JSX.Element {
     /**
      * Track ad visibility (for off-screen ads).
      */
-    const [isAdVisible, setIsAdVisibile] = useState(true);
+    const [isAdVisible, setIsAdVisibile] = useState(
+        props.defaultToInvisibleAdZone ? false : true
+    );
 
     // - Define all useEffect triggers.
     useEffect(() => {
-        if (isAdVisible) {
-            sendAdImpression();
-        }
+        DeviceEventEmitter.addListener("visibility-event", (event) => {
+            setIsAdVisibile(event);
+        });
+        DeviceEventEmitter.addListener("acknowledge", (itemName) => {
+            acknowledge(itemName);
+        });
         return () => {
-            if (cycleAdTimer) {
-                clearTimeout(cycleAdTimer);
-            }
+            clearTimeout(cycleAdTimer);
+            DeviceEventEmitter.removeAllListeners("visibility-event");
+            DeviceEventEmitter.removeAllListeners("acknowledge");
         };
     }, []);
 
@@ -140,11 +154,13 @@ export function AdZone(props: Props): JSX.Element {
         if (isAdVisible) {
             sendAdImpression();
         }
-    }, [adIndexShown, isAdVisible]);
+    }, [adIndexShown]);
 
     useEffect(() => {
-        setIsAdVisibile(!isAdVisible);
-    }, [props.adZoneInView]);
+        if (isAdVisible) {
+            sendAdImpression();
+        }
+    }, [isAdVisible]);
 
     /**
      * Generates all component related styles.
@@ -193,22 +209,31 @@ export function AdZone(props: Props): JSX.Element {
             currentlyDisplayedAd.payload &&
             currentlyDisplayedAd.payload.detailed_list_items
         ) {
-            console.log(`currentlyDisplayedAd else ad: ${currentlyDisplayedAd.ad_id} ${currentlyDisplayedAd.payload.detailed_list_items.length}`)
-
             safeInvoke(
                 props.onAddToListTriggered,
                 currentlyDisplayedAd.payload.detailed_list_items
             );
         }
 
-        triggerReportAdEvent(
-            currentlyDisplayedAd,
-            ReportedEventType.INTERACTION
-        );
-        if (cycleAdTimer) {
-            clearTimeout(cycleAdTimer);
-        }
         cycleDisplayedAd();
+    }
+
+    /**
+     * Call to acknowledge ATL item(s) added to user list.
+     */
+    function acknowledge(itemName: string): void {
+        if (props.adZoneData.ads) {
+            props.adZoneData.ads.forEach(ad => {
+                ad.payload.detailed_list_items.forEach (item => {
+                    if (item.product_title == itemName) {
+                        triggerReportAdEvent(
+                            ad,
+                            ReportedEventType.INTERACTION
+                        );
+                    }
+                })
+            });
+        }
     }
 
     /**
@@ -247,13 +272,15 @@ export function AdZone(props: Props): JSX.Element {
     /**
      * Generates a new timer for cycling to the next ad.
      * @param timerLength - The length of time(in milliseconds) to initialize
-     *      the timer with.
+     *      the timer.
      */
-    function createAdTimer(timerLength: number): void {
+    function startAdTimer(): void {
+        clearTimeout(cycleAdTimer);
+
         if (props.adZoneData.ads.length > 0) {
-            cycleAdTimer = setTimeout(() => {
-                cycleDisplayedAd();
-            }, timerLength);
+            const refreshTime: number =
+                props.adZoneData.ads[adIndexShown].refresh_time * 1000;
+            cycleAdTimer = setTimeout(cycleDisplayedAd, refreshTime);
         }
     }
 
@@ -263,45 +290,35 @@ export function AdZone(props: Props): JSX.Element {
     function cycleDisplayedAd(): void {
         // Start by determining the next ad index to display.
         let nextAdIndex = 0;
-        const lastAd = props.adZoneData.ads[adIndexShown]
+        const lastAd = props.adZoneData.ads[adIndexShown];
 
         if (adIndexShown < props.adZoneData.ads.length - 1) {
             nextAdIndex = adIndexShown + 1;
         }
 
-        if (nextAdIndex != adIndexShown && lastAd.impressionTracked) {
+        if (nextAdIndex !== adIndexShown && lastAd.impressionTracked) {
             // Reset ad impression tracking status.
             lastAd.impressionTracked = false;
         } else {
             // Send invisible ad impression if ad was not visible before end of timer cycle.
-            triggerReportAdEvent(lastAd, ReportedEventType.INVISIBLE_IMPRESSION);
+            triggerReportAdEvent(
+                lastAd,
+                ReportedEventType.INVISIBLE_IMPRESSION
+            );
         }
 
         setAdIndexShown(nextAdIndex);
     }
 
     /**
-     * Start a timer when a new ad is being displayed.
-     */
-    function startAdTimer(): void {
-        const refreshTime: number = props.adZoneData.ads[adIndexShown].refresh_time;
-
-        // Create the new timer based on the new ad index.
-        createAdTimer(refreshTime * 1000);
-    }
-
-    /**
      * Send ad tracking impression.
      */
-    function sendAdImpression() {
-        const ad = props.adZoneData.ads[adIndexShown]
+    function sendAdImpression(): void {
+        const ad = props.adZoneData.ads[adIndexShown];
 
         // Trigger an impression event for the ad.
         if (!ad.impressionTracked) {
-            triggerReportAdEvent(
-                ad,
-                ReportedEventType.IMPRESSION
-            );
+            triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
             ad.impressionTracked = true;
         }
     }
@@ -338,7 +355,6 @@ export function AdZone(props: Props): JSX.Element {
                                     touchStartCoords.y - touchEndCoords.y
                                 ) < props.xyDragDistanceAllowed
                             ) {
-                                console.log(`current ad prior adZoneSelected: ${currentAd.ad_id}`)
                                 onAdZoneSelected(currentAd);
                             }
 

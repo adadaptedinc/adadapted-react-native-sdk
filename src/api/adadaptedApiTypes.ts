@@ -411,7 +411,7 @@ export enum ReportedEventType {
      */
     IMPRESSION = "impression",
     /**
-     * 
+     * Occurs when an ad is not viewable before timimg out.
      */
     INVISIBLE_IMPRESSION = "invisible_impression",
     /**
