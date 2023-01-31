@@ -220,18 +220,16 @@ export function AdZone(props: Props): JSX.Element {
 
     /**
      * Call to acknowledge ATL item(s) added to user list.
+     * @param itemName - Detailed list item title from ad that was clicked.
      */
     function acknowledge(itemName: string): void {
         if (props.adZoneData.ads) {
-            props.adZoneData.ads.forEach(ad => {
-                ad.payload.detailed_list_items.forEach (item => {
-                    if (item.product_title == itemName) {
-                        triggerReportAdEvent(
-                            ad,
-                            ReportedEventType.INTERACTION
-                        );
+            props.adZoneData.ads.forEach((ad) => {
+                ad.payload.detailed_list_items.forEach((item) => {
+                    if (item.product_title === itemName) {
+                        triggerReportAdEvent(ad, ReportedEventType.INTERACTION);
                     }
-                })
+                });
             });
         }
     }

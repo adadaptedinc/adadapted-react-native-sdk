@@ -678,6 +678,7 @@ export class AdadaptedReactNativeSdk {
 
     /**
      * Notify the adZone to send ad interaction report.
+     * @param itemName - Detailed list item title from ad that was clicked.
      */
     public acknowledge(itemName: string): void {
         DeviceEventEmitter.emit("acknowledge", itemName);
