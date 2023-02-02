@@ -302,7 +302,11 @@ export const App: FC = (): ReactElement => {
                     </View>
                     <Button
                         title="toggle visibility"
-                        onPress={() => setIsVisible((prevVisibleState) => !prevVisibleState)}
+                        onPress={() =>
+                            setIsVisible(
+                                (prevVisibleState) => !prevVisibleState
+                            )
+                        }
                     ></Button>
                     {adZoneInfoList?.map((adZoneInfo, idx) => {
                         return (

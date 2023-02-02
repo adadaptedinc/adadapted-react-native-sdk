@@ -269,8 +269,6 @@ export function AdZone(props: Props): JSX.Element {
 
     /**
      * Generates a new timer for cycling to the next ad.
-     * @param timerLength - The length of time(in milliseconds) to initialize
-     *      the timer.
      */
     function startAdTimer(): void {
         clearTimeout(cycleAdTimer);
