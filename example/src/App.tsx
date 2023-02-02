@@ -2,7 +2,8 @@
  * Test app component for testing the
  * {@link AdadaptedReactNativeSdk} package/module.
  */
-import * as React from "react";
+import React, { FC, ReactElement, useMemo, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
     StyleSheet,
     View,
@@ -11,6 +12,7 @@ import {
     TextInput,
     TouchableOpacity,
     SafeAreaView,
+    Button,
 } from "react-native";
 import {
     AdadaptedReactNativeSdk,
@@ -21,74 +23,41 @@ import {
 import { DeepLinking, NativeRouter } from "react-router-native";
 
 /**
- * Props interface for {@link App}.
- */
-interface Props {}
-
-/**
- * State interface for {@link App}.
- */
-interface State {
-    /**
-     * The session ID.
-     */
-    sessionId: string | undefined;
-    /**
-     * The Ad Zone Info list.
-     */
-    adZoneInfoList: AdZoneInfo[] | undefined;
-    /**
-     * The test search term value.
-     */
-    searchValue: string;
-    /**
-     * Standard products search result item list.
-     */
-    standardProductSearchResultItemList: string[];
-    /**
-     * AdAdapted SDK Keyword Search result item list.
-     */
-    aasdkSearchResultItemList: KeywordSearchResult[];
-    /**
-     * The selected item list.
-     */
-    selectedItemList: string[];
-}
-
-/**
  * Creates the main component for the App.
  */
-export class App extends React.Component<Props, State> {
+export const App: FC = (): ReactElement => {
+    /**
+     * Determine if this is first mount for useEffects.
+     */
+    const isInitialMount = useRef(true);
+
+    // - Define all useStates.
+    const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+    const [adZoneInfoList, setAdZoneInfoList] = useState<
+        AdZoneInfo[] | undefined
+    >(undefined);
+    const [searchValue, setSearchValue] = useState("");
+    const [
+        standardProductSearchResultItemList,
+        setStandardProductSearchResultItemList,
+    ] = useState<string[]>([]);
+    const [aasdkSearchResultItemList, setAasdkSearchResultItemList] = useState<
+        KeywordSearchResult[]
+    >([]);
+    const [selectedItemList, setSelectedItemList] = useState<string[]>([]);
+    const [isVisible, setIsVisible] = useState<boolean>(true);
+
     /**
      * The {@link AdadaptedReactNativeSdk} instance.
      */
-    private readonly aaSdk: AdadaptedReactNativeSdk;
+    const aaSdk = useMemo(() => {
+        return new AdadaptedReactNativeSdk();
+    }, []);
 
-    /**
-     * @inheritDoc
-     */
-    constructor(props: Props, context?: any) {
-        super(props, context);
-
-        // Assign a reference to the SDK.
-        this.aaSdk = new AdadaptedReactNativeSdk();
-
-        this.state = {
-            sessionId: undefined,
-            adZoneInfoList: undefined,
-            searchValue: "",
-            standardProductSearchResultItemList: [],
-            aasdkSearchResultItemList: [],
-            selectedItemList: [],
-        };
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public componentDidMount(): void {
+    // - Define all useEffect triggers.
+    useEffect(() => {
         // You can use the "AdAdapted SDK Tester (iOS)" app in Platform dev for testing.
-        this.aaSdk
+        aaSdk
             .initialize({
                 appId: "7D58810X6333241C",
                 apiEnv: ApiEnv.Dev,
@@ -96,16 +65,14 @@ export class App extends React.Component<Props, State> {
                 advertiserId: "REACT-NATIVE-TEST-ADVERTISER-ID",
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
-                    this.setState({
-                        sessionId: this.aaSdk.getSessionId(),
-                        adZoneInfoList: this.aaSdk.getAdZones(),
-                    });
+                    setSessionId(aaSdk!.getSessionId());
+                    setAdZoneInfoList(aaSdk!.getAdZones());
                 },
                 onAddToListTriggered: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
                     for (const item of items) {
-                        this.selectItem({
+                        selectItem({
                             itemName: item.product_title,
                         });
                     }
@@ -115,244 +82,256 @@ export class App extends React.Component<Props, State> {
                     // client side list.
                     for (const payload of payloads) {
                         for (const item of payload.detailed_list_items) {
-                            this.selectItem({
+                            selectItem({
                                 itemName: item.product_title,
                             });
                         }
 
                         // Mark this payload as acknowledged.
-                        this.aaSdk.markPayloadContentAcknowledged(
+                        aaSdk.markPayloadContentAcknowledged(
                             payload.payload_id
                         );
                     }
                 },
+                // Set to true if ad zone is off-screen at initial render.
+                defaultToInvisibleAdZone: false,
             })
             .then(() => {
-                this.setState({
-                    sessionId: this.aaSdk.getSessionId(),
-                    adZoneInfoList: this.aaSdk.getAdZones(),
-                });
+                setSessionId(aaSdk.getSessionId());
+                setAdZoneInfoList(aaSdk.getAdZones());
             })
             .catch((err) => {
                 console.error(err);
             });
-    }
+        return () => {
+            // Unmount the SDK.
+            if (aaSdk) {
+                aaSdk.unmount();
+            }
+        };
+    }, []);
 
-    /**
-     * @inheritDoc
-     */
-    public componentWillUnmount(): void {
-        // Unmount the SDK.
-        if (this.aaSdk) {
-            this.aaSdk.unmount();
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+        } else {
+            handleOnSearchValueChanged(searchValue);
         }
-    }
+    }, [searchValue]);
 
-    /**
-     * @inheritDoc
-     */
-    public render(): JSX.Element {
-        return (
-            <NativeRouter>
-                <DeepLinking />
-                <SafeAreaView style={styles.safeAreaView}>
-                    <ScrollView
-                        style={styles.mainView}
-                        contentContainerStyle={{
-                            alignItems: "center",
-                            justifyContent: "center",
-                            marginTop: 40,
-                        }}
-                    >
-                        <Text style={styles.sessionIdContainer}>
-                            Session ID: {this.state.sessionId}
-                        </Text>
-                        <TextInput
-                            value={this.state.searchValue}
-                            style={styles.searchTextField}
-                            onChangeText={(value) => {
-                                this.handleOnSearchValueChanged(value);
-                            }}
-                        />
-                        <View style={styles.searchView}>
-                            <Text style={styles.searchResultsTitle}>
-                                Search Results:
-                            </Text>
-                            {this.state.aasdkSearchResultItemList.map(
-                                (itemObj) => (
-                                    <TouchableOpacity
-                                        key={itemObj.term_id}
-                                        style={styles.searchResultContainer}
-                                        onPress={() => {
-                                            this.selectItem({
-                                                item: itemObj,
-                                            });
-                                        }}
-                                    >
-                                        <Text style={styles.searchResultText}>
-                                            {itemObj.replacement}
-                                        </Text>
-                                        <Text
-                                            style={styles.searchResultAdBadge}
-                                        >
-                                            AD
-                                        </Text>
-                                    </TouchableOpacity>
-                                )
-                            )}
-                            {this.state.standardProductSearchResultItemList.map(
-                                (itemName, idx) => (
-                                    <TouchableOpacity
-                                        key={idx}
-                                        style={styles.searchResultContainer}
-                                        onPress={() => {
-                                            this.selectItem({
-                                                itemName,
-                                            });
-
-                                            let isKeywordIntercept = false;
-
-                                            for (const keywordSearchResultObj of this
-                                                .state
-                                                .aasdkSearchResultItemList) {
-                                                if (
-                                                    keywordSearchResultObj.replacement ===
-                                                    itemName
-                                                ) {
-                                                    isKeywordIntercept = true;
-                                                }
-                                            }
-
-                                            if (isKeywordIntercept) {
-                                                // Report up the "selected" event to the AA SDK.
-                                                this.aaSdk.reportKeywordInterceptTermSelected(
-                                                    itemName
-                                                );
-                                            }
-                                        }}
-                                    >
-                                        <Text style={styles.searchResultText}>
-                                            {itemName}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )
-                            )}
-                        </View>
-                        {this.state.adZoneInfoList?.map((adZoneInfo, idx) => {
-                            return (
-                                <View key={idx} style={styles.adZoneContainer}>
-                                    {adZoneInfo.adZone}
-                                </View>
-                            );
-                        })}
-                        <View style={styles.listItemContainer}>
-                            <Text style={styles.selectedItemResultsTitle}>
-                                My Shopping List:
-                            </Text>
-                            {this.state.selectedItemList?.map((item, idx) => {
-                                return (
-                                    <Text key={idx} style={styles.listItem}>
-                                        {item}
-                                    </Text>
-                                );
-                            })}
-                        </View>
-                    </ScrollView>
-                </SafeAreaView>
-            </NativeRouter>
-        );
-    }
+    useEffect(() => {
+        if (adZoneInfoList) {
+            aaSdk.onAdZoneVisibilityChanged();
+        }
+    }, [isVisible]);
 
     /**
      * Triggered when the search text field's value has changed.
      * @param searchValue - The search string.
      */
-    private handleOnSearchValueChanged(searchValue: string): void {
-        const aasdkSearchResults = this.aaSdk.performKeywordSearch(searchValue);
+    function handleOnSearchValueChanged(searchValue: string): void {
+        if (aaSdk) {
+            const aasdkSearchResults = aaSdk.performKeywordSearch(searchValue);
 
-        // Randomly choose one of the resulting terms to display.
-        // You can add multiple randomly chosen terms here too
-        // if you would like.
-        const finalAasdkSearchResults: KeywordSearchResult[] = [];
+            // Randomly choose one of the resulting terms to display.
+            // You can add multiple randomly chosen terms here too
+            // if you would like.
+            const finalAasdkSearchResults: KeywordSearchResult[] = [];
 
-        if (aasdkSearchResults.length > 0) {
-            const randomIndex = Math.floor(
-                Math.random() * aasdkSearchResults.length
-            );
-            finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
+            if (aasdkSearchResults.length > 0) {
+                const randomIndex = Math.floor(
+                    Math.random() * aasdkSearchResults.length
+                );
+                finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
 
-            // Report up the "presented" event to the AA SDK.
-            this.aaSdk.reportKeywordInterceptTermsPresented([
-                aasdkSearchResults[randomIndex].term_id,
-            ]);
-        }
+                // Report up the "presented" event to the AA SDK.
+                aaSdk.reportKeywordInterceptTermsPresented([
+                    aasdkSearchResults[randomIndex].term_id,
+                ]);
+            }
 
-        // Search for all standard items using the search value.
-        const finalStandardProductSearchResultsStringStart: string[] = [];
-        const finalStandardProductSearchResultsStringContains: string[] = [];
+            // Search for all standard items using the search value.
+            const finalStandardProductSearchResultsStringStart: string[] = [];
+            const finalStandardProductSearchResultsStringContains: string[] = [];
 
-        if (searchValue.trim().length > 0) {
-            for (const productName of AVAILABLE_PRODUCTS) {
-                if (
-                    productName
-                        .toLowerCase()
-                        .startsWith(searchValue.toLowerCase())
-                ) {
-                    finalStandardProductSearchResultsStringStart.push(
+            if (searchValue.trim().length > 0) {
+                for (const productName of AVAILABLE_PRODUCTS) {
+                    if (
                         productName
-                    );
-                } else if (
-                    productName
-                        .toLowerCase()
-                        .indexOf(searchValue.toLowerCase()) !== -1
-                ) {
-                    finalStandardProductSearchResultsStringContains.push(
+                            .toLowerCase()
+                            .startsWith(searchValue.toLowerCase())
+                    ) {
+                        finalStandardProductSearchResultsStringStart.push(
+                            productName
+                        );
+                    } else if (
                         productName
-                    );
+                            .toLowerCase()
+                            .indexOf(searchValue.toLowerCase()) !== -1
+                    ) {
+                        finalStandardProductSearchResultsStringContains.push(
+                            productName
+                        );
+                    }
                 }
             }
-        }
 
-        this.setState({
-            searchValue,
-            standardProductSearchResultItemList: finalStandardProductSearchResultsStringStart.concat(
+            const finalSearchResult = finalStandardProductSearchResultsStringStart.concat(
                 finalStandardProductSearchResultsStringContains
-            ),
-            aasdkSearchResultItemList: finalAasdkSearchResults,
-        });
+            );
+            setStandardProductSearchResultItemList(finalSearchResult);
+            setAasdkSearchResultItemList(finalAasdkSearchResults);
+        }
     }
 
     /**
      * Adds the selected item to the selected item list.
      * @param selectedItem - The item to select.
      */
-    private selectItem(selectedItem: SelectedItem): void {
-        if (selectedItem.item) {
-            // Report the ad item as added to list.
-            this.aaSdk.reportItemsAddedToList(
-                [selectedItem.item.replacement],
-                "Keyword Test List 1"
-            );
-        } else {
-            // Report the non-ad item as added to list.
-            this.aaSdk.reportItemsAddedToList([selectedItem.itemName!]);
-        }
-
-        this.setState((prevState) => {
-            const finalList = prevState.selectedItemList;
-
+    function selectItem(selectedItem: SelectedItem): void {
+        if (aaSdk) {
+            let listItem = "";
             if (selectedItem.item) {
-                finalList.push(selectedItem.item.replacement);
+                // Report the ad item as added to list manager.
+                aaSdk.reportItemsAddedToList(
+                    [selectedItem.item.replacement],
+                    "My grocery list"
+                );
+                listItem = selectedItem.item.replacement;
             } else if (selectedItem.itemName) {
-                finalList.push(selectedItem.itemName);
+                // Acknowledge item added to user list for reporting.
+                aaSdk.acknowledge(selectedItem.itemName);
+
+                // Report the non-ad item as added to list manager.
+                aaSdk.reportItemsAddedToList(
+                    [selectedItem.itemName],
+                    "My grocery list"
+                );
+                listItem = selectedItem.itemName;
             }
 
-            return {
-                selectedItemList: finalList,
-            };
-        });
+            setSelectedItemList((prevSelectedItemList) => [
+                ...prevSelectedItemList,
+                listItem,
+            ]);
+        }
     }
-}
+
+    return (
+        <NativeRouter>
+            <DeepLinking />
+            <SafeAreaView style={styles.safeAreaView}>
+                <ScrollView
+                    style={styles.mainView}
+                    contentContainerStyle={{
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginTop: 40,
+                    }}
+                >
+                    <Text style={styles.sessionIdContainer}>
+                        Session ID: {sessionId}
+                    </Text>
+                    <TextInput
+                        value={searchValue}
+                        style={styles.searchTextField}
+                        onChangeText={(value) => {
+                            setSearchValue(value);
+                        }}
+                    />
+                    <View style={styles.searchView}>
+                        <Text style={styles.searchResultsTitle}>
+                            Search Results:
+                        </Text>
+                        {aasdkSearchResultItemList.map((itemObj) => (
+                            <TouchableOpacity
+                                key={itemObj.term_id}
+                                style={styles.searchResultContainer}
+                                onPress={() => {
+                                    selectItem({
+                                        item: itemObj,
+                                    });
+
+                                    setSearchValue("");
+                                }}
+                            >
+                                <Text style={styles.searchResultText}>
+                                    {itemObj.replacement}
+                                </Text>
+                                <Text style={styles.searchResultAdBadge}>
+                                    AD
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                        {standardProductSearchResultItemList.map(
+                            (itemName, idx) => (
+                                <TouchableOpacity
+                                    key={idx}
+                                    style={styles.searchResultContainer}
+                                    onPress={() => {
+                                        selectItem({
+                                            itemName,
+                                        });
+
+                                        let isKeywordIntercept = false;
+
+                                        for (const keywordSearchResultObj of aasdkSearchResultItemList) {
+                                            if (
+                                                keywordSearchResultObj.replacement ===
+                                                itemName
+                                            ) {
+                                                isKeywordIntercept = true;
+                                            }
+                                        }
+
+                                        if (aaSdk && isKeywordIntercept) {
+                                            // Report up the "selected" event to the AA SDK.
+                                            aaSdk.reportKeywordInterceptTermSelected(
+                                                itemName
+                                            );
+                                        }
+                                        setSearchValue("");
+                                    }}
+                                >
+                                    <Text style={styles.searchResultText}>
+                                        {itemName}
+                                    </Text>
+                                </TouchableOpacity>
+                            )
+                        )}
+                    </View>
+                    <Button
+                        title="toggle visibility"
+                        onPress={() =>
+                            setIsVisible(
+                                (prevVisibleState) => !prevVisibleState
+                            )
+                        }
+                    ></Button>
+                    {adZoneInfoList?.map((adZoneInfo, idx) => {
+                        return (
+                            <View key={idx} style={styles.adZoneContainer}>
+                                {adZoneInfo.adZone}
+                            </View>
+                        );
+                    })}
+                    <View style={styles.listItemContainer}>
+                        <Text style={styles.selectedItemResultsTitle}>
+                            My Shopping List:
+                        </Text>
+                        {selectedItemList?.map((item, idx) => {
+                            return (
+                                <Text key={idx} style={styles.listItem}>
+                                    {item}
+                                </Text>
+                            );
+                        })}
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        </NativeRouter>
+    );
+};
 
 /**
  * Interfaced used to pass in an item to the {@link App.selectItem} method.
@@ -387,7 +366,7 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 20,
         width: "100%",
-        height: 250,
+        height: 130,
     },
     searchTextField: {
         flex: 0,
@@ -449,27 +428,4 @@ const styles = StyleSheet.create({
  * along with ad products provided by the AdAdapted SDK.
  * Add additional products here as necessary.
  */
-const AVAILABLE_PRODUCTS: string[] = [
-    "Organic Valley Milk",
-    "Dean's Milk",
-    "Safeway Milk",
-    "Shamrock Farms Milk",
-    "Horizon Organic Milk",
-    "Milk: Meijer",
-    "Milk: Kroger",
-    "Starbucks Coffee",
-    "Folger's Classic Roast Coffee",
-    "Newman's Own Organic Coffee",
-    "Green Mountain Coffee",
-    "Maxwell House Coffee",
-    "Coffee: Meijer",
-    "Coffee: Kroger",
-    "Kraft Mac & Cheese",
-    "Sargento Shredded Cheddar Cheese",
-    "Philadelphia Cream Cheese",
-    "Annie's Mac & Cheese",
-    "Cheddar Cheese: Meijer",
-    "Cheddar Cheese: Kroger",
-    "Cheese: Meijer",
-    "Cheese: Kroger",
-];
+const AVAILABLE_PRODUCTS: string[] = ["milk", "coffee", "cheese"];

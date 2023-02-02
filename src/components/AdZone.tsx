@@ -3,7 +3,13 @@
  * @module
  */
 import * as React from "react";
-import { Linking, StyleSheet, View, ViewStyle } from "react-native";
+import {
+    DeviceEventEmitter,
+    Linking,
+    StyleSheet,
+    View,
+    ViewStyle,
+} from "react-native";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import {
     Ad,
@@ -15,6 +21,7 @@ import {
 import { WebView } from "react-native-webview";
 import { ApiEnv, DeviceOS } from "../index";
 import { safeInvoke } from "../util";
+import { useEffect, useState } from "react";
 
 /**
  * Props interface for {@link AdZone}.
@@ -58,20 +65,14 @@ interface Props {
      * @param items - The array of items to "add to list".
      */
     onAddToListTriggered?(items: DetailedListItem[]): void;
-}
-
-/**
- * State interface for {@link AdZone}.
- */
-interface State {
     /**
-     * Tracks the current ad index being shown.
+     * Track the ad zone visibility in parent component.
      */
-    adIndexShown: number;
+    isAdZoneVisible?: boolean;
     /**
-     * Tracks the coordinates when the user started touching the Ad View.
+     * Set default ad zone visibility to false.
      */
-    touchStartCoords: TouchCoordinates | undefined;
+    defaultToInvisibleAdZone?: boolean;
 }
 
 /**
@@ -101,239 +102,71 @@ interface StyleDef {
      */
     webView: ViewStyle;
 }
+/**
+ * Timer used for cycling through ads in the zone
+ * based on the ad "refresh time" for each ad.
+ */
+let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
 
 /**
  * Creates the AdZone component.
+ * @param props - properties passed to AdZone.
+ * @returns an AdZone JSX Element.
  */
-export class AdZone extends React.Component<Props, State> {
-    /**
-     * Timer used for cycling through ads in the zone
-     * based on the ad "refresh time" for each ad.
-     */
-    private cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
+export function AdZone(props: Props): JSX.Element {
+    // Generates a random number between 0 and (number of available ads - 1).
+    const startingAdIndex = Math.floor(
+        Math.random() * props.adZoneData.ads.length
+    );
 
     /**
-     * @inheritDoc
+     * Tracks the current ad index being shown.
      */
-    constructor(props: Props, context?: any) {
-        super(props, context);
+    const [adIndexShown, setAdIndexShown] = useState(startingAdIndex);
+    /**
+     * Tracks the coordinates when the user started touching the Ad View.
+     */
+    const [touchStartCoords, setTouchStartCoords] = useState({ x: 0, y: 0 });
+    /**
+     * Track ad visibility (for off-screen ads).
+     */
+    const [isAdVisible, setIsAdVisibile] = useState(
+        props.defaultToInvisibleAdZone ? false : true
+    );
 
-        // Generates a random number between 0 and (number of available ads - 1).
-        const startingAdIndex = Math.floor(
-            Math.random() * this.props.adZoneData.ads.length
-        );
-
-        this.state = {
-            adIndexShown: startingAdIndex,
-            touchStartCoords: undefined,
+    // - Define all useEffect triggers.
+    useEffect(() => {
+        DeviceEventEmitter.addListener("visibility-event", (event) => {
+            setIsAdVisibile(event);
+        });
+        DeviceEventEmitter.addListener("acknowledge", (itemName) => {
+            acknowledge(itemName);
+        });
+        return () => {
+            clearTimeout(cycleAdTimer);
+            DeviceEventEmitter.removeAllListeners("visibility-event");
+            DeviceEventEmitter.removeAllListeners("acknowledge");
         };
-    }
+    }, []);
 
-    /**
-     * @inheritDoc
-     */
-    public componentDidMount(): void {
-        this.initializeAd();
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public componentWillUnmount(): void {
-        if (this.cycleAdTimer) {
-            clearTimeout(this.cycleAdTimer);
+    useEffect(() => {
+        startAdTimer();
+        if (isAdVisible) {
+            sendAdImpression();
         }
-    }
+    }, [adIndexShown]);
 
-    /**
-     * @inheritDoc
-     */
-    public render(): JSX.Element {
-        // Generate the styles each render in case the ad is updated with
-        // new settings that need to be reflected in the styles of the view.
-        const styles = this.generateStyles();
-        const currentAd: Ad | undefined =
-            this.props.adZoneData.ads[this.state.adIndexShown] || undefined;
-        const finalMainViewStyle = styles.mainView;
-
-        if (!currentAd || !currentAd.creative_url) {
-            // If there is no ad to display, make the view take up no space.
-            finalMainViewStyle.width = 0;
-            finalMainViewStyle.height = 0;
+    useEffect(() => {
+        if (isAdVisible) {
+            sendAdImpression();
         }
-
-        return (
-            <View style={finalMainViewStyle}>
-                {currentAd && currentAd.creative_url ? (
-                    <WebView
-                        source={{
-                            uri: currentAd.creative_url,
-                        }}
-                        androidLayerType="hardware"
-                        automaticallyAdjustContentInsets={false}
-                        style={styles.webView}
-                        onTouchStart={(e) => {
-                            this.setState({
-                                touchStartCoords: {
-                                    x: e.nativeEvent.pageX,
-                                    y: e.nativeEvent.pageY,
-                                },
-                            });
-                        }}
-                        onTouchEnd={(e) => {
-                            if (this.state.touchStartCoords) {
-                                const touchEndCoords: TouchCoordinates = {
-                                    x: e.nativeEvent.pageX,
-                                    y: e.nativeEvent.pageY,
-                                };
-
-                                if (
-                                    Math.abs(
-                                        this.state.touchStartCoords.x -
-                                            touchEndCoords.x
-                                    ) < this.props.xyDragDistanceAllowed &&
-                                    Math.abs(
-                                        this.state.touchStartCoords.y -
-                                            touchEndCoords.y
-                                    ) < this.props.xyDragDistanceAllowed
-                                ) {
-                                    this.onAdZoneSelected(currentAd);
-                                }
-
-                                // Make sure to reset the start coords
-                                this.setState({
-                                    touchStartCoords: undefined,
-                                });
-                            }
-                        }}
-                    />
-                ) : undefined}
-            </View>
-        );
-    }
-
-    /**
-     * Triggers when the user selects the ad zone.
-     * @param currentAd - The ad currently displayed.
-     */
-    private onAdZoneSelected(currentAd: Ad): void {
-        // Determine the "action type" and perform that specific action.
-        if (
-            currentAd.action_type === AdActionType.EXTERNAL &&
-            currentAd.action_path
-        ) {
-            // Action Type: EXTERNAL
-            Linking.openURL(currentAd.action_path).then();
-        } else if (
-            currentAd.action_type === AdActionType.CONTENT &&
-            currentAd.payload &&
-            currentAd.payload.detailed_list_items
-        ) {
-            safeInvoke(
-                this.props.onAddToListTriggered,
-                currentAd.payload.detailed_list_items
-            );
-        }
-
-        this.triggerReportAdEvent(currentAd, ReportedEventType.INTERACTION);
-        if (this.cycleAdTimer) {
-            clearTimeout(this.cycleAdTimer);
-        }
-        this.cycleDisplayedAd();
-    }
-
-    /**
-     * Triggered when we need to report an ad event to the API.
-     * @param currentAd - The ad to send an event for.
-     * @param eventType - The event type for the reported event.
-     */
-    private triggerReportAdEvent(
-        currentAd: Ad,
-        eventType: ReportedEventType
-    ): void {
-        // The event timestamp has to be sent as a unix timestamp.
-        const currentTs = Math.round(new Date().getTime() / 1000);
-
-        // Log the taken action/event with the API.
-        adadaptedApiRequests
-            .reportAdEvent(
-                {
-                    app_id: this.props.appId,
-                    session_id: this.props.sessionId,
-                    udid: this.props.udid,
-                    events: [
-                        {
-                            ad_id: currentAd.ad_id,
-                            impression_id: currentAd.impression_id,
-                            event_type: eventType,
-                            created_at: currentTs,
-                        },
-                    ],
-                },
-                this.props.deviceOs,
-                this.props.apiEnv
-            )
-            .then(() => {
-                // Do nothing with the response for now...
-            });
-    }
-
-    /**
-     * Generates a new timer for cycling to the next ad.
-     * @param timerLength - The length of time(in milliseconds) to initialize
-     *      the timer with.
-     */
-    private createAdTimer(timerLength: number): void {
-        if (this.props.adZoneData.ads.length > 0) {
-            this.cycleAdTimer = setTimeout(() => {
-                this.cycleDisplayedAd();
-            }, timerLength);
-        }
-    }
-
-    /**
-     * Cycles to the next ad to display in the current available sequence of ads.
-     */
-    private cycleDisplayedAd(): void {
-        // Start by determining the next ad index to display.
-        let nextAdIndex = 0;
-
-        if (this.state.adIndexShown < this.props.adZoneData.ads.length - 1) {
-            nextAdIndex = this.state.adIndexShown + 1;
-        }
-
-        this.setState(
-            {
-                adIndexShown: nextAdIndex,
-            },
-            () => {
-                this.initializeAd();
-            }
-        );
-    }
-
-    /**
-     * Performs all ad initialization tasks when a new ad is being displayed.
-     */
-    private initializeAd(): void {
-        // Create the new timer based on the new ad index.
-        this.createAdTimer(
-            this.props.adZoneData.ads[this.state.adIndexShown].refresh_time *
-                1000
-        );
-
-        // Trigger an impression event for the ad.
-        this.triggerReportAdEvent(
-            this.props.adZoneData.ads[this.state.adIndexShown],
-            ReportedEventType.IMPRESSION
-        );
-    }
+    }, [isAdVisible]);
 
     /**
      * Generates all component related styles.
      * @returns the styles needed for the component.
      */
-    private generateStyles(): StyleDef {
+    function generateStyles(): StyleDef {
         return StyleSheet.create({
             mainView: {
                 width: "100%",
@@ -345,4 +178,188 @@ export class AdZone extends React.Component<Props, State> {
             },
         });
     }
+
+    // Generate the styles each render in case the ad is updated with
+    // new settings that need to be reflected in the styles of the view.
+    const styles = generateStyles();
+    const currentAd: Ad | undefined =
+        props.adZoneData.ads[adIndexShown] || undefined;
+    const finalMainViewStyle = styles.mainView;
+
+    if (!currentAd || !currentAd.creative_url) {
+        // If there is no ad to display, make the view take up no space.
+        finalMainViewStyle.width = "0";
+        finalMainViewStyle.height = "0";
+    }
+
+    /**
+     * Triggers when the user selects the ad zone.
+     * @param currentlyDisplayedAd - The ad currently displayed.
+     */
+    function onAdZoneSelected(currentlyDisplayedAd: Ad): void {
+        // Determine the "action type" and perform that specific action.
+        if (
+            currentlyDisplayedAd.action_type === AdActionType.EXTERNAL &&
+            currentlyDisplayedAd.action_path
+        ) {
+            // Action Type: EXTERNAL
+            Linking.openURL(currentlyDisplayedAd.action_path).then();
+        } else if (
+            currentlyDisplayedAd.action_type === AdActionType.CONTENT &&
+            currentlyDisplayedAd.payload &&
+            currentlyDisplayedAd.payload.detailed_list_items
+        ) {
+            safeInvoke(
+                props.onAddToListTriggered,
+                currentlyDisplayedAd.payload.detailed_list_items
+            );
+        }
+
+        cycleDisplayedAd();
+    }
+
+    /**
+     * Call to acknowledge ATL item(s) added to user list.
+     * @param itemName - Detailed list item title from ad that was clicked.
+     */
+    function acknowledge(itemName: string): void {
+        if (props.adZoneData.ads) {
+            props.adZoneData.ads.forEach((ad) => {
+                ad.payload.detailed_list_items.forEach((item) => {
+                    if (item.product_title === itemName) {
+                        triggerReportAdEvent(ad, ReportedEventType.INTERACTION);
+                    }
+                });
+            });
+        }
+    }
+
+    /**
+     * Triggered when we need to report an ad event to the API.
+     * @param ad - The ad to send an event for.
+     * @param eventType - The event type for the reported event.
+     */
+    function triggerReportAdEvent(ad: Ad, eventType: ReportedEventType): void {
+        // The event timestamp has to be sent as a unix timestamp.
+        const currentTs = Math.round(new Date().getTime() / 1000);
+
+        // Log the taken action/event with the API.
+        adadaptedApiRequests
+            .reportAdEvent(
+                {
+                    app_id: props.appId,
+                    session_id: props.sessionId,
+                    udid: props.udid,
+                    events: [
+                        {
+                            ad_id: ad.ad_id,
+                            impression_id: ad.impression_id,
+                            event_type: eventType,
+                            created_at: currentTs,
+                        },
+                    ],
+                },
+                props.deviceOs,
+                props.apiEnv
+            )
+            .then(() => {
+                // Do nothing with the response for now...
+            });
+    }
+
+    /**
+     * Generates a new timer for cycling to the next ad.
+     */
+    function startAdTimer(): void {
+        clearTimeout(cycleAdTimer);
+
+        if (props.adZoneData.ads.length > 0) {
+            const refreshTime: number =
+                props.adZoneData.ads[adIndexShown].refresh_time * 1000;
+            cycleAdTimer = setTimeout(cycleDisplayedAd, refreshTime);
+        }
+    }
+
+    /**
+     * Cycles to the next ad to display in the current available sequence of ads.
+     */
+    function cycleDisplayedAd(): void {
+        // Start by determining the next ad index to display.
+        let nextAdIndex = 0;
+        const lastAd = props.adZoneData.ads[adIndexShown];
+
+        if (adIndexShown < props.adZoneData.ads.length - 1) {
+            nextAdIndex = adIndexShown + 1;
+        }
+
+        if (nextAdIndex !== adIndexShown && lastAd.impression_tracked) {
+            // Reset ad impression tracking status.
+            lastAd.impression_tracked = false;
+        } else {
+            // Send invisible ad impression if ad was not visible before end of timer cycle.
+            triggerReportAdEvent(
+                lastAd,
+                ReportedEventType.INVISIBLE_IMPRESSION
+            );
+        }
+
+        setAdIndexShown(nextAdIndex);
+    }
+
+    /**
+     * Send ad tracking impression.
+     */
+    function sendAdImpression(): void {
+        const ad = props.adZoneData.ads[adIndexShown];
+
+        // Trigger an impression event for the ad.
+        if (!ad.impression_tracked) {
+            triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
+            ad.impression_tracked = true;
+        }
+    }
+
+    // Returned JSX.
+    return (
+        <View style={finalMainViewStyle}>
+            {currentAd && currentAd.creative_url ? (
+                <WebView
+                    source={{
+                        uri: currentAd.creative_url,
+                    }}
+                    androidLayerType="hardware"
+                    automaticallyAdjustContentInsets={false}
+                    style={styles.webView}
+                    onTouchStart={(e) => {
+                        setTouchStartCoords({
+                            x: e.nativeEvent.pageX,
+                            y: e.nativeEvent.pageY,
+                        });
+                    }}
+                    onTouchEnd={(e) => {
+                        if (touchStartCoords) {
+                            const touchEndCoords: TouchCoordinates = {
+                                x: e.nativeEvent.pageX,
+                                y: e.nativeEvent.pageY,
+                            };
+
+                            if (
+                                Math.abs(
+                                    touchStartCoords.x - touchEndCoords.x
+                                ) < props.xyDragDistanceAllowed &&
+                                Math.abs(
+                                    touchStartCoords.y - touchEndCoords.y
+                                ) < props.xyDragDistanceAllowed
+                            ) {
+                                onAdZoneSelected(currentAd);
+                            }
+
+                            // Make sure to reset the start coords
+                            setTouchStartCoords({ x: 0, y: 0 });
+                        }
+                    }}
+                />
+            ) : undefined}
+        </View>
+    );
 }
