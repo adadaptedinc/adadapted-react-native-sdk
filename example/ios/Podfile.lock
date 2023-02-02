@@ -1,5 +1,5 @@
 PODS:
-  - adadapted-react-native-sdk (3.1.12):
+  - adadapted-react-native-sdk (3.2.0):
     - React
   - boost-for-react-native (1.63.0)
   - DoubleConversion (1.1.6)
@@ -374,7 +374,7 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  adadapted-react-native-sdk: b12f688baa31ff1f386de64beacff18e388ae114
+  adadapted-react-native-sdk: 506bf660459c5c9df15cdb9cb437996f5c640ac2
   boost-for-react-native: 39c7adb57c4e60d6c5479dd8623128eb5b3f0f2c
   DoubleConversion: cf9b38bf0b2d048436d9a82ad2abe1404f11e7de
   FBLazyVector: 7b423f9e248eae65987838148c36eec1dbfe0b53
