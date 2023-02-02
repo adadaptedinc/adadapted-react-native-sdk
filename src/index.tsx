@@ -501,7 +501,6 @@ export class AdadaptedReactNativeSdk {
             )
             .then((response) => {
                 this.keywordIntercepts = response.data;
-                // this.performKeywordSearch("mil");
             });
     }
 

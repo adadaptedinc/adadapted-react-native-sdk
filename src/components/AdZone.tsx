@@ -294,9 +294,9 @@ export function AdZone(props: Props): JSX.Element {
             nextAdIndex = adIndexShown + 1;
         }
 
-        if (nextAdIndex !== adIndexShown && lastAd.impressionTracked) {
+        if (nextAdIndex !== adIndexShown && lastAd.impression_tracked) {
             // Reset ad impression tracking status.
-            lastAd.impressionTracked = false;
+            lastAd.impression_tracked = false;
         } else {
             // Send invisible ad impression if ad was not visible before end of timer cycle.
             triggerReportAdEvent(
@@ -315,9 +315,9 @@ export function AdZone(props: Props): JSX.Element {
         const ad = props.adZoneData.ads[adIndexShown];
 
         // Trigger an impression event for the ad.
-        if (!ad.impressionTracked) {
+        if (!ad.impression_tracked) {
             triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
-            ad.impressionTracked = true;
+            ad.impression_tracked = true;
         }
     }
 

@@ -2,7 +2,7 @@
  * Test app component for testing the
  * {@link AdadaptedReactNativeSdk} package/module.
  */
-import React, { useMemo, useRef } from "react";
+import React, { FC, ReactElement, useMemo, useRef } from "react";
 import { useState, useEffect } from "react";
 import {
     StyleSheet,
@@ -25,7 +25,7 @@ import { DeepLinking, NativeRouter } from "react-router-native";
 /**
  * Creates the main component for the App.
  */
-export const App = () => {
+export const App: FC = (): ReactElement => {
     /**
      * Determine if this is first mount for useEffects.
      */
@@ -88,7 +88,7 @@ export const App = () => {
                         }
 
                         // Mark this payload as acknowledged.
-                        aaSdk!.markPayloadContentAcknowledged(
+                        aaSdk.markPayloadContentAcknowledged(
                             payload.payload_id
                         );
                     }
@@ -97,8 +97,8 @@ export const App = () => {
                 defaultToInvisibleAdZone: false,
             })
             .then(() => {
-                setSessionId(aaSdk!.getSessionId());
-                setAdZoneInfoList(aaSdk!.getAdZones());
+                setSessionId(aaSdk.getSessionId());
+                setAdZoneInfoList(aaSdk.getAdZones());
             })
             .catch((err) => {
                 console.error(err);
@@ -302,7 +302,7 @@ export const App = () => {
                     </View>
                     <Button
                         title="toggle visibility"
-                        onPress={() => setIsVisible(!isVisible)}
+                        onPress={() => setIsVisible((prevVisibleState) => !prevVisibleState)}
                     ></Button>
                     {adZoneInfoList?.map((adZoneInfo, idx) => {
                         return (
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 20,
         width: "100%",
-        height: 250,
+        height: 130,
     },
     searchTextField: {
         flex: 0,

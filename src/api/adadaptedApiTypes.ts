@@ -109,7 +109,7 @@ export interface Ad {
     /**
      * Track impression status.
      */
-    impressionTracked?: boolean;
+    impression_tracked?: boolean;
 }
 
 /**
