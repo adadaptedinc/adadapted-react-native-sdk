@@ -69,10 +69,6 @@ interface Props {
      * Track the ad zone visibility in parent component.
      */
     isAdZoneVisible?: boolean;
-    /**
-     * Set default ad zone visibility to false.
-     */
-    defaultToInvisibleAdZone?: boolean;
 }
 
 /**
@@ -131,7 +127,7 @@ export function AdZone(props: Props): JSX.Element {
      * Track ad visibility (for off-screen ads).
      */
     const [isAdVisible, setIsAdVisibile] = useState(
-        props.defaultToInvisibleAdZone ? false : true
+        props.isAdZoneVisible ? false : true
     );
 
     // - Define all useEffect triggers.
@@ -139,9 +135,15 @@ export function AdZone(props: Props): JSX.Element {
         DeviceEventEmitter.addListener("visibility-event", (event) => {
             setIsAdVisibile(event);
         });
+
         DeviceEventEmitter.addListener("acknowledge", (itemName) => {
             acknowledge(itemName);
         });
+
+        if (isAdVisible) {
+            sendAdImpression();
+        }
+
         return () => {
             clearTimeout(cycleAdTimer);
             DeviceEventEmitter.removeAllListeners("visibility-event");
@@ -188,8 +190,8 @@ export function AdZone(props: Props): JSX.Element {
 
     if (!currentAd || !currentAd.creative_url) {
         // If there is no ad to display, make the view take up no space.
-        finalMainViewStyle.width = "0";
-        finalMainViewStyle.height = "0";
+        finalMainViewStyle.width = 0;
+        finalMainViewStyle.height = 0;
     }
 
     /**

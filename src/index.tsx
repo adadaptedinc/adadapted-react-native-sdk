@@ -142,9 +142,9 @@ export interface InitializeProps {
      */
     onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
     /**
-     * Change the optional ad zone visibility default setting.
+     * Ad zones that contain off-screen ads.
      */
-    defaultToInvisibleAdZone?: boolean;
+    offScreenAdZones?: [number];
 }
 
 /**
@@ -334,9 +334,9 @@ export class AdadaptedReactNativeSdk {
      */
     private isAdZoneVisible: boolean = true;
     /**
-     * Optional default ad zone visibility for off-screen ads.
+     * Ad zones that contain off-screen ads..
      */
-    private defaultAdZoneVisibility: boolean | undefined;
+    private offScreenAdZones: [number] | undefined;
     /**
      * Gets the Session ID.
      * @returns the Session ID.
@@ -406,8 +406,12 @@ export class AdadaptedReactNativeSdk {
      */
     private generateAdZones(adZones: { [key: number]: Zone }): AdZoneInfo[] {
         const adZoneInfoList: AdZoneInfo[] = [];
+        let offScreenAdZone: boolean = false;
 
         for (const adZoneId in adZones) {
+            this.offScreenAdZones?.forEach(zone => {
+                Number(adZones[adZoneId].id) === zone ? offScreenAdZone = true : false;
+            })
             if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
                 adZoneInfoList.push({
                     zoneId: adZones[adZoneId].id,
@@ -426,9 +430,8 @@ export class AdadaptedReactNativeSdk {
                             onAddToListTriggered={(items) => {
                                 safeInvoke(this.onAddToListTriggered, items);
                             }}
-                            isAdZoneVisible={!this.onAdZoneVisibilityChanged}
-                            defaultToInvisibleAdZone={
-                                this.defaultAdZoneVisibility
+                            isAdZoneVisible={
+                                    offScreenAdZone ? !this.onAdZoneVisibilityChanged : true
                             }
                         />
                     ),
@@ -670,9 +673,8 @@ export class AdadaptedReactNativeSdk {
      * Notify the ad zone of visibility status change for off-screen ads.
      */
     public onAdZoneVisibilityChanged(): void {
-        const isVisible = !this.isAdZoneVisible;
-        this.isAdZoneVisible = isVisible;
-        DeviceEventEmitter.emit("visibility-event", isVisible);
+        this.isAdZoneVisible = !this.isAdZoneVisible;
+        DeviceEventEmitter.emit("visibility-event", this.isAdZoneVisible);
     }
 
     /**
@@ -735,10 +737,9 @@ export class AdadaptedReactNativeSdk {
             this.onOutOfAppPayloadAvailable = props.onOutOfAppPayloadAvailable;
         }
 
-        // If provided for off-screen ads, set the ad zone visibility for ad tracking.
-        if (props.defaultToInvisibleAdZone) {
-            this.defaultAdZoneVisibility = props.defaultToInvisibleAdZone;
-            this.onAdZoneVisibilityChanged();
+        // Set any provided off-screen ad zones.
+        if (props.offScreenAdZones) {
+            this.offScreenAdZones = props.offScreenAdZones;
         }
 
         return new Promise<void>((resolve, reject) => {
@@ -821,14 +822,12 @@ export class AdadaptedReactNativeSdk {
                             this.getPayloadItemData();
 
                             // Initialize an event listener to intercept deep links while the app is running.
-
                             this.deepLinkOnEventListener = Linking.addEventListener(
                                 "url",
                                 this.handleDeepLink
                             );
 
                             // Initialize an event listener to intercept App state changes.
-
                             this.AppStateOnEventListener = AppState.addEventListener(
                                 "change",
                                 this.handleAppStateChange
