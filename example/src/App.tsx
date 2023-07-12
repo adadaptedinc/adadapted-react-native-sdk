@@ -10,8 +10,8 @@ import {
     ApiEnv,
     KeywordSearchResult,
 } from "../../src/index";
-import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StandardAdZonePage } from "./StandardAdZone";
 import { OffScreenAdZonePage } from "./OffScreenAdZone";
 
@@ -41,12 +41,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * Creates the main component for the App.
  */
 export const App = () => {
-
     // - Define all useStates.
     const [sessionId, setSessionId] = useState<string | undefined>(undefined);
     const [adZoneInfoList, setAdZoneInfoList] = useState<
         AdZoneInfo[] | undefined
     >(undefined);
+    const [offScreenAdZoneInfoList, setOffScreenAdZoneInfoList] =
+        useState<AdZoneInfo[]>();
     const [selectedItemList, setSelectedItemList] = useState<string[]>([]);
 
     /**
@@ -69,6 +70,7 @@ export const App = () => {
                 onAdZonesRefreshed: () => {
                     setSessionId(aaSdk!.getSessionId());
                     setAdZoneInfoList(aaSdk!.getAdZones());
+                    setOffScreenAdZoneInfoList(aaSdk.getOffScreenAdZones());
                 },
                 onAddToListTriggered: (items) => {
                     // Demonstrate adding all provided items to the
@@ -96,11 +98,12 @@ export const App = () => {
                     }
                 },
                 // List an array of ad zones that contain off-screen ads here if applicable.
-                offScreenAdZones: [102110],
+                offScreenAdZone: [110002],
             })
             .then(() => {
                 setSessionId(aaSdk.getSessionId());
                 setAdZoneInfoList(aaSdk.getAdZones());
+                setOffScreenAdZoneInfoList(aaSdk.getOffScreenAdZones());
             })
             .catch((err) => {
                 console.error(err);
@@ -144,16 +147,32 @@ export const App = () => {
                 listItem,
             ]);
         }
-    }
+    };
 
     return (
         <NavigationContainer>
             <Stack.Navigator initialRouteName="StandardAdZone">
                 <Stack.Screen name="StandardAdZone">
-                    {() => (<StandardAdZonePage aaSdk={aaSdk} sessionId={sessionId} adZoneInfoList={adZoneInfoList} selectedItemList={selectedItemList} selectItem={selectItem} />)}
+                    {() => (
+                        <StandardAdZonePage
+                            aaSdk={aaSdk}
+                            sessionId={sessionId}
+                            adZoneInfoList={adZoneInfoList}
+                            selectedItemList={selectedItemList}
+                            selectItem={selectItem}
+                        />
+                    )}
                 </Stack.Screen>
                 <Stack.Screen name="OffScreenAdZone">
-                    {() => (<OffScreenAdZonePage aaSdk={aaSdk} sessionId={sessionId} adZoneInfoList={adZoneInfoList} selectedItemList={selectedItemList} selectItem={selectItem} />)}
+                    {() => (
+                        <OffScreenAdZonePage
+                            aaSdk={aaSdk}
+                            sessionId={sessionId}
+                            adZoneInfoList={offScreenAdZoneInfoList}
+                            selectedItemList={selectedItemList}
+                            selectItem={selectItem}
+                        />
+                    )}
                 </Stack.Screen>
             </Stack.Navigator>
         </NavigationContainer>

@@ -7,7 +7,6 @@ import { useState, useEffect } from "react";
 import {
     StyleSheet,
     View,
-    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
@@ -22,8 +21,12 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { RootStackParamList, SelectedItem } from "./App";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { IOScrollView, InView } from "react-native-intersection-observer";
 
-type OffScreenAdZoneProp = NativeStackNavigationProp<RootStackParamList, "OffScreenAdZone">
+type OffScreenAdZoneProp = NativeStackNavigationProp<
+    RootStackParamList,
+    "OffScreenAdZone"
+>;
 
 /**
  * Props interface for {@link StandardAdZonePage}.
@@ -71,7 +74,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
     const [aasdkSearchResultItemList, setAasdkSearchResultItemList] = useState<
         KeywordSearchResult[]
     >([]);
-    const [isVisible, setIsVisible] = useState<boolean>(true);
+    const [isVisible, setIsVisible] = useState<boolean>(false);
 
     // - Define all useEffect triggers.
     useEffect(() => {
@@ -84,7 +87,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
 
     useEffect(() => {
         if (props.adZoneInfoList) {
-            props.aaSdk.onAdZoneVisibilityChanged();
+            props.aaSdk.onAdZoneVisibilityChanged(isVisible);
         }
     }, [isVisible]);
 
@@ -94,7 +97,8 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
      */
     function handleOnSearchValueChanged(searchValue: string): void {
         if (props.aaSdk) {
-            const aasdkSearchResults = props.aaSdk.performKeywordSearch(searchValue);
+            const aasdkSearchResults =
+                props.aaSdk.performKeywordSearch(searchValue);
 
             // Randomly choose one of the resulting terms to display.
             // You can add multiple randomly chosen terms here too
@@ -115,7 +119,8 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
 
             // Search for all standard items using the search value.
             const finalStandardProductSearchResultsStringStart: string[] = [];
-            const finalStandardProductSearchResultsStringContains: string[] = [];
+            const finalStandardProductSearchResultsStringContains: string[] =
+                [];
 
             if (searchValue.trim().length > 0) {
                 for (const productName of AVAILABLE_PRODUCTS) {
@@ -139,9 +144,10 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                 }
             }
 
-            const finalSearchResult = finalStandardProductSearchResultsStringStart.concat(
-                finalStandardProductSearchResultsStringContains
-            );
+            const finalSearchResult =
+                finalStandardProductSearchResultsStringStart.concat(
+                    finalStandardProductSearchResultsStringContains
+                );
             setStandardProductSearchResultItemList(finalSearchResult);
             setAasdkSearchResultItemList(finalAasdkSearchResults);
         }
@@ -149,7 +155,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
 
     return (
         <SafeAreaView style={styles.safeAreaView}>
-            <ScrollView
+            <IOScrollView
                 style={styles.mainView}
                 contentContainerStyle={{
                     alignItems: "center",
@@ -159,9 +165,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
             >
                 <Button
                     title="standard ad zone"
-                    onPress={() =>
-                        navigation.navigate("StandardAdZone")
-                    }
+                    onPress={() => navigation.navigate("StandardAdZone")}
                 ></Button>
                 <Text style={styles.sessionIdContainer}>
                     Session ID: {props.sessionId}
@@ -189,9 +193,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                             <Text style={styles.searchResultText}>
                                 {itemObj.replacement}
                             </Text>
-                            <Text style={styles.searchResultAdBadge}>
-                                AD
-                            </Text>
+                            <Text style={styles.searchResultAdBadge}>AD</Text>
                         </TouchableOpacity>
                     ))}
                     {standardProductSearchResultItemList.map(
@@ -243,19 +245,25 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                         );
                     })}
                 </View>
-                <View style={styles.spaceFiller}>
-                    <Text>
-                        {fillText}
-                    </Text>
+                <View>
+                    <Text style={styles.spaceFiller}>{fillText}</Text>
                 </View>
                 {props.adZoneInfoList?.map((adZoneInfo, idx) => {
                     return (
-                        <View key={idx} style={styles.adZoneContainer}>
-                            {adZoneInfo.adZone}
-                        </View>
+                        <InView
+                            key={idx}
+                            onChange={(inView: boolean) => {
+                                setIsVisible(inView);
+                            }}
+                            style={styles.adZoneContainer}
+                        >
+                            <View style={styles.adZoneContainer}>
+                                {adZoneInfo.adZone}
+                            </View>
+                        </InView>
                     );
                 })}
-            </ScrollView>
+            </IOScrollView>
         </SafeAreaView>
     );
 };
@@ -277,7 +285,7 @@ const styles = StyleSheet.create({
         borderColor: "gray",
         borderWidth: 2,
         marginTop: 10,
-        marginBottom: 50,
+        marginBottom: 55,
         width: "100%",
         height: 120,
     },
@@ -330,18 +338,22 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
     spaceFiller: {
+        flexWrap: "wrap",
+        flexShrink: 1,
+        fontSize: 18,
         height: 800,
-        width: "95%",
-        padding: 20,
+        padding: 10,
         margin: 10,
         color: "#172B61",
         backgroundColor: "#E6E7E8",
         borderColor: "#172B61",
         borderWidth: 2,
+        textAlign: "center",
     },
 });
 
-const fillText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+const fillText =
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 
 /**
  * Used to provide the app a set of non-ad products to display

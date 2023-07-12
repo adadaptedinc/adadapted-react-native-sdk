@@ -66,7 +66,11 @@ interface Props {
      */
     onAddToListTriggered?(items: DetailedListItem[]): void;
     /**
-     * Track the ad zone visibility in parent component.
+     * Is the ad zone visible on render.
+     */
+    offScreenAdZone: boolean;
+    /**
+     * Track the ad zone visibility in parent component. (for off-screen ads)
      */
     isAdZoneVisible?: boolean;
 }
@@ -126,21 +130,21 @@ export function AdZone(props: Props): JSX.Element {
     /**
      * Track ad visibility (for off-screen ads).
      */
-    const [isAdVisible, setIsAdVisibile] = useState(
-        props.isAdZoneVisible ? false : true
-    );
+    const [isAdVisible, setIsAdVisibile] = useState(props.isAdZoneVisible);
 
-    // - Define all useEffect triggers.
+    // Setup device listeners.
     useEffect(() => {
-        DeviceEventEmitter.addListener("visibility-event", (event) => {
+        DeviceEventEmitter.addListener("visibility-event", (event: boolean) => {
             setIsAdVisibile(event);
         });
 
-        DeviceEventEmitter.addListener("acknowledge", (itemName) => {
+        DeviceEventEmitter.addListener("acknowledge", (itemName: string) => {
             acknowledge(itemName);
         });
 
-        if (isAdVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
+            sendAdImpression();
+        } else if (!props.offScreenAdZone) {
             sendAdImpression();
         }
 
@@ -149,19 +153,28 @@ export function AdZone(props: Props): JSX.Element {
             DeviceEventEmitter.removeAllListeners("visibility-event");
             DeviceEventEmitter.removeAllListeners("acknowledge");
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Send impression on ad cycle.
     useEffect(() => {
         startAdTimer();
-        if (isAdVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
+            sendAdImpression();
+        } else if (!props.offScreenAdZone) {
             sendAdImpression();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [adIndexShown]);
 
+    // Send impression based on visibility change. (for off-screen ads)
     useEffect(() => {
-        if (isAdVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
+            sendAdImpression();
+        } else if (!props.offScreenAdZone) {
             sendAdImpression();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAdVisible]);
 
     /**
@@ -314,7 +327,6 @@ export function AdZone(props: Props): JSX.Element {
     function sendAdImpression(): void {
         const ad = props.adZoneData.ads[adIndexShown];
 
-        // Trigger an impression event for the ad.
         if (!ad.impression_tracked) {
             triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
             ad.impression_tracked = true;

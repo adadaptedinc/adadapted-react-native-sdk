@@ -2,13 +2,14 @@
     "env": {
         "browser": true,
         "es6": true,
-        "jest/globals": true
+        "react-native/react-native": true
     },
     "extends": [
+        // "standard-with-typescript",
         "eslint:recommended",
-        "plugin:jest/recommended",
         "plugin:jsdoc/recommended",
         "plugin:react/recommended",
+        "@react-native-community",
         "plugin:@typescript-eslint/recommended",
         "plugin:@typescript-eslint/recommended-requiring-type-checking"
     ],
@@ -22,16 +23,19 @@
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "project": "tsconfig.json",
+        "ecmaFeatures": {
+            "jsx": true
+        },
+        "ecmaVersion": 6,
         "sourceType": "module",
         "createDefaultProgram": true
     },
     "plugins": [
+        "react",
+        "react-native",
         "eslint-plugin-import",
-        "eslint-plugin-jest",
-        "eslint-plugin-jsdoc",
-        "eslint-plugin-react",
         "eslint-plugin-prefer-arrow",
-        "@typescript-eslint",
+        "eslint-plugin-react",
         "@typescript-eslint"
     ],
     "ignorePatterns": [
@@ -334,64 +338,64 @@
             }
         ],
         "use-isnan": "error",
-        "valid-typeof": "off",
-        "@typescript-eslint/config": [
-            "error",
-            {
-                "rules": {
-                    "completed-docs": [
-                        true,
-                        {
-                            "classes": {
-                                "tags": {
-                                    "content": {},
-                                    "existence": ["inheritdoc", "inheritDoc"]
-                                }
-                            },
-                            "methods": {
-                                "locations": ["all"],
-                                "privacies": ["all"],
-                                "tags": {
-                                    "content": {},
-                                    "existence": ["inheritdoc", "inheritDoc"]
-                                }
-                            },
-                            "properties": {
-                                "locations": ["all"],
-                                "privacies": ["all"],
-                                "tags": {
-                                    "content": {},
-                                    "existence": ["inheritdoc", "inheritDoc"]
-                                }
-                            },
-                            "enums": {
-                                "visibilities": ["all"]
-                            },
-                            "enum-members": {
-                                "visibilities": ["all"]
-                            },
-                            "interfaces": {
-                                "visibilities": ["all"]
-                            },
-                            "namespaces": {
-                                "visibilities": ["all"]
-                            },
-                            "types": {
-                                "visibilities": ["exported"]
-                            },
-                            "variables": {
-                                "visibilities": ["exported"]
-                            }
-                        }
-                    ],
-                    "typedef": [
-                        true,
-                        "call-signature",
-                        "parameter",
-                        "property-declaration"
-                    ]
-                }
-            }
-        ]
+        "valid-typeof": "off"
+        // "@typescript-eslint/config": [
+        //     "error",
+        //     {
+        //         "rules": {
+        //             "completed-docs": [
+        //                 true,
+        //                 {
+        //                     "classes": {
+        //                         "tags": {
+        //                             "content": {},
+        //                             "existence": ["inheritdoc", "inheritDoc"]
+        //                         }
+        //                     },
+        //                     "methods": {
+        //                         "locations": ["all"],
+        //                         "privacies": ["all"],
+        //                         "tags": {
+        //                             "content": {},
+        //                             "existence": ["inheritdoc", "inheritDoc"]
+        //                         }
+        //                     },
+        //                     "properties": {
+        //                         "locations": ["all"],
+        //                         "privacies": ["all"],
+        //                         "tags": {
+        //                             "content": {},
+        //                             "existence": ["inheritdoc", "inheritDoc"]
+        //                         }
+        //                     },
+        //                     "enums": {
+        //                         "visibilities": ["all"]
+        //                     },
+        //                     "enum-members": {
+        //                         "visibilities": ["all"]
+        //                     },
+        //                     "interfaces": {
+        //                         "visibilities": ["all"]
+        //                     },
+        //                     "namespaces": {
+        //                         "visibilities": ["all"]
+        //                     },
+        //                     "types": {
+        //                         "visibilities": ["exported"]
+        //                     },
+        //                     "variables": {
+        //                         "visibilities": ["exported"]
+        //                     }
+        //                 }
+        //             ],
+        //             "typedef": [
+        //                 true,
+        //                 "call-signature",
+        //                 "parameter",
+        //                 "property-declaration"
+        //             ]
+        //         }
+        //     }
+        // ]
     }
 }

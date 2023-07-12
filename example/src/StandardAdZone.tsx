@@ -23,7 +23,10 @@ import { RootStackParamList, SelectedItem } from "./App";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 
-type StandardAdZoneProp = NativeStackNavigationProp<RootStackParamList, "StandardAdZone">
+type StandardAdZoneProp = NativeStackNavigationProp<
+    RootStackParamList,
+    "StandardAdZone"
+>;
 
 /**
  * Props interface for {@link StandardAdZonePage}.
@@ -87,7 +90,8 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
      */
     function handleOnSearchValueChanged(searchValue: string): void {
         if (props.aaSdk) {
-            const aasdkSearchResults = props.aaSdk.performKeywordSearch(searchValue);
+            const aasdkSearchResults =
+                props.aaSdk.performKeywordSearch(searchValue);
 
             // Randomly choose one of the resulting terms to display.
             // You can add multiple randomly chosen terms here too
@@ -108,7 +112,8 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
 
             // Search for all standard items using the search value.
             const finalStandardProductSearchResultsStringStart: string[] = [];
-            const finalStandardProductSearchResultsStringContains: string[] = [];
+            const finalStandardProductSearchResultsStringContains: string[] =
+                [];
 
             if (searchValue.trim().length > 0) {
                 for (const productName of AVAILABLE_PRODUCTS) {
@@ -132,9 +137,10 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                 }
             }
 
-            const finalSearchResult = finalStandardProductSearchResultsStringStart.concat(
-                finalStandardProductSearchResultsStringContains
-            );
+            const finalSearchResult =
+                finalStandardProductSearchResultsStringStart.concat(
+                    finalStandardProductSearchResultsStringContains
+                );
             setStandardProductSearchResultItemList(finalSearchResult);
             setAasdkSearchResultItemList(finalAasdkSearchResults);
         }
@@ -152,9 +158,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
             >
                 <Button
                     title="off-screen ad zone"
-                    onPress={() =>
-                        navigation.navigate("OffScreenAdZone")
-                    }
+                    onPress={() => navigation.navigate("OffScreenAdZone")}
                 ></Button>
                 <Text style={styles.sessionIdContainer}>
                     Session ID: {props.sessionId}
@@ -189,9 +193,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                             <Text style={styles.searchResultText}>
                                 {itemObj.replacement}
                             </Text>
-                            <Text style={styles.searchResultAdBadge}>
-                                AD
-                            </Text>
+                            <Text style={styles.searchResultAdBadge}>AD</Text>
                         </TouchableOpacity>
                     ))}
                     {standardProductSearchResultItemList.map(
