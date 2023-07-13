@@ -32,9 +32,6 @@ jobs:
             - name: Install Example App Dependencies
               run: npm install
               working-directory: ./example
-            - name: Install Cocoapods
-              run: pod install
-              working-directory: ./example/ios
             - name: Install SDK Dependencies
               run: npm install
             - name: Prettier Validation
@@ -72,9 +69,6 @@ jobs:
           - name: Install Example App Dependencies
             run: npm install
             working-directory: ./example
-          - name: Install Cocoapods
-            run: pod install
-            working-directory: ./example/ios
           - name: Install SDK Dependencies
             run: npm install
           # - name: NPM Audit Fix
