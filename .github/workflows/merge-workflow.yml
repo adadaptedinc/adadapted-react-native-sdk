@@ -29,10 +29,14 @@ jobs:
             - uses: actions/setup-node@v3
               with:
                   node-version: 16
-            - name: NPM Install
+            - name: Install Example App Dependencies
               run: npm install
-            # - name: NPM Audit Fix
-            #   run: npm audit fix
+              working-directory: ./example
+            - name: Install Cocoapods
+              run: pod install
+              working-directory: ./example/ios
+            - name: Install SDK Dependencies
+              run: npm install
             - name: Prettier Validation
               run: npm run prettier
             - name: Linting Validation
@@ -64,6 +68,14 @@ jobs:
                 name: Release ${{steps.tag_version.outputs.new_tag}}
                 body: ${{steps.tag_version.outputs.changelog}}
           - name: NPM Install
+            run: npm install
+          - name: Install Example App Dependencies
+            run: npm install
+            working-directory: ./example
+          - name: Install Cocoapods
+            run: pod install
+            working-directory: ./example/ios
+          - name: Install SDK Dependencies
             run: npm install
           # - name: NPM Audit Fix
           #   run: npm audit fix
