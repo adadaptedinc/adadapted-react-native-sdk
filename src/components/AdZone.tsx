@@ -22,6 +22,7 @@ import { WebView } from "react-native-webview";
 import { ApiEnv, DeviceOS } from "../index";
 import { safeInvoke } from "../util";
 import { useEffect, useState } from "react";
+import { ReportAdButton } from "./ReportAdButton";
 
 /**
  * Props interface for {@link AdZone}.
@@ -101,6 +102,10 @@ interface StyleDef {
      * Styles for the WebView element.
      */
     webView: ViewStyle;
+    /**
+     * Styles for the ReportAdButton.
+     */
+    reportAd: ViewStyle;
 }
 /**
  * Timer used for cycling through ads in the zone
@@ -191,6 +196,11 @@ export function AdZone(props: Props): JSX.Element {
                 width: "100%",
                 height: "100%",
             },
+            reportAd: {
+                position: "absolute",
+                top: 10,
+                right: 10,
+            },
         });
     }
 
@@ -240,11 +250,16 @@ export function AdZone(props: Props): JSX.Element {
     function acknowledge(itemName: string): void {
         if (props.adZoneData.ads) {
             props.adZoneData.ads.forEach((ad) => {
-                ad.payload.detailed_list_items.forEach((item) => {
-                    if (item.product_title === itemName) {
-                        triggerReportAdEvent(ad, ReportedEventType.INTERACTION);
-                    }
-                });
+                if (ad.action_type === "c") {
+                    ad.payload.detailed_list_items.forEach((item) => {
+                        if (item.product_title === itemName) {
+                            triggerReportAdEvent(
+                                ad,
+                                ReportedEventType.INTERACTION
+                            );
+                        }
+                    });
+                }
             });
         }
     }
@@ -374,6 +389,9 @@ export function AdZone(props: Props): JSX.Element {
                     }}
                 />
             ) : undefined}
+            <View style={styles.reportAd}>
+                <ReportAdButton adId={currentAd.ad_id} udid={props.udid} />
+            </View>
         </View>
     );
 }
