@@ -72,7 +72,7 @@ jobs:
           # - name: NPM Audit Fix
           #   run: npm audit fix
           - name: Build Production Files
-            run: npm run prepack
+            run: npm run prepare
           - name: Get Access Token
             run: echo "//registry.npmjs.org/:_authToken=${{secrets.NPM_TOKEN}}" > .npmrc
           - name: Publish
