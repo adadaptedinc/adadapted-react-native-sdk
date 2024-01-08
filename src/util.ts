@@ -14,6 +14,8 @@ export function safeInvoke<R>(func: (() => R) | nil): R | undefined;
  * See main definition above.
  * @param func - The function to call.
  * @param arg1 - Function argument.
+ * @returns The return value of the executed function, or undefined if
+ *      the function is null/undefined
  */
 export function safeInvoke<A1, R>(
     func: ((arg1: A1) => R) | nil,
@@ -24,6 +26,8 @@ export function safeInvoke<A1, R>(
  * @param func - The function to call.
  * @param arg1 - Function argument.
  * @param arg2 - Function argument.
+ * @returns The return value of the executed function, or undefined if
+ *      the function is null/undefined
  */
 export function safeInvoke<A1, A2, R>(
     func: ((arg1: A1, arg2: A2) => R) | nil,
@@ -36,6 +40,8 @@ export function safeInvoke<A1, A2, R>(
  * @param arg1 - Function argument.
  * @param arg2 - Function argument.
  * @param arg3 - Function argument.
+ * @returns The return value of the executed function, or undefined if
+ *      the function is null/undefined
  */
 export function safeInvoke<A1, A2, A3, R>(
     func: ((arg1: A1, arg2: A2, arg3: A3) => R) | nil,
@@ -50,6 +56,8 @@ export function safeInvoke<A1, A2, A3, R>(
  * @param arg2 - Function argument.
  * @param arg3 - Function argument.
  * @param arg4 - Function argument.
+ * @returns The return value of the executed function, or undefined if
+ *      the function is null/undefined
  */
 export function safeInvoke<A1, A2, A3, A4, R>(
     func: ((arg1: A1, arg2: A2, arg3: A3, arg4: A4) => R) | nil,
@@ -66,6 +74,8 @@ export function safeInvoke<A1, A2, A3, A4, R>(
  * @param arg3 - Function argument.
  * @param arg4 - Function argument.
  * @param arg5 - Function argument.
+ * @returns The return value of the executed function, or undefined if
+ *      the function is null/undefined
  */
 export function safeInvoke<A1, A2, A3, A4, A5, R>(
     func: ((arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5) => R) | nil,
@@ -84,6 +94,8 @@ export function safeInvoke<A1, A2, A3, A4, A5, R>(
  * @param arg4 - Function argument.
  * @param arg5 - Function argument.
  * @param arg6 - Function argument.
+ * @returns The return value of the executed function, or undefined if
+ *      the function is null/undefined
  */
 export function safeInvoke<A1, A2, A3, A4, A5, A6, R>(
     func:
@@ -105,6 +117,7 @@ export function safeInvoke<A1, A2, A3, A4, A5, A6, R>(
 // eslint-disable-next-line @typescript-eslint/ban-types
 export function safeInvoke(func: Function | nil, ...args: any[]): any {
     if (func) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return func(...args);
     }
 }

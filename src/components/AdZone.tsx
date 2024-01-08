@@ -22,6 +22,7 @@ import { WebView } from "react-native-webview";
 import { ApiEnv, DeviceOS } from "../index";
 import { safeInvoke } from "../util";
 import { useEffect, useState } from "react";
+import { ReportAdButton } from "./ReportAdButton";
 
 /**
  * Props interface for {@link AdZone}.
@@ -66,13 +67,13 @@ interface Props {
      */
     onAddToListTriggered?(items: DetailedListItem[]): void;
     /**
-     * Track the ad zone visibility in parent component.
+     * Is the ad zone visible on render.
+     */
+    offScreenAdZone: boolean;
+    /**
+     * Track the ad zone visibility in parent component. (for off-screen ads)
      */
     isAdZoneVisible?: boolean;
-    /**
-     * Set default ad zone visibility to false.
-     */
-    defaultToInvisibleAdZone?: boolean;
 }
 
 /**
@@ -101,6 +102,10 @@ interface StyleDef {
      * Styles for the WebView element.
      */
     webView: ViewStyle;
+    /**
+     * Styles for the ReportAdButton.
+     */
+    reportAd: ViewStyle;
 }
 /**
  * Timer used for cycling through ads in the zone
@@ -130,36 +135,51 @@ export function AdZone(props: Props): JSX.Element {
     /**
      * Track ad visibility (for off-screen ads).
      */
-    const [isAdVisible, setIsAdVisibile] = useState(
-        props.defaultToInvisibleAdZone ? false : true
-    );
+    const [isAdVisible, setIsAdVisibile] = useState(props.isAdZoneVisible);
 
-    // - Define all useEffect triggers.
+    // Setup device listeners.
     useEffect(() => {
-        DeviceEventEmitter.addListener("visibility-event", (event) => {
+        DeviceEventEmitter.addListener("visibility-event", (event: boolean) => {
             setIsAdVisibile(event);
         });
-        DeviceEventEmitter.addListener("acknowledge", (itemName) => {
+
+        DeviceEventEmitter.addListener("acknowledge", (itemName: string) => {
             acknowledge(itemName);
         });
+
+        if (props.offScreenAdZone && isAdVisible) {
+            sendAdImpression();
+        } else if (!props.offScreenAdZone) {
+            sendAdImpression();
+        }
+
         return () => {
             clearTimeout(cycleAdTimer);
             DeviceEventEmitter.removeAllListeners("visibility-event");
             DeviceEventEmitter.removeAllListeners("acknowledge");
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Send impression on ad cycle.
     useEffect(() => {
         startAdTimer();
-        if (isAdVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
+            sendAdImpression();
+        } else if (!props.offScreenAdZone) {
             sendAdImpression();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [adIndexShown]);
 
+    // Send impression based on visibility change. (for off-screen ads)
     useEffect(() => {
-        if (isAdVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
+            sendAdImpression();
+        } else if (!props.offScreenAdZone) {
             sendAdImpression();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAdVisible]);
 
     /**
@@ -176,6 +196,11 @@ export function AdZone(props: Props): JSX.Element {
                 width: "100%",
                 height: "100%",
             },
+            reportAd: {
+                position: "absolute",
+                top: 10,
+                right: 10,
+            },
         });
     }
 
@@ -188,8 +213,8 @@ export function AdZone(props: Props): JSX.Element {
 
     if (!currentAd || !currentAd.creative_url) {
         // If there is no ad to display, make the view take up no space.
-        finalMainViewStyle.width = "0";
-        finalMainViewStyle.height = "0";
+        finalMainViewStyle.width = 0;
+        finalMainViewStyle.height = 0;
     }
 
     /**
@@ -225,11 +250,16 @@ export function AdZone(props: Props): JSX.Element {
     function acknowledge(itemName: string): void {
         if (props.adZoneData.ads) {
             props.adZoneData.ads.forEach((ad) => {
-                ad.payload.detailed_list_items.forEach((item) => {
-                    if (item.product_title === itemName) {
-                        triggerReportAdEvent(ad, ReportedEventType.INTERACTION);
-                    }
-                });
+                if (ad.action_type === "c") {
+                    ad.payload.detailed_list_items.forEach((item) => {
+                        if (item.product_title === itemName) {
+                            triggerReportAdEvent(
+                                ad,
+                                ReportedEventType.INTERACTION
+                            );
+                        }
+                    });
+                }
             });
         }
     }
@@ -312,7 +342,6 @@ export function AdZone(props: Props): JSX.Element {
     function sendAdImpression(): void {
         const ad = props.adZoneData.ads[adIndexShown];
 
-        // Trigger an impression event for the ad.
         if (!ad.impression_tracked) {
             triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
             ad.impression_tracked = true;
@@ -360,6 +389,9 @@ export function AdZone(props: Props): JSX.Element {
                     }}
                 />
             ) : undefined}
+            <View style={styles.reportAd}>
+                <ReportAdButton adId={currentAd.ad_id} udid={props.udid} />
+            </View>
         </View>
     );
 }

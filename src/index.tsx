@@ -3,7 +3,6 @@
  */
 import * as React from "react";
 import {
-    AppState,
     DeviceEventEmitter,
     EmitterSubscription,
     Linking,
@@ -100,7 +99,7 @@ export enum PayloadApiEnv {
 }
 
 /**
- * Interface defining inputs to the {@link Sdk.initialize} method.
+ * Interface defining inputs to the {@link Sdk.initialize: AdadaptedReactNativeSdk} method.
  */
 export interface InitializeProps {
     /**
@@ -142,9 +141,9 @@ export interface InitializeProps {
      */
     onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
     /**
-     * Change the optional ad zone visibility default setting.
+     * Ad zones that contain off-screen ads.
      */
-    defaultToInvisibleAdZone?: boolean;
+    offScreenAdZone?: [number];
 }
 
 /**
@@ -273,6 +272,10 @@ export class AdadaptedReactNativeSdk {
      */
     private adZones: AdZoneInfo[] | undefined;
     /**
+     * The available off-screen ad zones.
+     */
+    private offScreenAdZones: AdZoneInfo[] = [];
+    /**
      * The touch sensitivity of the Ad Zone in both the X and Y directions.
      * This is used to determine the click/press sensitivity when the
      * Ad Zone is being touched by the user as a regular touch or while
@@ -334,9 +337,9 @@ export class AdadaptedReactNativeSdk {
      */
     private isAdZoneVisible: boolean = true;
     /**
-     * Optional default ad zone visibility for off-screen ads.
+     * Ad zones that contain off-screen ads..
      */
-    private defaultAdZoneVisibility: boolean | undefined;
+    private offScreenAdZone: [number] | undefined;
     /**
      * Gets the Session ID.
      * @returns the Session ID.
@@ -359,6 +362,14 @@ export class AdadaptedReactNativeSdk {
      */
     public getAdZones(): AdZoneInfo[] | undefined {
         return this.adZones;
+    }
+
+    /**
+     * Gets the list of available off-screen Ad Zones.
+     * @returns all available off-screen ad zones.
+     */
+    public getOffScreenAdZones(): AdZoneInfo[] | undefined {
+        return this.offScreenAdZones;
     }
 
     /**
@@ -409,33 +420,83 @@ export class AdadaptedReactNativeSdk {
 
         for (const adZoneId in adZones) {
             if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                adZoneInfoList.push({
-                    zoneId: adZones[adZoneId].id,
-                    adZone: (
-                        <AdZone
-                            key={adZoneId}
-                            appId={this.appId}
-                            sessionId={this.sessionId!}
-                            udid={this.deviceInfo!.udid}
-                            deviceOs={this.deviceOs!}
-                            apiEnv={this.apiEnv}
-                            xyDragDistanceAllowed={
-                                this.xyAdZoneDragDistanceAllowed || 25
-                            }
-                            adZoneData={adZones[adZoneId]}
-                            onAddToListTriggered={(items) => {
-                                safeInvoke(this.onAddToListTriggered, items);
-                            }}
-                            isAdZoneVisible={!this.onAdZoneVisibilityChanged}
-                            defaultToInvisibleAdZone={
-                                this.defaultAdZoneVisibility
-                            }
-                        />
-                    ),
+                this.offScreenAdZone?.forEach((zone) => {
+                    if (Number(adZones[adZoneId].id) !== zone) {
+                        adZoneInfoList.push({
+                            zoneId: adZones[adZoneId].id,
+                            adZone: (
+                                <AdZone
+                                    key={adZoneId}
+                                    appId={this.appId}
+                                    sessionId={this.sessionId!}
+                                    udid={this.deviceInfo!.udid}
+                                    deviceOs={this.deviceOs!}
+                                    apiEnv={this.apiEnv}
+                                    xyDragDistanceAllowed={
+                                        this.xyAdZoneDragDistanceAllowed || 25
+                                    }
+                                    adZoneData={adZones[adZoneId]}
+                                    onAddToListTriggered={(items) => {
+                                        safeInvoke(
+                                            this.onAddToListTriggered,
+                                            items
+                                        );
+                                    }}
+                                    isAdZoneVisible={true}
+                                    offScreenAdZone={false}
+                                />
+                            ),
+                        });
+                    }
                 });
             }
         }
+        return adZoneInfoList;
+    }
 
+    /**
+     * Creates all off-screen Ad Zone Info objects based on provided off-screen Ad Zones.
+     * @param adZones - The object of available zones.
+     * @returns the array of off-screen Ad Zone Info objects.
+     */
+    private generateOffScreenAdZones(adZones: {
+        [key: number]: Zone;
+    }): AdZoneInfo[] {
+        const adZoneInfoList: AdZoneInfo[] = [];
+
+        for (const adZoneId in adZones) {
+            if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
+                this.offScreenAdZone?.forEach((zone) => {
+                    if (Number(adZones[adZoneId].id) === zone) {
+                        adZoneInfoList.push({
+                            zoneId: adZones[adZoneId].id,
+                            adZone: (
+                                <AdZone
+                                    key={adZoneId}
+                                    appId={this.appId}
+                                    sessionId={this.sessionId!}
+                                    udid={this.deviceInfo!.udid}
+                                    deviceOs={this.deviceOs!}
+                                    apiEnv={this.apiEnv}
+                                    xyDragDistanceAllowed={
+                                        this.xyAdZoneDragDistanceAllowed || 25
+                                    }
+                                    adZoneData={adZones[adZoneId]}
+                                    onAddToListTriggered={(items) => {
+                                        safeInvoke(
+                                            this.onAddToListTriggered,
+                                            items
+                                        );
+                                    }}
+                                    isAdZoneVisible={this.isAdZoneVisible}
+                                    offScreenAdZone={true}
+                                />
+                            ),
+                        });
+                    }
+                });
+            }
+        }
         return adZoneInfoList;
     }
 
@@ -466,6 +527,9 @@ export class AdadaptedReactNativeSdk {
                 .then((response) => {
                     this.sessionInfo = response.data;
                     this.adZones = this.generateAdZones(response.data.zones);
+                    this.offScreenAdZones = this.generateOffScreenAdZones(
+                        response.data.zones
+                    );
 
                     // Call the user defined callback indicating
                     // the session data has been refreshed.
@@ -576,13 +640,15 @@ export class AdadaptedReactNativeSdk {
      */
     private handleDeepLink(event: any): void {
         const searchStr = "data=";
-        const dataIndex: number = event["url"].indexOf(searchStr);
+        const dataIndex: number = event.url.indexOf(searchStr);
 
         if (dataIndex !== -1) {
-            const encodedData = event.url.substr(dataIndex + searchStr.length);
+            const encodedData: string = event.url.substr(
+                `${dataIndex}${searchStr.length}`
+            );
             const payloadData = JSON.parse(base64.decode(encodedData));
-            const payloadId = payloadData["payload_id"];
-            const itemDataList = payloadData["detailed_list_items"];
+            const payloadId = payloadData.payload_id;
+            const itemDataList = payloadData.detailed_list_items;
 
             if (itemDataList && itemDataList.length > 0) {
                 const finalItemList: OutOfAppDataPayload[] = [];
@@ -592,13 +658,13 @@ export class AdadaptedReactNativeSdk {
                         payload_id: payloadId,
                         detailed_list_items: [
                             {
-                                product_title: itemData["product_title"],
-                                product_brand: itemData["product_brand"],
-                                product_category: itemData["product_category"],
-                                product_barcode: itemData["product_barcode"],
-                                product_discount: itemData["product_discount"],
-                                product_image: itemData["product_image"],
-                                product_sku: itemData["product_sku"],
+                                product_title: itemData.product_title,
+                                product_brand: itemData.product_brand,
+                                product_category: itemData.product_category,
+                                product_barcode: itemData.product_barcode,
+                                product_discount: itemData.product_discount,
+                                product_image: itemData.product_image,
+                                product_sku: itemData.product_sku,
                             },
                         ],
                     });
@@ -642,16 +708,13 @@ export class AdadaptedReactNativeSdk {
                             payload_id: payload.payload_id,
                             detailed_list_items: [
                                 {
-                                    product_title: itemData["product_title"],
-                                    product_brand: itemData["product_brand"],
-                                    product_category:
-                                        itemData["product_category"],
-                                    product_barcode:
-                                        itemData["product_barcode"],
-                                    product_discount:
-                                        itemData["product_discount"],
-                                    product_image: itemData["product_image"],
-                                    product_sku: itemData["product_sku"],
+                                    product_title: itemData.product_title,
+                                    product_brand: itemData.product_brand,
+                                    product_category: itemData.product_category,
+                                    product_barcode: itemData.product_barcode,
+                                    product_discount: itemData.product_discount,
+                                    product_image: itemData.product_image,
+                                    product_sku: itemData.product_sku,
                                 },
                             ],
                         });
@@ -668,9 +731,9 @@ export class AdadaptedReactNativeSdk {
 
     /**
      * Notify the ad zone of visibility status change for off-screen ads.
+     * @param isVisible - Ad Zone visibility tracking.
      */
-    public onAdZoneVisibilityChanged(): void {
-        const isVisible = !this.isAdZoneVisible;
+    public onAdZoneVisibilityChanged(isVisible: boolean): void {
         this.isAdZoneVisible = isVisible;
         DeviceEventEmitter.emit("visibility-event", isVisible);
     }
@@ -735,10 +798,9 @@ export class AdadaptedReactNativeSdk {
             this.onOutOfAppPayloadAvailable = props.onOutOfAppPayloadAvailable;
         }
 
-        // If provided for off-screen ads, set the ad zone visibility for ad tracking.
-        if (props.defaultToInvisibleAdZone) {
-            this.defaultAdZoneVisibility = props.defaultToInvisibleAdZone;
-            this.onAdZoneVisibilityChanged();
+        // If provided set any off-screen ad zones.
+        if (props.offScreenAdZone) {
+            this.offScreenAdZone = props.offScreenAdZone;
         }
 
         return new Promise<void>((resolve, reject) => {
@@ -796,6 +858,10 @@ export class AdadaptedReactNativeSdk {
                             this.adZones = this.generateAdZones(
                                 response.data.zones
                             );
+                            this.offScreenAdZones =
+                                this.generateOffScreenAdZones(
+                                    response.data.zones
+                                );
 
                             // Start the session data refresh timer.
                             this.onRefreshAdZones();
@@ -821,18 +887,18 @@ export class AdadaptedReactNativeSdk {
                             this.getPayloadItemData();
 
                             // Initialize an event listener to intercept deep links while the app is running.
+                            this.deepLinkOnEventListener =
+                                Linking.addEventListener(
+                                    "url",
+                                    this.handleDeepLink
+                                );
 
-                            this.deepLinkOnEventListener = Linking.addEventListener(
-                                "url",
-                                this.handleDeepLink
-                            );
-
-                            // Initialize an event listener to intercept App state changes.
-
-                            this.AppStateOnEventListener = AppState.addEventListener(
-                                "change",
-                                this.handleAppStateChange
-                            );
+                            // // Initialize an event listener to intercept App state changes.
+                            // this.AppStateOnEventListener =
+                            //     AppState.addEventListener(
+                            //         "change",
+                            //         this.handleAppStateChange
+                            //     );
 
                             resolve();
                         })

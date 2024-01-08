@@ -1,7 +1,7 @@
 /**
  * Contains all API request mocks for the Rewards API.
  */
-import { AxiosResponse } from "axios";
+import { AxiosHeaders, AxiosResponse } from "axios";
 import {
     AdActionType,
     AdSession,
@@ -25,7 +25,9 @@ export function initializeSession(): Promise<
         resolve({
             data: AD_SESSION_DATA,
             then: undefined,
-            config: {},
+            config: {
+                headers: new AxiosHeaders(),
+            },
             headers: {},
             status: 200,
             statusText: "200",
@@ -44,7 +46,9 @@ export function refreshSessionData(): Promise<
         resolve({
             data: REFRESHED_AD_SESSION_DATA,
             then: undefined,
-            config: {},
+            config: {
+                headers: new AxiosHeaders(),
+            },
             headers: {},
             status: 200,
             statusText: "200",
@@ -63,7 +67,9 @@ export function reportAdEvent(): Promise<AxiosResponse<ReportAdEventResponse>> {
                 results: ["Ok"],
             },
             then: undefined,
-            config: {},
+            config: {
+                headers: new AxiosHeaders(),
+            },
             headers: {},
             status: 200,
             statusText: "200",
@@ -82,7 +88,9 @@ export function getKeywordIntercepts(): Promise<
         resolve({
             data: KEYWORD_INTERCEPT_DATA,
             then: undefined,
-            config: {},
+            config: {
+                headers: new AxiosHeaders(),
+            },
             headers: {},
             status: 200,
             statusText: "200",
@@ -104,7 +112,9 @@ export function reportInterceptEvent(): Promise<
                     results: ["Ok"],
                 },
                 then: undefined,
-                config: {},
+                config: {
+                    headers: new AxiosHeaders(),
+                },
                 headers: {},
                 status: 200,
                 statusText: "200",
@@ -122,7 +132,9 @@ export function reportListManagerEvents(): Promise<AxiosResponse<void>> {
         resolve({
             data: undefined,
             then: undefined,
-            config: {},
+            config: {
+                headers: new AxiosHeaders(),
+            },
             headers: {},
             status: 200,
             statusText: "200",
@@ -139,7 +151,9 @@ export function reportPayloadContentStatus(): Promise<AxiosResponse<void>> {
         resolve({
             data: undefined,
             then: undefined,
-            config: {},
+            config: {
+                headers: new AxiosHeaders(),
+            },
             headers: {},
             status: 200,
             statusText: "200",
@@ -176,7 +190,9 @@ export function retrievePayloadContent(): Promise<
                     ],
                 },
                 then: undefined,
-                config: {},
+                config: {
+                    headers: new AxiosHeaders(),
+                },
                 headers: {},
                 status: 200,
                 statusText: "200",
