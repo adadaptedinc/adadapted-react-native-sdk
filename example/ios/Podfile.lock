@@ -1,5 +1,5 @@
 PODS:
-  - adadapted-react-native-sdk (3.2.0):
+  - adadapted-react-native-sdk (3.3.1):
     - React
   - boost (1.76.0)
   - CocoaAsyncSocket (7.6.5)
@@ -636,7 +636,7 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
-  adadapted-react-native-sdk: 506bf660459c5c9df15cdb9cb437996f5c640ac2
+  adadapted-react-native-sdk: 73fe65d561321864367cc4d95db6db3b0f80a4cf
   boost: 57d2868c099736d80fcd648bf211b4431e51a558
   CocoaAsyncSocket: 065fd1e645c7abab64f7a6a2007a48038fdc6a99
   DoubleConversion: 5189b271737e1565bdce30deb4a08d647e3f5f54
