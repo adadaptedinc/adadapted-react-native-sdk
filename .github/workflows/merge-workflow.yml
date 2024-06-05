@@ -43,7 +43,7 @@ jobs:
             # - name: Unit Test Validation
             #   run: npm run test
     deploy_production:
-      if: ${{ github.ref_name == 'master' }}
+      if: ${{ github.ref_name == 'main' }}
       needs: [code_validation]
       runs-on: [self-hosted, gcp]
       steps:
