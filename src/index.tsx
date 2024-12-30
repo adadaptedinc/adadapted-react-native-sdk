@@ -219,7 +219,7 @@ export interface AdZoneInfo {
     /**
      * The ad zone component.
      */
-    adZone: JSX.Element;
+    adZone: React.JSX.Element;
 }
 
 /**

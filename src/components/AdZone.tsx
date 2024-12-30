@@ -118,7 +118,7 @@ let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
  * @param props - properties passed to AdZone.
  * @returns an AdZone JSX Element.
  */
-export function AdZone(props: Props): JSX.Element {
+export function AdZone(props: Props): React.JSX.Element {
     // Generates a random number between 0 and (number of available ads - 1).
     const startingAdIndex = Math.floor(
         Math.random() * props.adZoneData.ads.length
