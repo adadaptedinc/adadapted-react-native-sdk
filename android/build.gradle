@@ -62,7 +62,7 @@ def kotlin_version = getExtOrDefault('kotlinVersion')
 dependencies {
   api 'com.facebook.react:react-native:0.20.1'
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-  implementation 'com.google.android.gms:play-services-ads:23.6.0'
+  implementation 'com.google.android.gms:play-services-ads-identifier:18.2.0'
 }
 
 apply plugin: "com.facebook.react.rootproject"

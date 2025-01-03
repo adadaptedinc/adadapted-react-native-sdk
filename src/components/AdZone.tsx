@@ -2,7 +2,7 @@
  * Component for creating an {@link AdZone}.
  * @module
  */
-import * as React from "react";
+import React, { useEffect, useState } from "react";
 import {
     DeviceEventEmitter,
     Linking,
@@ -21,7 +21,6 @@ import {
 import { WebView } from "react-native-webview";
 import { ApiEnv, DeviceOS } from "../index";
 import { safeInvoke } from "../util";
-import { useEffect, useState } from "react";
 import { ReportAdButton } from "./ReportAdButton";
 
 /**
@@ -119,15 +118,12 @@ let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
  * @returns an AdZone JSX Element.
  */
 export function AdZone(props: Props): React.JSX.Element {
-    // Generates a random number between 0 and (number of available ads - 1).
-    const startingAdIndex = Math.floor(
-        Math.random() * props.adZoneData.ads.length
-    );
-
     /**
      * Tracks the current ad index being shown.
      */
-    const [adIndexShown, setAdIndexShown] = useState(startingAdIndex);
+    const [adIndexShown, setAdIndexShown] = useState(
+        Math.random() * props.adZoneData.ads.length
+    );
     /**
      * Tracks the coordinates when the user started touching the Ad View.
      */
