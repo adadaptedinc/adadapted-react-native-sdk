@@ -72,7 +72,7 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
         }
 
         if (gaidInfo != null) {
-            gaid = gaidInfo.getId();
+            gaid = gaidInfo.getId()!!;
             adTrackingEnabled = !gaidInfo.isLimitAdTrackingEnabled();
         }
 
