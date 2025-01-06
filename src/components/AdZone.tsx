@@ -135,7 +135,6 @@ export function AdZone(props: Props): React.JSX.Element {
 
     // Setup device listeners.
     useEffect(() => {
-        console.log("AdZone useEffect")
         DeviceEventEmitter.addListener("visibility-event", (event: boolean) => {
             setIsAdVisibile(event);
         });
