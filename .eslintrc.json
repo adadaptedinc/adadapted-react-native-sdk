@@ -11,7 +11,8 @@
         "plugin:react/recommended",
         "@react-native-community",
         "plugin:@typescript-eslint/recommended",
-        "plugin:@typescript-eslint/recommended-requiring-type-checking"
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "plugin:react-hooks/recommended"
     ],
     "settings": {
         "react": {
@@ -36,7 +37,8 @@
         "eslint-plugin-import",
         "eslint-plugin-prefer-arrow",
         "eslint-plugin-react",
-        "@typescript-eslint"
+        "@typescript-eslint",
+        "react-hooks"
     ],
     "ignorePatterns": [
         "__mocks__/**/*",
@@ -338,64 +340,8 @@
             }
         ],
         "use-isnan": "error",
-        "valid-typeof": "off"
-        // "@typescript-eslint/config": [
-        //     "error",
-        //     {
-        //         "rules": {
-        //             "completed-docs": [
-        //                 true,
-        //                 {
-        //                     "classes": {
-        //                         "tags": {
-        //                             "content": {},
-        //                             "existence": ["inheritdoc", "inheritDoc"]
-        //                         }
-        //                     },
-        //                     "methods": {
-        //                         "locations": ["all"],
-        //                         "privacies": ["all"],
-        //                         "tags": {
-        //                             "content": {},
-        //                             "existence": ["inheritdoc", "inheritDoc"]
-        //                         }
-        //                     },
-        //                     "properties": {
-        //                         "locations": ["all"],
-        //                         "privacies": ["all"],
-        //                         "tags": {
-        //                             "content": {},
-        //                             "existence": ["inheritdoc", "inheritDoc"]
-        //                         }
-        //                     },
-        //                     "enums": {
-        //                         "visibilities": ["all"]
-        //                     },
-        //                     "enum-members": {
-        //                         "visibilities": ["all"]
-        //                     },
-        //                     "interfaces": {
-        //                         "visibilities": ["all"]
-        //                     },
-        //                     "namespaces": {
-        //                         "visibilities": ["all"]
-        //                     },
-        //                     "types": {
-        //                         "visibilities": ["exported"]
-        //                     },
-        //                     "variables": {
-        //                         "visibilities": ["exported"]
-        //                     }
-        //                 }
-        //             ],
-        //             "typedef": [
-        //                 true,
-        //                 "call-signature",
-        //                 "parameter",
-        //                 "property-declaration"
-        //             ]
-        //         }
-        //     }
-        // ]
+        "valid-typeof": "off",
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn"
     }
 }

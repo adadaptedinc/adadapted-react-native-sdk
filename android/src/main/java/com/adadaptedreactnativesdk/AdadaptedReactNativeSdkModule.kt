@@ -31,11 +31,8 @@ class AdadaptedReactNativeSdkModule(private val _reactContext: ReactApplicationC
     fun getDeviceInfo(promise: Promise) {
         val deviceDisplayMetrics: DisplayMetrics = reactContext.resources.displayMetrics;
         var gaidInfo: AdvertisingIdClient.Info? = null;
-        var bundleVersion: String = unknownValue;
+        var bundleVersion: String;
         var deviceCarrier: String = "n/a";
-        var deviceWidth: Int = 0;
-        var deviceHeight: Int = 0;
-        var deviceDensity: String = "";
         var gaid: String = "";
         var adTrackingEnabled: Boolean = false;
 
@@ -66,9 +63,9 @@ class AdadaptedReactNativeSdkModule(private val _reactContext: ReactApplicationC
             adTrackingEnabled = !gaidInfo.isLimitAdTrackingEnabled;
         }
 
-      deviceWidth = deviceDisplayMetrics.widthPixels;
-      deviceHeight = deviceDisplayMetrics.heightPixels;
-      deviceDensity = deviceDisplayMetrics.density.toString();
+      val deviceWidth: Int = deviceDisplayMetrics.widthPixels;
+      val deviceHeight: Int = deviceDisplayMetrics.heightPixels;
+      val deviceDensity: String = deviceDisplayMetrics.density.toString();
 
       // Create the HashMap that will be turned into a final JSON result.
       val finalDeviceData: HashMap<String, Any> = HashMap<String, Any>();
