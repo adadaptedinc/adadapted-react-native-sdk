@@ -72,7 +72,7 @@ class AdadaptedReactNativeSdkModule(private val _reactContext: ReactApplicationC
 
       finalDeviceData["udid"] = gaid;
       finalDeviceData["deviceName"] = android.os.Build.DEVICE;
-      finalDeviceData["systemName"] = "android";
+      finalDeviceData["systemName"] = "android_react_native";
       finalDeviceData["systemVersion"] = android.os.Build.VERSION.RELEASE;
       finalDeviceData["deviceCarrier"] = deviceCarrier;
       finalDeviceData["deviceModel"] = android.os.Build.MODEL;
