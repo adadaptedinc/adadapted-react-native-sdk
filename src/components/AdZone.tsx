@@ -127,7 +127,10 @@ export const AdZone = (props: Props): React.ReactElement => {
     /**
      * Tracks the coordinates when the user started touching the Ad View.
      */
-    const [touchStartCoords, setTouchStartCoords] = useState<TouchCoordinates>({ x: 0, y: 0 });
+    const [touchStartCoords, setTouchStartCoords] = useState<TouchCoordinates>({
+        x: 0,
+        y: 0,
+    });
 
     // Setup device listeners.
     useEffect(() => {
