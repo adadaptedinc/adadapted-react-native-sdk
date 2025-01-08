@@ -156,6 +156,11 @@ export interface OutOfAppDataPayload {
     detailed_list_items: DetailedListItem[];
 }
 
+export interface AdZoneDetailedListItemInfo {
+    zoneId: string;
+    items: DetailedListItem[];
+}
+
 /**
  * The definition of a Detailed List Item.
  */

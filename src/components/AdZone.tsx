@@ -117,33 +117,25 @@ let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
  * @param props - properties passed to AdZone.
  * @returns an AdZone JSX Element.
  */
-export function AdZone(props: Props): React.JSX.Element {
+export const AdZone = (props: Props): React.ReactElement => {
     /**
      * Tracks the current ad index being shown.
      */
     const [adIndexShown, setAdIndexShown] = useState(
-        Math.random() * props.adZoneData.ads.length
+        Math.floor(Math.random() * props.adZoneData.ads.length)
     );
     /**
      * Tracks the coordinates when the user started touching the Ad View.
      */
-    const [touchStartCoords, setTouchStartCoords] = useState({ x: 0, y: 0 });
-    /**
-     * Track ad visibility (for off-screen ads).
-     */
-    const [isAdVisible, setIsAdVisibile] = useState(props.isAdZoneVisible);
+    const [touchStartCoords, setTouchStartCoords] = useState<TouchCoordinates>({ x: 0, y: 0 });
 
     // Setup device listeners.
     useEffect(() => {
-        DeviceEventEmitter.addListener("visibility-event", (event: boolean) => {
-            setIsAdVisibile(event);
-        });
-
         DeviceEventEmitter.addListener("acknowledge", (itemName: string) => {
             acknowledge(itemName);
         });
 
-        if (props.offScreenAdZone && isAdVisible) {
+        if (props.offScreenAdZone && props.isAdZoneVisible) {
             sendAdImpression();
         } else if (!props.offScreenAdZone) {
             sendAdImpression();
@@ -151,7 +143,6 @@ export function AdZone(props: Props): React.JSX.Element {
 
         return () => {
             clearTimeout(cycleAdTimer);
-            DeviceEventEmitter.removeAllListeners("visibility-event");
             DeviceEventEmitter.removeAllListeners("acknowledge");
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,7 +151,7 @@ export function AdZone(props: Props): React.JSX.Element {
     // Send impression on ad cycle.
     useEffect(() => {
         startAdTimer();
-        if (props.offScreenAdZone && isAdVisible) {
+        if (props.offScreenAdZone && props.isAdZoneVisible) {
             sendAdImpression();
         } else if (!props.offScreenAdZone) {
             sendAdImpression();
@@ -170,13 +161,13 @@ export function AdZone(props: Props): React.JSX.Element {
 
     // Send impression based on visibility change. (for off-screen ads)
     useEffect(() => {
-        if (props.offScreenAdZone && isAdVisible) {
+        if (props.offScreenAdZone && props.isAdZoneVisible) {
             sendAdImpression();
         } else if (!props.offScreenAdZone) {
             sendAdImpression();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAdVisible]);
+    }, [props.isAdZoneVisible]);
 
     /**
      * Generates all component related styles.
@@ -390,4 +381,4 @@ export function AdZone(props: Props): React.JSX.Element {
             </View>
         </View>
     );
-}
+};

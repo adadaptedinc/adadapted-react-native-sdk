@@ -51,7 +51,7 @@ interface OffScreenAdZonePageProps {
     /**
      * Adds selected item to grocery list;
      */
-    selectItem(item: SelectedItem): void;
+    selectItem(item: SelectedItem, adZoneId?: string): void;
 }
 
 /**
@@ -74,7 +74,10 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
     const [aasdkSearchResultItemList, setAasdkSearchResultItemList] = useState<
         KeywordSearchResult[]
     >([]);
-    const [isVisible, setIsVisible] = useState<boolean>(false);
+    const [adZoneVisibility, setAdZoneVisibility] = useState<{
+        zoneId: string;
+        isVisible: boolean;
+    }>({ zoneId: "", isVisible: false });
 
     // - Define all useEffect triggers.
     useEffect(() => {
@@ -86,10 +89,11 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
     }, [searchValue]);
 
     useEffect(() => {
-        if (props.adZoneInfoList) {
-            props.aaSdk.onAdZoneVisibilityChanged(isVisible);
-        }
-    }, [isVisible]);
+        props.aaSdk.onAdZoneVisibilityChanged(
+            adZoneVisibility.zoneId,
+            adZoneVisibility.isVisible
+        );
+    }, [adZoneVisibility]);
 
     /**
      * Triggered when the search text field's value has changed.
@@ -107,7 +111,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
 
             if (aasdkSearchResults.length > 0) {
                 const randomIndex = Math.floor(
-                    Math.random() * aasdkSearchResults.length
+                    Math.floor(Math.random() * aasdkSearchResults.length)
                 );
                 finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
 
@@ -253,12 +257,16 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                         <InView
                             key={idx}
                             onChange={(inView: boolean) => {
-                                setIsVisible(inView);
+                                setAdZoneVisibility({
+                                    zoneId: adZoneInfo.zoneId,
+                                    isVisible: inView,
+                                });
                             }}
                             style={styles.adZoneContainer}
                         >
                             <View style={styles.adZoneContainer}>
-                                {adZoneInfo.adZone}
+                                {props.adZoneInfoList &&
+                                    props.adZoneInfoList[0]?.adZone}
                             </View>
                         </InView>
                     );
