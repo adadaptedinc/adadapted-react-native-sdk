@@ -66,7 +66,7 @@ interface Props {
      */
     onAddToListTriggered?(items: DetailedListItem[]): void;
     /**
-     * Is the ad zone visible on render.
+     * An ad zone that is not visible on screen for the first render.
      */
     offScreenAdZone: boolean;
     /**
@@ -132,13 +132,22 @@ export const AdZone = (props: Props): React.ReactElement => {
         y: 0,
     });
 
+    /**
+     * Track ad visibility (for off-screen ads).
+     */
+    const [isAdVisible, setIsAdVisibile] = useState(props.isAdZoneVisible);
+
     // Setup device listeners.
     useEffect(() => {
+        DeviceEventEmitter.addListener("visibility-event", (event: boolean) => {
+            setIsAdVisibile(event);
+        });
+
         DeviceEventEmitter.addListener("acknowledge", (itemName: string) => {
             acknowledge(itemName);
         });
 
-        if (props.offScreenAdZone && props.isAdZoneVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
             sendAdImpression();
         } else if (!props.offScreenAdZone) {
             sendAdImpression();
@@ -154,7 +163,7 @@ export const AdZone = (props: Props): React.ReactElement => {
     // Send impression on ad cycle.
     useEffect(() => {
         startAdTimer();
-        if (props.offScreenAdZone && props.isAdZoneVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
             sendAdImpression();
         } else if (!props.offScreenAdZone) {
             sendAdImpression();
@@ -164,13 +173,13 @@ export const AdZone = (props: Props): React.ReactElement => {
 
     // Send impression based on visibility change. (for off-screen ads)
     useEffect(() => {
-        if (props.offScreenAdZone && props.isAdZoneVisible) {
+        if (props.offScreenAdZone && isAdVisible) {
             sendAdImpression();
         } else if (!props.offScreenAdZone) {
             sendAdImpression();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.isAdZoneVisible]);
+    }, [isAdVisible]);
 
     /**
      * Generates all component related styles.

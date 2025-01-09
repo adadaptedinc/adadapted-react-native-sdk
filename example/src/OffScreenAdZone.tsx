@@ -74,10 +74,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
     const [aasdkSearchResultItemList, setAasdkSearchResultItemList] = useState<
         KeywordSearchResult[]
     >([]);
-    const [adZoneVisibility, setAdZoneVisibility] = useState<{
-        zoneId: string;
-        isVisible: boolean;
-    }>({ zoneId: "", isVisible: false });
+    const [isVisible, setIsVisible] = useState<boolean>(false);
 
     // - Define all useEffect triggers.
     useEffect(() => {
@@ -89,11 +86,11 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
     }, [searchValue]);
 
     useEffect(() => {
-        props.aaSdk.onAdZoneVisibilityChanged(
-            adZoneVisibility.zoneId,
-            adZoneVisibility.isVisible
-        );
-    }, [adZoneVisibility]);
+        console.log("Ad Zone Visibility Changed: ", isVisible);
+        if (props.adZoneInfoList) {
+            props.aaSdk.onAdZoneVisibilityChanged(isVisible);
+        }
+    }, [isVisible]);
 
     /**
      * Triggered when the search text field's value has changed.
@@ -257,10 +254,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                         <InView
                             key={idx}
                             onChange={(inView: boolean) => {
-                                setAdZoneVisibility({
-                                    zoneId: adZoneInfo.zoneId,
-                                    isVisible: inView,
-                                });
+                                setIsVisible(inView);
                             }}
                             style={styles.adZoneContainer}
                         >
