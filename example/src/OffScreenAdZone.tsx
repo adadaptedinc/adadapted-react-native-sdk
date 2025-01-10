@@ -86,7 +86,6 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
     }, [searchValue]);
 
     useEffect(() => {
-        console.log("Ad Zone Visibility Changed: ", isVisible);
         if (props.adZoneInfoList) {
             props.aaSdk.onAdZoneVisibilityChanged(isVisible);
         }
@@ -187,7 +186,6 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                                 props.selectItem({
                                     item: itemObj,
                                 });
-
                                 setSearchValue("");
                             }}
                         >

@@ -81,10 +81,10 @@ export const App = () => {
                         });
                     }
                 },
-                onOutOfAppPayloadAvailable: (detail) => {
+                onOutOfAppPayloadAvailable: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
-                    for (const payload of detail.items) {
+                    for (const payload of items) {
                         for (const item of payload.detailed_list_items) {
                             selectItem({
                                 itemName: item.product_title,

@@ -333,11 +333,7 @@ export class AdadaptedReactNativeSdk {
      */
     private AppStateOnEventListener: EmitterSubscription | undefined;
     /**
-     * Track ad zone visibility for off-screen ads.
-     */
-    private isAdZoneVisible: boolean = true;
-    /**
-     * Ad zones that contain off-screen ads..
+     * Ad zones that contain off-screen ads.
      */
     private offScreenAdZone: [number] | undefined;
     /**
@@ -487,7 +483,7 @@ export class AdadaptedReactNativeSdk {
                                         items,
                                     });
                                 }}
-                                isAdZoneVisible={this.isAdZoneVisible}
+                                isAdZoneVisible={false}
                                 offScreenAdZone={true}
                             />
                         ),
@@ -732,7 +728,6 @@ export class AdadaptedReactNativeSdk {
      * @param isVisible - Ad Zone visibility tracking.
      */
     public onAdZoneVisibilityChanged(isVisible: boolean): void {
-        this.isAdZoneVisible = isVisible;
         DeviceEventEmitter.emit("visibility-event", isVisible);
     }
 
