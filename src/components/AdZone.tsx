@@ -171,6 +171,7 @@ export const AdZone = (props: Props): React.ReactElement => {
         ) {
             sendAdImpression();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAdZoneVisible]);
 
     /**
@@ -316,9 +317,11 @@ export const AdZone = (props: Props): React.ReactElement => {
         // Start by determining the next ad index to display.
         const lastAd = props.adZoneData.ads[adIndexShown];
 
-        adIndexShown < props.adZoneData.ads.length - 1
-            ? (nextAdIndex = adIndexShown + 1)
-            : (nextAdIndex = 0);
+        if (adIndexShown) {
+            nextAdIndex = adIndexShown + 1;
+        } else {
+            nextAdIndex = 0;
+        }
 
         if (!lastAd.impression_tracked && !isAdZoneVisible) {
             // Send invisible ad impression if ad was not visible before end of timer cycle.
