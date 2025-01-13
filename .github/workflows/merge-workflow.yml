@@ -28,7 +28,7 @@ jobs:
                   ref: ${{github.ref_name}}
             - uses: actions/setup-node@v3
               with:
-                  node-version: 16
+                  node-version: 18
             - name: Install Example App Dependencies
               run: npm install
               working-directory: ./example
@@ -52,7 +52,7 @@ jobs:
                 ref: ${{github.ref_name}}
           - uses: actions/setup-node@v3
             with:
-                node-version: 16
+                node-version: 18
           - name: Bump version and push tag
             id: tag_version
             uses: mathieudutour/github-tag-action@v6.1
@@ -69,8 +69,8 @@ jobs:
             working-directory: ./example
           - name: Install SDK Dependencies
             run: npm install
-          # - name: NPM Audit Fix
-          #   run: npm audit fix
+          - name: NPM Audit Fix
+            run: npm audit fix
           - name: Build Production Files
             run: npm run prepare
           - name: Get Access Token

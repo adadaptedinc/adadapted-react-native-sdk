@@ -1,0 +1,18 @@
+current directory: /Users/matthewkruk/Documents/react-native/adadapted-react-native-sdk/example/vendor/bundle/ruby/3.3.0/gems/nkf-0.2.0/ext/nkf
+/Users/matthewkruk/.rubies/ruby-3.3.6/bin/ruby extconf.rb
+creating Makefile
+
+current directory: /Users/matthewkruk/Documents/react-native/adadapted-react-native-sdk/example/vendor/bundle/ruby/3.3.0/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20241223-80444-debunj sitelibdir\=./.gem.20241223-80444-debunj clean
+
+current directory: /Users/matthewkruk/Documents/react-native/adadapted-react-native-sdk/example/vendor/bundle/ruby/3.3.0/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20241223-80444-debunj sitelibdir\=./.gem.20241223-80444-debunj
+compiling nkf.c
+linking shared-object nkf.bundle
+
+current directory: /Users/matthewkruk/Documents/react-native/adadapted-react-native-sdk/example/vendor/bundle/ruby/3.3.0/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20241223-80444-debunj sitelibdir\=./.gem.20241223-80444-debunj install
+/usr/bin/install -c -m 0755 nkf.bundle ./.gem.20241223-80444-debunj
+
+current directory: /Users/matthewkruk/Documents/react-native/adadapted-react-native-sdk/example/vendor/bundle/ruby/3.3.0/gems/nkf-0.2.0/ext/nkf
+make DESTDIR\= sitearchdir\=./.gem.20241223-80444-debunj sitelibdir\=./.gem.20241223-80444-debunj clean

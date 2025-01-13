@@ -12,7 +12,7 @@ import {
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
     AdSession,
-    DetailedListItem,
+    AdZoneDetailedListItemInfo,
     KeywordIntercepts,
     KeywordSearchTerm,
     ListManagerEvent,
@@ -131,13 +131,13 @@ export interface InitializeProps {
     onAdZonesRefreshed?(): void;
     /**
      * Callback that gets triggered when an "add to list" item/items are clicked.
-     * @param items - The array of items to "add to list".
+     * @param detail - details about the list items to add to cart.
      */
-    onAddToListTriggered?(items: DetailedListItem[]): void;
+    onAddToListTriggered?(detail: AdZoneDetailedListItemInfo): void;
     /**
      * Callback that gets triggered when an "add to list"
      * occurs by means of an "out of app" data payload.
-     * @param payloads - All payloads the client must go through.
+     * @param detail - Details about payloads clients must go through.
      */
     onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
     /**
@@ -219,7 +219,7 @@ export interface AdZoneInfo {
     /**
      * The ad zone component.
      */
-    adZone: JSX.Element;
+    adZone: React.JSX.Element;
 }
 
 /**
@@ -309,11 +309,11 @@ export class AdadaptedReactNativeSdk {
     /**
      * If provided, triggers when an "add to list" item is
      * clicked in an ad zone.
-     * @param items - The array of items to "add to list".
+     * @param detail - The array of items to "add to list".
      * @param isExternalPayload - If true, the items are from an external payload.
      */
     private onAddToListTriggered: (
-        items: DetailedListItem[],
+        detail: AdZoneDetailedListItemInfo,
         isExternalPayload?: boolean
     ) => void | undefined;
     /**
@@ -333,11 +333,7 @@ export class AdadaptedReactNativeSdk {
      */
     private AppStateOnEventListener: EmitterSubscription | undefined;
     /**
-     * Track ad zone visibility for off-screen ads.
-     */
-    private isAdZoneVisible: boolean = true;
-    /**
-     * Ad zones that contain off-screen ads..
+     * Ad zones that contain off-screen ads.
      */
     private offScreenAdZone: [number] | undefined;
     /**
@@ -420,34 +416,30 @@ export class AdadaptedReactNativeSdk {
 
         for (const adZoneId in adZones) {
             if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                this.offScreenAdZone?.forEach((zone) => {
-                    if (Number(adZones[adZoneId].id) !== zone) {
-                        adZoneInfoList.push({
-                            zoneId: adZones[adZoneId].id,
-                            adZone: (
-                                <AdZone
-                                    key={adZoneId}
-                                    appId={this.appId}
-                                    sessionId={this.sessionId!}
-                                    udid={this.deviceInfo!.udid}
-                                    deviceOs={this.deviceOs!}
-                                    apiEnv={this.apiEnv}
-                                    xyDragDistanceAllowed={
-                                        this.xyAdZoneDragDistanceAllowed || 25
-                                    }
-                                    adZoneData={adZones[adZoneId]}
-                                    onAddToListTriggered={(items) => {
-                                        safeInvoke(
-                                            this.onAddToListTriggered,
-                                            items
-                                        );
-                                    }}
-                                    isAdZoneVisible={true}
-                                    offScreenAdZone={false}
-                                />
-                            ),
-                        });
-                    }
+                adZoneInfoList.push({
+                    zoneId: adZones[adZoneId].id,
+                    adZone: (
+                        <AdZone
+                            key={adZoneId}
+                            appId={this.appId}
+                            sessionId={this.sessionId!}
+                            udid={this.deviceInfo!.udid}
+                            deviceOs={this.deviceOs!}
+                            apiEnv={this.apiEnv}
+                            xyDragDistanceAllowed={
+                                this.xyAdZoneDragDistanceAllowed || 25
+                            }
+                            adZoneData={adZones[adZoneId]}
+                            onAddToListTriggered={(details) => {
+                                safeInvoke(this.onAddToListTriggered, {
+                                    zoneId: adZoneId,
+                                    items: details,
+                                });
+                            }}
+                            isAdZoneVisible={true}
+                            offScreenAdZone={false}
+                        />
+                    ),
                 });
             }
         }
@@ -466,35 +458,37 @@ export class AdadaptedReactNativeSdk {
 
         for (const adZoneId in adZones) {
             if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                this.offScreenAdZone?.forEach((zone) => {
-                    if (Number(adZones[adZoneId].id) === zone) {
-                        adZoneInfoList.push({
-                            zoneId: adZones[adZoneId].id,
-                            adZone: (
-                                <AdZone
-                                    key={adZoneId}
-                                    appId={this.appId}
-                                    sessionId={this.sessionId!}
-                                    udid={this.deviceInfo!.udid}
-                                    deviceOs={this.deviceOs!}
-                                    apiEnv={this.apiEnv}
-                                    xyDragDistanceAllowed={
-                                        this.xyAdZoneDragDistanceAllowed || 25
-                                    }
-                                    adZoneData={adZones[adZoneId]}
-                                    onAddToListTriggered={(items) => {
-                                        safeInvoke(
-                                            this.onAddToListTriggered,
-                                            items
-                                        );
-                                    }}
-                                    isAdZoneVisible={this.isAdZoneVisible}
-                                    offScreenAdZone={true}
-                                />
-                            ),
-                        });
-                    }
-                });
+                if (
+                    this.offScreenAdZone &&
+                    this.offScreenAdZone.length > 0 &&
+                    this.offScreenAdZone.includes(Number(adZoneId))
+                ) {
+                    adZoneInfoList.push({
+                        zoneId: adZones[adZoneId].id,
+                        adZone: (
+                            <AdZone
+                                key={adZoneId}
+                                appId={this.appId}
+                                sessionId={this.sessionId!}
+                                udid={this.deviceInfo!.udid}
+                                deviceOs={this.deviceOs!}
+                                apiEnv={this.apiEnv}
+                                xyDragDistanceAllowed={
+                                    this.xyAdZoneDragDistanceAllowed || 25
+                                }
+                                adZoneData={adZones[adZoneId]}
+                                onAddToListTriggered={(items) => {
+                                    safeInvoke(this.onAddToListTriggered, {
+                                        zoneId: adZoneId,
+                                        items,
+                                    });
+                                }}
+                                isAdZoneVisible={false}
+                                offScreenAdZone={true}
+                            />
+                        ),
+                    });
+                }
             }
         }
         return adZoneInfoList;
@@ -734,7 +728,6 @@ export class AdadaptedReactNativeSdk {
      * @param isVisible - Ad Zone visibility tracking.
      */
     public onAdZoneVisibilityChanged(isVisible: boolean): void {
-        this.isAdZoneVisible = isVisible;
         DeviceEventEmitter.emit("visibility-event", isVisible);
     }
 
@@ -924,8 +917,14 @@ export class AdadaptedReactNativeSdk {
 
         this.keywordInterceptSearchValue = searchTerm;
 
-        if (!this.deviceInfo || !this.sessionId) {
-            console.error("AdAdapted SDK has not been initialized.");
+        if (!this.deviceInfo) {
+            console.error(
+                "AdAdapted SDK has not been initialized with device info."
+            );
+        } else if (!this.sessionId) {
+            console.error(
+                "AdAdapted SDK has not been initialized with session id."
+            );
         } else if (!this.keywordIntercepts) {
             console.error("No available keyword intercepts.");
         } else if (
@@ -1017,8 +1016,14 @@ export class AdadaptedReactNativeSdk {
     public reportKeywordInterceptTermSelected(termId: string): void {
         const termObj = this.getKeywordInterceptTerm(termId);
 
-        if (!this.deviceInfo || !this.sessionId) {
-            console.error("AdAdapted SDK has not been initialized.");
+        if (!this.deviceInfo) {
+            console.error(
+                "AdAdapted SDK has not been initialized with device info."
+            );
+        } else if (!this.sessionId) {
+            console.error(
+                "AdAdapted SDK has not been initialized with session id."
+            );
         } else if (!this.keywordIntercepts) {
             console.error("No available keyword intercepts.");
         } else if (!termId || !termObj) {
@@ -1070,8 +1075,14 @@ export class AdadaptedReactNativeSdk {
             }
         }
 
-        if (!this.deviceInfo || !this.sessionId) {
-            console.error("AdAdapted SDK has not been initialized.");
+        if (!this.deviceInfo) {
+            console.error(
+                "AdAdapted SDK has not been initialized with device info."
+            );
+        } else if (!this.sessionId) {
+            console.error(
+                "AdAdapted SDK has not been initialized with session id."
+            );
         } else if (!this.keywordIntercepts) {
             console.error("No available keyword intercepts.");
         } else if (!termIds || termIds.length === 0 || termObjs.length === 0) {
