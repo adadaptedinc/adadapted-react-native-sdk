@@ -266,7 +266,6 @@ export const AdZone = (props: Props): React.ReactElement => {
      * @param eventType - The event type for the reported event.
      */
     function triggerReportAdEvent(ad: Ad, eventType: ReportedEventType): void {
-        console.log("Reporting event: " + eventType + " for ad: " + ad.ad_id);
         // The event timestamp has to be sent as a unix timestamp.
         const currentTs = Math.round(new Date().getTime() / 1000);
 
