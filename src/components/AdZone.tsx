@@ -167,6 +167,9 @@ export const AdZone = (props: Props): React.ReactElement => {
         if (
             props.offScreenAdZone &&
             isAdZoneVisible &&
+            props.adZoneData &&
+            props.adZoneData.ads &&
+            props.adZoneData.ads.length > adIndexShown &&
             !props.adZoneData.ads[adIndexShown].impression_tracked
         ) {
             sendAdImpression();
@@ -263,6 +266,7 @@ export const AdZone = (props: Props): React.ReactElement => {
      * @param eventType - The event type for the reported event.
      */
     function triggerReportAdEvent(ad: Ad, eventType: ReportedEventType): void {
+        console.log("Reporting event: " + eventType + " for ad: " + ad.ad_id);
         // The event timestamp has to be sent as a unix timestamp.
         const currentTs = Math.round(new Date().getTime() / 1000);
 
@@ -317,7 +321,7 @@ export const AdZone = (props: Props): React.ReactElement => {
         // Start by determining the next ad index to display.
         const lastAd = props.adZoneData.ads[adIndexShown];
 
-        if (adIndexShown) {
+        if (adIndexShown < props.adZoneData.ads.length - 1) {
             nextAdIndex = adIndexShown + 1;
         } else {
             nextAdIndex = 0;
@@ -345,7 +349,7 @@ export const AdZone = (props: Props): React.ReactElement => {
     function sendAdImpression(): void {
         const ad = props.adZoneData.ads[adIndexShown];
 
-        if (!ad.impression_tracked) {
+        if (ad.impression_tracked === undefined || !ad.impression_tracked) {
             triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
             ad.impression_tracked = true;
         }
