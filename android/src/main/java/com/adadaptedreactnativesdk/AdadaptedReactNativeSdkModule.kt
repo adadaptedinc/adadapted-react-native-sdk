@@ -14,16 +14,14 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
-import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
-import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import android.telephony.TelephonyManager;
 import android.content.Context;
 
-class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(_reactContext) {
-    val reactContext = _reactContext;
+class AdadaptedReactNativeSdkModule(private val _reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(_reactContext) {
+    private val reactContext = _reactContext;
 
-    val TAG: String = "ReactNative";
-    val UNKNOWN_VALUE: String = "Unknown";
+    private val tag: String = "ReactNative";
+    private val unknownValue: String = "Unknown";
 
     override fun getName(): String {
         return "AdadaptedReactNativeSdk";
@@ -31,81 +29,68 @@ class AdadaptedReactNativeSdkModule(val _reactContext: ReactApplicationContext) 
 
     @ReactMethod
     fun getDeviceInfo(promise: Promise) {
-        val deviceDisplayMetrics: DisplayMetrics = reactContext.getResources().getDisplayMetrics();
+        val deviceDisplayMetrics: DisplayMetrics = reactContext.resources.displayMetrics;
         var gaidInfo: AdvertisingIdClient.Info? = null;
-        var bundleVersion: String = UNKNOWN_VALUE;
+        var bundleVersion: String;
         var deviceCarrier: String = "n/a";
-        var deviceWidth: Int = 0;
-        var deviceHeight: Int = 0;
-        var deviceDensity: String = "";
         var gaid: String = "";
         var adTrackingEnabled: Boolean = false;
 
         val mTelephonyMgr: TelephonyManager = reactContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager;
 
-        if (mTelephonyMgr != null && mTelephonyMgr.getNetworkOperatorName() != null) {
-            deviceCarrier = mTelephonyMgr.getNetworkOperatorName();
+        if (mTelephonyMgr.networkOperatorName != null) {
+            deviceCarrier = mTelephonyMgr.networkOperatorName;
         }
 
         try {
             gaidInfo = AdvertisingIdClient.getAdvertisingIdInfo(reactContext);
-        }
-        catch (ex: GooglePlayServicesNotAvailableException) {
-            logGaidException();
-        }
-        catch (ex: GooglePlayServicesRepairableException) {
-            logGaidException();
         }
         catch (ex: IOException) {
             logGaidException();
         }
 
         try {
-            val packageInfo: PackageInfo = reactContext.getPackageManager().getPackageInfo(reactContext.getPackageName(), 0);
+            val packageInfo: PackageInfo = reactContext.packageManager.getPackageInfo(reactContext.packageName, 0);
 
-            if (packageInfo != null) {
-                bundleVersion = packageInfo.versionName;
-            }
+          bundleVersion = packageInfo.versionName
         }
         catch(ex: PackageManager.NameNotFoundException) {
-            bundleVersion = UNKNOWN_VALUE;
+            bundleVersion = unknownValue;
         }
 
         if (gaidInfo != null) {
-            gaid = gaidInfo.getId();
-            adTrackingEnabled = !gaidInfo.isLimitAdTrackingEnabled();
+            gaid = gaidInfo.id!!;
+            adTrackingEnabled = !gaidInfo.isLimitAdTrackingEnabled;
         }
 
-        if (deviceDisplayMetrics != null) {
-            deviceWidth = deviceDisplayMetrics.widthPixels;
-            deviceHeight = deviceDisplayMetrics.heightPixels;
-            deviceDensity = deviceDisplayMetrics.density.toString();
-        }
+      val deviceWidth: Int = deviceDisplayMetrics.widthPixels;
+      val deviceHeight: Int = deviceDisplayMetrics.heightPixels;
+      val deviceDensity: String = deviceDisplayMetrics.density.toString();
 
-        // Create the HashMap that will be turned into a final JSON result.
-        var finalDeviceData: HashMap<String, Any> = HashMap<String, Any>();
+      // Create the HashMap that will be turned into a final JSON result.
+      val finalDeviceData: HashMap<String, Any> = HashMap<String, Any>();
 
-        finalDeviceData.put("udid", gaid);
-        finalDeviceData.put("deviceName", android.os.Build.DEVICE);
-        finalDeviceData.put("systemName", "android");
-        finalDeviceData.put("systemVersion", android.os.Build.VERSION.RELEASE);
-        finalDeviceData.put("deviceCarrier", deviceCarrier);
-        finalDeviceData.put("deviceModel", android.os.Build.MODEL);
-        finalDeviceData.put("deviceWidth", deviceWidth);
-        finalDeviceData.put("deviceHeight", deviceHeight);
-        finalDeviceData.put("deviceScreenDensity", deviceDensity);
-        finalDeviceData.put("deviceLocale", Locale.getDefault().toString());
-        finalDeviceData.put("bundleId", reactContext.getPackageName());
-        finalDeviceData.put("bundleVersion", bundleVersion);
-        finalDeviceData.put("deviceTimezone", TimeZone.getDefault().getID());
-        finalDeviceData.put("isAdTrackingEnabled", adTrackingEnabled);
+      finalDeviceData["udid"] = gaid;
+      finalDeviceData["deviceName"] = android.os.Build.DEVICE;
+      finalDeviceData["systemName"] = "android_react_native";
+      finalDeviceData["systemVersion"] = android.os.Build.VERSION.RELEASE;
+      finalDeviceData["deviceCarrier"] = deviceCarrier;
+      finalDeviceData["deviceModel"] = android.os.Build.MODEL;
+      finalDeviceData["deviceWidth"] = deviceWidth;
+      finalDeviceData["deviceHeight"] = deviceHeight;
+      finalDeviceData["deviceScreenDensity"] = deviceDensity;
+      finalDeviceData["deviceLocale"] = Locale.getDefault().toString();
+      finalDeviceData["bundleId"] = reactContext.packageName;
+      finalDeviceData["bundleVersion"] = bundleVersion;
+      finalDeviceData["deviceTimezone"] = TimeZone.getDefault().id;
+      finalDeviceData["isAdTrackingEnabled"] = adTrackingEnabled;
 
-        promise.resolve(JSONObject(finalDeviceData as Map<*, *>?).toString());
+      promise.resolve((finalDeviceData as Map<*, *>?)?.let { JSONObject(it).toString() });
     }
 
-    fun logGaidException() {
-        Log.w(TAG, "Problem retrieving Google Play Advertiser Info");
-        Log.w(TAG, "GAID_UNAVAILABLE");
+    private fun logGaidException() {
+        Log.w(tag, "Problem retrieving Google Play Advertiser Info");
+        Log.w(tag, "GAID_UNAVAILABLE");
     }
 
     @ReactMethod

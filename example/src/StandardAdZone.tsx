@@ -51,7 +51,7 @@ interface StandardAdZonePageProps {
     /**
      * Adds selected item to grocery list;
      */
-    selectItem(item: SelectedItem): void;
+    selectItem(item: SelectedItem, adZoneId?: string): void;
 }
 
 /**
@@ -94,13 +94,12 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                 props.aaSdk.performKeywordSearch(searchValue);
 
             // Randomly choose one of the resulting terms to display.
-            // You can add multiple randomly chosen terms here too
-            // if you would like.
+            // Multiple randomly chosen terms can be added here also.
             const finalAasdkSearchResults: KeywordSearchResult[] = [];
 
             if (aasdkSearchResults.length > 0) {
                 const randomIndex = Math.floor(
-                    Math.random() * aasdkSearchResults.length
+                    Math.floor(Math.random() * aasdkSearchResults.length)
                 );
                 finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
 
@@ -110,12 +109,11 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                 ]);
             }
 
-            // Search for all standard items using the search value.
             const finalStandardProductSearchResultsStringStart: string[] = [];
             const finalStandardProductSearchResultsStringContains: string[] =
                 [];
-
-            if (searchValue.trim().length > 0) {
+            // Search for all standard items using the search value.
+            if (searchValue.trim().length > 2) {
                 for (const productName of AVAILABLE_PRODUCTS) {
                     if (
                         productName
@@ -163,13 +161,9 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                 <Text style={styles.sessionIdContainer}>
                     Session ID: {props.sessionId}
                 </Text>
-                {props.adZoneInfoList?.map((adZoneInfo, idx) => {
-                    return (
-                        <View key={idx} style={styles.adZoneContainer}>
-                            {adZoneInfo.adZone}
-                        </View>
-                    );
-                })}
+                <View style={styles.adZoneContainer}>
+                    {props.adZoneInfoList && props.adZoneInfoList[1]?.adZone}
+                </View>
                 <TextInput
                     value={searchValue}
                     style={styles.searchTextField}

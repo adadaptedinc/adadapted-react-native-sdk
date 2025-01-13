@@ -72,19 +72,19 @@ export const App = () => {
                     setAdZoneInfoList(aaSdk!.getAdZones());
                     setOffScreenAdZoneInfoList(aaSdk.getOffScreenAdZones());
                 },
-                onAddToListTriggered: (items) => {
+                onAddToListTriggered: (details) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
-                    for (const item of items) {
+                    for (const item of details.items) {
                         selectItem({
                             itemName: item.product_title,
                         });
                     }
                 },
-                onOutOfAppPayloadAvailable: (payloads) => {
+                onOutOfAppPayloadAvailable: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
-                    for (const payload of payloads) {
+                    for (const payload of items) {
                         for (const item of payload.detailed_list_items) {
                             selectItem({
                                 itemName: item.product_title,
@@ -98,7 +98,7 @@ export const App = () => {
                     }
                 },
                 // List an array of ad zones that contain off-screen ads here if applicable.
-                offScreenAdZone: [110002],
+                offScreenAdZone: [102110],
             })
             .then(() => {
                 setSessionId(aaSdk.getSessionId());
@@ -124,6 +124,7 @@ export const App = () => {
         if (aaSdk) {
             let listItem = "";
             if (selectedItem.item) {
+                aaSdk.acknowledge(selectedItem.item.replacement);
                 // Report the ad item as added to list manager.
                 aaSdk.reportItemsAddedToList(
                     [selectedItem.item.replacement],

@@ -17,7 +17,7 @@ interface Props {
  * @param props The component's props.
  * @returns a reportSdButton JSX Element.
  */
-export function ReportAdButton(props: Props): JSX.Element {
+export function ReportAdButton(props: Props): React.JSX.Element {
     const reportAdUrlBase = new URL("https://feedback.add-it.io/");
 
     const styles = StyleSheet.create({

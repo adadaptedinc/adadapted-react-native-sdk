@@ -2,7 +2,7 @@
  * Component for creating an {@link AdZone}.
  * @module
  */
-import * as React from "react";
+import React, { useEffect, useState } from "react";
 import {
     DeviceEventEmitter,
     Linking,
@@ -21,7 +21,6 @@ import {
 import { WebView } from "react-native-webview";
 import { ApiEnv, DeviceOS } from "../index";
 import { safeInvoke } from "../util";
-import { useEffect, useState } from "react";
 import { ReportAdButton } from "./ReportAdButton";
 
 /**
@@ -67,7 +66,7 @@ interface Props {
      */
     onAddToListTriggered?(items: DetailedListItem[]): void;
     /**
-     * Is the ad zone visible on render.
+     * An ad zone that is not visible on screen for the initial render.
      */
     offScreenAdZone: boolean;
     /**
@@ -118,24 +117,25 @@ let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
  * @param props - properties passed to AdZone.
  * @returns an AdZone JSX Element.
  */
-export function AdZone(props: Props): JSX.Element {
-    // Generates a random number between 0 and (number of available ads - 1).
-    const startingAdIndex = Math.floor(
-        Math.random() * props.adZoneData.ads.length
-    );
-
+export const AdZone = (props: Props): React.ReactElement => {
     /**
      * Tracks the current ad index being shown.
      */
-    const [adIndexShown, setAdIndexShown] = useState(startingAdIndex);
+    const [adIndexShown, setAdIndexShown] = useState(
+        Math.floor(Math.random() * props.adZoneData.ads.length)
+    );
     /**
      * Tracks the coordinates when the user started touching the Ad View.
      */
-    const [touchStartCoords, setTouchStartCoords] = useState({ x: 0, y: 0 });
+    const [touchStartCoords, setTouchStartCoords] = useState<TouchCoordinates>({
+        x: 0,
+        y: 0,
+    });
+
     /**
      * Track ad visibility (for off-screen ads).
      */
-    const [isAdVisible, setIsAdVisibile] = useState(props.isAdZoneVisible);
+    const [isAdZoneVisible, setIsAdVisibile] = useState(props.isAdZoneVisible);
 
     // Setup device listeners.
     useEffect(() => {
@@ -147,15 +147,8 @@ export function AdZone(props: Props): JSX.Element {
             acknowledge(itemName);
         });
 
-        if (props.offScreenAdZone && isAdVisible) {
-            sendAdImpression();
-        } else if (!props.offScreenAdZone) {
-            sendAdImpression();
-        }
-
         return () => {
             clearTimeout(cycleAdTimer);
-            DeviceEventEmitter.removeAllListeners("visibility-event");
             DeviceEventEmitter.removeAllListeners("acknowledge");
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,23 +157,25 @@ export function AdZone(props: Props): JSX.Element {
     // Send impression on ad cycle.
     useEffect(() => {
         startAdTimer();
-        if (props.offScreenAdZone && isAdVisible) {
-            sendAdImpression();
-        } else if (!props.offScreenAdZone) {
+        if (isAdZoneVisible) {
             sendAdImpression();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [adIndexShown]);
 
-    // Send impression based on visibility change. (for off-screen ads)
     useEffect(() => {
-        if (props.offScreenAdZone && isAdVisible) {
-            sendAdImpression();
-        } else if (!props.offScreenAdZone) {
+        if (
+            props.offScreenAdZone &&
+            isAdZoneVisible &&
+            props.adZoneData &&
+            props.adZoneData.ads &&
+            props.adZoneData.ads.length > adIndexShown &&
+            !props.adZoneData.ads[adIndexShown].impression_tracked
+        ) {
             sendAdImpression();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAdVisible]);
+    }, [isAdZoneVisible]);
 
     /**
      * Generates all component related styles.
@@ -207,11 +202,12 @@ export function AdZone(props: Props): JSX.Element {
     // Generate the styles each render in case the ad is updated with
     // new settings that need to be reflected in the styles of the view.
     const styles = generateStyles();
-    const currentAd: Ad | undefined =
-        props.adZoneData.ads[adIndexShown] || undefined;
     const finalMainViewStyle = styles.mainView;
 
-    if (!currentAd || !currentAd.creative_url) {
+    if (
+        !props.adZoneData.ads[adIndexShown] ||
+        !props.adZoneData.ads[adIndexShown].creative_url
+    ) {
         // If there is no ad to display, make the view take up no space.
         finalMainViewStyle.width = 0;
         finalMainViewStyle.height = 0;
@@ -303,10 +299,15 @@ export function AdZone(props: Props): JSX.Element {
     function startAdTimer(): void {
         clearTimeout(cycleAdTimer);
 
-        if (props.adZoneData.ads.length > 0) {
+        if (
+            props.adZoneData.ads.length > 0 &&
+            props.adZoneData.ads[adIndexShown]
+        ) {
             const refreshTime: number =
                 props.adZoneData.ads[adIndexShown].refresh_time * 1000;
             cycleAdTimer = setTimeout(cycleDisplayedAd, refreshTime);
+        } else {
+            cycleAdTimer = setTimeout(cycleDisplayedAd, 30000);
         }
     }
 
@@ -314,23 +315,28 @@ export function AdZone(props: Props): JSX.Element {
      * Cycles to the next ad to display in the current available sequence of ads.
      */
     function cycleDisplayedAd(): void {
-        // Start by determining the next ad index to display.
         let nextAdIndex = 0;
+
+        // Start by determining the next ad index to display.
         const lastAd = props.adZoneData.ads[adIndexShown];
 
         if (adIndexShown < props.adZoneData.ads.length - 1) {
             nextAdIndex = adIndexShown + 1;
+        } else {
+            nextAdIndex = 0;
         }
 
-        if (nextAdIndex !== adIndexShown && lastAd.impression_tracked) {
-            // Reset ad impression tracking status.
-            lastAd.impression_tracked = false;
-        } else {
+        if (!lastAd.impression_tracked && !isAdZoneVisible) {
             // Send invisible ad impression if ad was not visible before end of timer cycle.
             triggerReportAdEvent(
                 lastAd,
                 ReportedEventType.INVISIBLE_IMPRESSION
             );
+        }
+
+        if (lastAd.impression_tracked) {
+            // Reset ad impression tracking status.
+            lastAd.impression_tracked = false;
         }
 
         setAdIndexShown(nextAdIndex);
@@ -342,7 +348,7 @@ export function AdZone(props: Props): JSX.Element {
     function sendAdImpression(): void {
         const ad = props.adZoneData.ads[adIndexShown];
 
-        if (!ad.impression_tracked) {
+        if (ad.impression_tracked === undefined || !ad.impression_tracked) {
             triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
             ad.impression_tracked = true;
         }
@@ -351,10 +357,11 @@ export function AdZone(props: Props): JSX.Element {
     // Returned JSX.
     return (
         <View style={finalMainViewStyle}>
-            {currentAd && currentAd.creative_url ? (
+            {props.adZoneData.ads[adIndexShown] &&
+            props.adZoneData.ads[adIndexShown].creative_url ? (
                 <WebView
                     source={{
-                        uri: currentAd.creative_url,
+                        uri: props.adZoneData.ads[adIndexShown].creative_url,
                     }}
                     androidLayerType="hardware"
                     automaticallyAdjustContentInsets={false}
@@ -380,7 +387,9 @@ export function AdZone(props: Props): JSX.Element {
                                     touchStartCoords.y - touchEndCoords.y
                                 ) < props.xyDragDistanceAllowed
                             ) {
-                                onAdZoneSelected(currentAd);
+                                onAdZoneSelected(
+                                    props.adZoneData.ads[adIndexShown]
+                                );
                             }
 
                             // Make sure to reset the start coords
@@ -390,8 +399,15 @@ export function AdZone(props: Props): JSX.Element {
                 />
             ) : undefined}
             <View style={styles.reportAd}>
-                <ReportAdButton adId={currentAd.ad_id} udid={props.udid} />
+                {props.adZoneData && props.adZoneData.ads[adIndexShown] ? (
+                    <ReportAdButton
+                        adId={props.adZoneData.ads[adIndexShown].ad_id}
+                        udid={props.udid}
+                    />
+                ) : (
+                    <></>
+                )}
             </View>
         </View>
     );
-}
+};

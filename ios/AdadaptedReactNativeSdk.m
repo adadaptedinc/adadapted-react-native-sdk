@@ -40,7 +40,7 @@ RCT_REMAP_METHOD(
     NSDictionary *finalDeviceData = @{
         @"udid": udid,
         @"deviceName": deviceInfo.model,
-        @"systemName": @"ios",
+        @"systemName": @"ios_react_native",
         @"systemVersion": deviceInfo.systemVersion,
         @"deviceCarrier": carrierName,
         @"deviceModel": deviceInfo.model,

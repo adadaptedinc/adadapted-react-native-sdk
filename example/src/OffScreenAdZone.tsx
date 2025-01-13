@@ -51,7 +51,7 @@ interface OffScreenAdZonePageProps {
     /**
      * Adds selected item to grocery list;
      */
-    selectItem(item: SelectedItem): void;
+    selectItem(item: SelectedItem, adZoneId?: string): void;
 }
 
 /**
@@ -107,7 +107,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
 
             if (aasdkSearchResults.length > 0) {
                 const randomIndex = Math.floor(
-                    Math.random() * aasdkSearchResults.length
+                    Math.floor(Math.random() * aasdkSearchResults.length)
                 );
                 finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
 
@@ -186,7 +186,6 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                                 props.selectItem({
                                     item: itemObj,
                                 });
-
                                 setSearchValue("");
                             }}
                         >
@@ -258,7 +257,8 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                             style={styles.adZoneContainer}
                         >
                             <View style={styles.adZoneContainer}>
-                                {adZoneInfo.adZone}
+                                {props.adZoneInfoList &&
+                                    props.adZoneInfoList[0]?.adZone}
                             </View>
                         </InView>
                     );
