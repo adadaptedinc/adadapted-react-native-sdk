@@ -141,9 +141,16 @@ export interface InitializeProps {
      */
     onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
     /**
-     * Ad zones that contain off-screen ads.
+     * Ad zone ids that contain off-screen ads.
      */
-    offScreenAdZone?: [number];
+    offScreenAdZoneIds?: [number];
+    /**
+     * An array of keywords for contextual ad targeting.
+     */
+    adContext?: {
+        contextIds: string[];
+        zoneIds: string[];
+    }
 }
 
 /**
@@ -276,6 +283,10 @@ export class AdadaptedReactNativeSdk {
      */
     private offScreenAdZones: AdZoneInfo[] = [];
     /**
+     * The zone ids of the availible off-screen ad zones.
+     */
+    private offScreenAdZoneIds: number[] = [];
+    /**
      * The touch sensitivity of the Ad Zone in both the X and Y directions.
      * This is used to determine the click/press sensitivity when the
      * Ad Zone is being touched by the user as a regular touch or while
@@ -333,9 +344,17 @@ export class AdadaptedReactNativeSdk {
      */
     private AppStateOnEventListener: EmitterSubscription | undefined;
     /**
-     * Ad zones that contain off-screen ads.
+     * The current adzone visibility status.
      */
-    private offScreenAdZone: [number] | undefined;
+    private isAdZoneVisible: boolean = true;
+    /**
+     * The ad context object.
+     */
+    private adContext: {
+        contextIds: string[];
+        zoneIds: string[];
+    } | undefined;
+
     /**
      * Gets the Session ID.
      * @returns the Session ID.
@@ -406,103 +425,72 @@ export class AdadaptedReactNativeSdk {
         });
     }
 
+    private adZoneTemplate(adZones: { [key: number]: Zone }, zoneId: string, offScreenAdZone: boolean): AdZoneInfo {
+        return {
+            zoneId: adZones[Number(zoneId)].id,
+            adZone: (
+                <AdZone
+                    key={zoneId}
+                    appId={this.appId}
+                    sessionId={this.sessionId!}
+                    udid={this.deviceInfo!.udid}
+                    deviceOs={this.deviceOs!}
+                    apiEnv={this.apiEnv}
+                    xyDragDistanceAllowed={
+                        this.xyAdZoneDragDistanceAllowed || 25
+                    }
+                    adZoneData={adZones[Number(zoneId)]}
+                    onAddToListTriggered={(details) => {
+                        safeInvoke(this.onAddToListTriggered, {
+                            zoneId: zoneId,
+                            items: details,
+                        });
+                    }}
+                    isAdZoneVisible={this.isAdZoneVisible}
+                    offScreenAdZone={offScreenAdZone ? true : false}
+                />
+            ),
+        }
+    }
+
     /**
      * Creates all Ad Zone Info objects based on provided Ad Zones.
      * @param adZones - The object of available zones.
      * @returns the array of Ad Zone Info objects.
      */
-    private generateAdZones(adZones: { [key: number]: Zone }): AdZoneInfo[] {
+    private generateAdZones(adZones: { [key: number]: Zone }, offScreenAdZone: boolean = false): AdZoneInfo[] {
         const adZoneInfoList: AdZoneInfo[] = [];
+        const offScreenAdZoneList: AdZoneInfo[] = [];
 
-        for (const adZoneId in adZones) {
-            if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                adZoneInfoList.push({
-                    zoneId: adZones[adZoneId].id,
-                    adZone: (
-                        <AdZone
-                            key={adZoneId}
-                            appId={this.appId}
-                            sessionId={this.sessionId!}
-                            udid={this.deviceInfo!.udid}
-                            deviceOs={this.deviceOs!}
-                            apiEnv={this.apiEnv}
-                            xyDragDistanceAllowed={
-                                this.xyAdZoneDragDistanceAllowed || 25
-                            }
-                            adZoneData={adZones[adZoneId]}
-                            onAddToListTriggered={(details) => {
-                                safeInvoke(this.onAddToListTriggered, {
-                                    zoneId: adZoneId,
-                                    items: details,
-                                });
-                            }}
-                            isAdZoneVisible={true}
-                            offScreenAdZone={false}
-                        />
-                    ),
-                });
+        if (offScreenAdZone) {
+            for (const adZoneId in adZones) {
+                if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
+                    if (this.offScreenAdZoneIds.includes(Number(adZoneId))) {
+                        offScreenAdZoneList.push(this.adZoneTemplate(adZones, adZoneId, true));
+                    }
+                }
             }
-        }
-        return adZoneInfoList;
-    }
-
-    /**
-     * Creates all off-screen Ad Zone Info objects based on provided off-screen Ad Zones.
-     * @param adZones - The object of available zones.
-     * @returns the array of off-screen Ad Zone Info objects.
-     */
-    private generateOffScreenAdZones(adZones: {
-        [key: number]: Zone;
-    }): AdZoneInfo[] {
-        const adZoneInfoList: AdZoneInfo[] = [];
-
-        for (const adZoneId in adZones) {
-            if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                if (
-                    this.offScreenAdZone &&
-                    this.offScreenAdZone.length > 0 &&
-                    this.offScreenAdZone.includes(Number(adZoneId))
-                ) {
-                    adZoneInfoList.push({
-                        zoneId: adZones[adZoneId].id,
-                        adZone: (
-                            <AdZone
-                                key={adZoneId}
-                                appId={this.appId}
-                                sessionId={this.sessionId!}
-                                udid={this.deviceInfo!.udid}
-                                deviceOs={this.deviceOs!}
-                                apiEnv={this.apiEnv}
-                                xyDragDistanceAllowed={
-                                    this.xyAdZoneDragDistanceAllowed || 25
-                                }
-                                adZoneData={adZones[adZoneId]}
-                                onAddToListTriggered={(items) => {
-                                    safeInvoke(this.onAddToListTriggered, {
-                                        zoneId: adZoneId,
-                                        items,
-                                    });
-                                }}
-                                isAdZoneVisible={false}
-                                offScreenAdZone={true}
-                            />
-                        ),
-                    });
+        } else {
+            for (const adZoneId in adZones) {
+                if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
+                    adZoneInfoList.push(this.adZoneTemplate(adZones, adZoneId, false));
                 }
             }
         }
-        return adZoneInfoList;
+
+        return offScreenAdZone ? offScreenAdZoneList : adZoneInfoList;
     }
 
     /**
      * Triggered when session data is initialized or refreshed. Creates
      * a timer based on the session data refresh value.
      */
-    private onRefreshAdZones(): void {
+    private onRefreshAdZones(hasContextAds: boolean = false): void {
         // Get the amount of time we will wait until a refresh occurs.
         // We are setting a minimum refresh time of 5 minutes, so if a
         // value provided by the API is lower, we don't refresh too often.
         const timerMs =
+            this.adContext && hasContextAds ? 0 :
             this.sessionInfo!.polling_interval_ms >= 300000
                 ? this.sessionInfo!.polling_interval_ms
                 : 300000;
@@ -514,16 +502,23 @@ export class AdadaptedReactNativeSdk {
                         aid: this.appId,
                         sid: this.sessionId!,
                         uid: this.deviceInfo!.udid,
+                        sdkVersion: packageJson.version,
+                        adContext: this.adContext,
                     },
                     this.deviceOs!,
                     this.apiEnv
                 )
                 .then((response) => {
                     this.sessionInfo = response.data;
+
+                    if (this.offScreenAdZones.length > 0) {
+                        this.offScreenAdZones = this.generateAdZones(
+                            response.data.zones,
+                            true
+                        );
+                    }
+
                     this.adZones = this.generateAdZones(response.data.zones);
-                    this.offScreenAdZones = this.generateOffScreenAdZones(
-                        response.data.zones
-                    );
 
                     // Call the user defined callback indicating
                     // the session data has been refreshed.
@@ -792,8 +787,8 @@ export class AdadaptedReactNativeSdk {
         }
 
         // If provided set any off-screen ad zones.
-        if (props.offScreenAdZone) {
-            this.offScreenAdZone = props.offScreenAdZone;
+        if ((props.offScreenAdZoneIds ?? []).length > 0) {
+            this.offScreenAdZoneIds = props.offScreenAdZoneIds ?? [];
         }
 
         return new Promise<void>((resolve, reject) => {
@@ -851,13 +846,21 @@ export class AdadaptedReactNativeSdk {
                             this.adZones = this.generateAdZones(
                                 response.data.zones
                             );
-                            this.offScreenAdZones =
-                                this.generateOffScreenAdZones(
-                                    response.data.zones
+
+                            if ((props.offScreenAdZoneIds ?? []).length > 0) {
+                                this.offScreenAdZones =
+                                this.generateAdZones(
+                                    response.data.zones,
+                                    true
                                 );
+                            }
+
+                            if (props.adContext) {
+                                this.adContext = props.adContext;
+                            }
 
                             // Start the session data refresh timer.
-                            this.onRefreshAdZones();
+                            this.onRefreshAdZones(props.adContext ? true : false);
 
                             // Get all possible keyword intercept values.
                             // We don't need to wait for this to complete

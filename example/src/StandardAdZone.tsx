@@ -162,7 +162,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                     Session ID: {props.sessionId}
                 </Text>
                 <View style={styles.adZoneContainer}>
-                    {props.adZoneInfoList && props.adZoneInfoList[1]?.adZone}
+                    {props.adZoneInfoList && props.adZoneInfoList.find(zone => zone.zoneId === "102110")?.adZone}
                 </View>
                 <TextInput
                     value={searchValue}

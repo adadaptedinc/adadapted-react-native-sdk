@@ -571,6 +571,17 @@ export interface RefreshSessionDataRequest {
      * The current session ID.
      */
     sid: string;
+    /**
+     * The current sdk version.
+     */
+    sdkVersion: string;
+    /**
+     * The context IDs and associated zone IDs.
+     */
+    adContext?: {
+        contextIds: string[] | undefined;
+        zoneIds: string[];
+    };
 }
 
 /**

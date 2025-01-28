@@ -98,7 +98,12 @@ export const App = () => {
                     }
                 },
                 // List an array of ad zones that contain off-screen ads here if applicable.
-                offScreenAdZone: [102110],
+                offScreenAdZoneIds: [110003],
+                // initialize contextual ad zones here.
+                adContext: {
+                    contextIds: ["organic"],
+                    zoneIds: ["102110"],
+                }
             })
             .then(() => {
                 setSessionId(aaSdk.getSessionId());

@@ -60,7 +60,7 @@ export function refreshSessionData(
     return apiEnv === ApiEnv.Mock
         ? adadaptedApiRequestMocks.refreshSessionData()
         : axios(
-              `${apiEnv}/v/0.9.5/${deviceOS}/ads/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}`,
+              `${apiEnv}/v/0.9.5/${deviceOS}/ads/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}&sdk=${requestData.sdkVersion}&contextID=${requestData.adContext?.contextIds}&zoneID=${requestData.adContext?.zoneIds}`,
               {
                   method: "GET",
                   headers: {
