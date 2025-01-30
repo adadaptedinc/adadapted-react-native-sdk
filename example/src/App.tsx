@@ -7,9 +7,9 @@ import { useState, useEffect } from "react";
 import {
     AdadaptedReactNativeSdk,
     AdZoneInfo,
-    ApiEnv,
     KeywordSearchResult,
 } from "../../src/index";
+import { EnvironmentTypes } from "../../src/componentTypes/Environment";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StandardAdZonePage } from "./StandardAdZone";
@@ -59,11 +59,10 @@ export const App = () => {
 
     // - Define all useEffect triggers.
     useEffect(() => {
-        // You can use the "AdAdapted SDK Tester (iOS)" app in Platform dev for testing.
         aaSdk
             .initialize({
                 appId: "7D58810X6333241C",
-                apiEnv: ApiEnv.Dev,
+                apiEnv: EnvironmentTypes.ApiEnv.Dev,
                 // iOS Optional custom advertiserID - Delete next line to use IDFA instead.
                 advertiserId: "REACT-NATIVE-TEST-ADVERTISER-ID",
                 xyDragDistanceAllowed: 30,
@@ -99,11 +98,6 @@ export const App = () => {
                 },
                 // List an array of ad zones that contain off-screen ads here if applicable.
                 offScreenAdZoneIds: [110003],
-                // initialize contextual ad zones here.
-                adContext: {
-                    contextIds: ["organic"],
-                    zoneIds: ["102110"],
-                }
             })
             .then(() => {
                 setSessionId(aaSdk.getSessionId());

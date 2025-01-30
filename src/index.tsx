@@ -29,74 +29,8 @@ import { AdZone } from "./components/AdZone";
 import { safeInvoke } from "./util";
 import packageJson from "../package.json";
 import base64 from "react-native-base64";
-
-/**
- * Enum representing possible device operating systems.
- */
-export enum DeviceOS {
-    /**
-     * Represents the Android operating system.
-     */
-    ANDROID = "android",
-    /**
-     * Represents the iOS operating system.
-     */
-    IOS = "ios",
-}
-
-/**
- * Enum defining the different API environments.
- */
-export enum ApiEnv {
-    /**
-     * The production API environment.
-     */
-    Prod = "https://ads.adadapted.com",
-    /**
-     * The development API environment.
-     */
-    Dev = "https://sandbox.adadapted.com",
-    /**
-     * Used only for unit testing/mock data.
-     */
-    Mock = "MOCK_DATA",
-}
-
-/**
- * Enum defining the different API environments for List Manager.
- */
-export enum ListManagerApiEnv {
-    /**
-     * The production API environment.
-     */
-    Prod = "https://ec.adadapted.com",
-    /**
-     * The development API environment.
-     */
-    Dev = "https://sandec.adadapted.com",
-    /**
-     * Used only for unit testing/mocking data.
-     */
-    Mock = "MOCK_DATA",
-}
-
-/**
- * Enum defining the different API environments for the Payload Server.
- */
-export enum PayloadApiEnv {
-    /**
-     * The production API environment.
-     */
-    Prod = "https://payload.adadapted.com",
-    /**
-     * The development API environment.
-     */
-    Dev = "https://sandpayload.adadapted.com",
-    /**
-     * Used only for unit testing/mocking data.
-     */
-    Mock = "MOCK_DATA",
-}
+import { DeviceTypes } from "./componentTypes/Device";
+import { EnvironmentTypes } from "./componentTypes/Environment";
 
 /**
  * Interface defining inputs to the {@link Sdk.initialize: AdadaptedReactNativeSdk} method.
@@ -110,7 +44,7 @@ export interface InitializeProps {
      * The API environment.
      * If undefined, defaults to production.
      */
-    apiEnv?: ApiEnv;
+    apiEnv?: EnvironmentTypes.ApiEnv;
     /**
      * Optional custom advertiserId to replace IDFA - ios only.
      */
@@ -144,75 +78,6 @@ export interface InitializeProps {
      * Ad zone ids that contain off-screen ads.
      */
     offScreenAdZoneIds?: [number];
-    /**
-     * An array of keywords for contextual ad targeting.
-     */
-    adContext?: {
-        contextIds: string[];
-        zoneIds: string[];
-    }
-}
-
-/**
- * Interface defining properties of a user's Device.
- */
-export interface DeviceInfo {
-    /**
-     * The unique device ID.
-     */
-    udid: string;
-    /**
-     * The device name.
-     */
-    deviceName: string;
-    /**
-     * The operating system name.
-     */
-    systemName: string;
-    /**
-     * The operating system version.
-     */
-    systemVersion: string;
-    /**
-     * The device model.
-     */
-    deviceModel: string;
-    /**
-     * The device screen width.
-     */
-    deviceWidth: string;
-    /**
-     * The device screen height.
-     */
-    deviceHeight: string;
-    /**
-     * The device screen density.
-     */
-    deviceScreenDensity: string;
-    /**
-     * The current device local.
-     */
-    deviceLocale: string;
-    /**
-     * The device carrier name.
-     */
-    deviceCarrier: string;
-    /**
-     * The bundle ID.
-     */
-    bundleId: string;
-    /**
-     * The bundle version.
-     */
-    bundleVersion: string;
-    /**
-     * The current device timezone.
-     */
-    deviceTimezone: string;
-    /**
-     * If true, ad tracking is enabled for the device.
-     */
-    isAdTrackingEnabled: boolean;
 }
 
 /**
@@ -248,19 +113,19 @@ export class AdadaptedReactNativeSdk {
     /**
      * The API environment to use when making API calls.
      */
-    private apiEnv: ApiEnv;
+    private apiEnv: EnvironmentTypes.ApiEnv;
     /**
      * The API environment to use when making API calls for List Manager.
      */
-    private listManagerApiEnv: ListManagerApiEnv;
+    private listManagerApiEnv: EnvironmentTypes.ListManagerApiEnv;
     /**
      * The API environment to use when making API calls for the Payload server.
      */
-    private payloadApiEnv: PayloadApiEnv;
+    private payloadApiEnv: EnvironmentTypes.PayloadApiEnv;
     /**
      * The device operating system.
      */
-    private deviceOs: DeviceOS | undefined;
+    private deviceOs: DeviceTypes.DeviceOS | undefined;
     /**
      * The session ID used for the API to properly identify a user.
      */
@@ -268,7 +133,7 @@ export class AdadaptedReactNativeSdk {
     /**
      * All device data gathered when "initialize" is called.
      */
-    private deviceInfo: DeviceInfo | undefined;
+    private deviceInfo: DeviceTypes.DeviceInfo | undefined;
     /**
      * All current Session/Ad info.
      * This info can be refreshed based on the set interval.
@@ -350,10 +215,12 @@ export class AdadaptedReactNativeSdk {
     /**
      * The ad context object.
      */
-    private adContext: {
-        contextIds: string[];
-        zoneIds: string[];
-    } | undefined;
+    private adContext:
+        | {
+              contextIds: string[];
+              zoneIds: string[];
+          }
+        | undefined;
 
     /**
      * Gets the Session ID.
@@ -367,7 +234,7 @@ export class AdadaptedReactNativeSdk {
      * Gets the Device Info object.
      * @returns the Device Info object.
      */
-    public getDeviceInfo(): DeviceInfo | undefined {
+    public getDeviceInfo(): DeviceTypes.DeviceInfo | undefined {
         return this.deviceInfo;
     }
 
@@ -387,13 +254,26 @@ export class AdadaptedReactNativeSdk {
         return this.offScreenAdZones;
     }
 
+    public setAdContext(adContext: {
+        contextIds: string[];
+        zoneIds: string[];
+    }): void {
+        this.adContext = adContext;
+        this.onRefreshAdZones(true);
+    }
+
+    public clearAdContext(): void {
+        this.adContext = undefined;
+        this.onRefreshAdZones(true);
+    }
+
     /**
      * @inheritDoc
      */
     constructor() {
-        this.apiEnv = ApiEnv.Prod;
-        this.listManagerApiEnv = ListManagerApiEnv.Prod;
-        this.payloadApiEnv = PayloadApiEnv.Prod;
+        this.apiEnv = EnvironmentTypes.ApiEnv.Prod;
+        this.listManagerApiEnv = EnvironmentTypes.ListManagerApiEnv.Prod;
+        this.payloadApiEnv = EnvironmentTypes.PayloadApiEnv.Prod;
         this.onAdZonesRefreshed = () => {
             // Defaulting to empty method.
         };
@@ -425,7 +305,11 @@ export class AdadaptedReactNativeSdk {
         });
     }
 
-    private adZoneTemplate(adZones: { [key: number]: Zone }, zoneId: string, offScreenAdZone: boolean): AdZoneInfo {
+    private adZoneTemplate(
+        adZones: { [key: number]: Zone },
+        zoneId: string,
+        offScreenAdZone: boolean
+    ): AdZoneInfo {
         return {
             zoneId: adZones[Number(zoneId)].id,
             adZone: (
@@ -442,23 +326,28 @@ export class AdadaptedReactNativeSdk {
                     adZoneData={adZones[Number(zoneId)]}
                     onAddToListTriggered={(details) => {
                         safeInvoke(this.onAddToListTriggered, {
-                            zoneId: zoneId,
+                            zoneId,
                             items: details,
                         });
                     }}
                     isAdZoneVisible={this.isAdZoneVisible}
                     offScreenAdZone={offScreenAdZone ? true : false}
+                    isContextualAd={this.adContext ? true : false}
                 />
             ),
-        }
+        };
     }
 
     /**
      * Creates all Ad Zone Info objects based on provided Ad Zones.
      * @param adZones - The object of available zones.
+     * @param offScreenAdZone - True if an ad zone first renders out of view.
      * @returns the array of Ad Zone Info objects.
      */
-    private generateAdZones(adZones: { [key: number]: Zone }, offScreenAdZone: boolean = false): AdZoneInfo[] {
+    private generateAdZones(
+        adZones: { [key: number]: Zone },
+        offScreenAdZone: boolean = false
+    ): AdZoneInfo[] {
         const adZoneInfoList: AdZoneInfo[] = [];
         const offScreenAdZoneList: AdZoneInfo[] = [];
 
@@ -466,14 +355,18 @@ export class AdadaptedReactNativeSdk {
             for (const adZoneId in adZones) {
                 if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
                     if (this.offScreenAdZoneIds.includes(Number(adZoneId))) {
-                        offScreenAdZoneList.push(this.adZoneTemplate(adZones, adZoneId, true));
+                        offScreenAdZoneList.push(
+                            this.adZoneTemplate(adZones, adZoneId, true)
+                        );
                     }
                 }
             }
         } else {
             for (const adZoneId in adZones) {
                 if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                    adZoneInfoList.push(this.adZoneTemplate(adZones, adZoneId, false));
+                    adZoneInfoList.push(
+                        this.adZoneTemplate(adZones, adZoneId, false)
+                    );
                 }
             }
         }
@@ -484,16 +377,18 @@ export class AdadaptedReactNativeSdk {
     /**
      * Triggered when session data is initialized or refreshed. Creates
      * a timer based on the session data refresh value.
+     * @param immediateRefresh - If true the ad zones are refreshed bypassing the timer.
      */
-    private onRefreshAdZones(hasContextAds: boolean = false): void {
+    private onRefreshAdZones(immediateRefresh: boolean = false): void {
         // Get the amount of time we will wait until a refresh occurs.
         // We are setting a minimum refresh time of 5 minutes, so if a
         // value provided by the API is lower, we don't refresh too often.
-        const timerMs =
-            this.adContext && hasContextAds ? 0 :
-            this.sessionInfo!.polling_interval_ms >= 300000
-                ? this.sessionInfo!.polling_interval_ms
-                : 300000;
+        // If there are contextual ads, we refresh immediately to reload the ad zone.
+        const timerMs = immediateRefresh
+            ? 0
+            : this.sessionInfo!.polling_interval_ms >= 300000
+            ? this.sessionInfo!.polling_interval_ms
+            : 300000;
 
         this.refreshAdZonesTimer = setTimeout(() => {
             adadaptedApiRequests
@@ -748,19 +643,20 @@ export class AdadaptedReactNativeSdk {
         if (props.apiEnv) {
             this.apiEnv = props.apiEnv;
         } else {
-            this.apiEnv = ApiEnv.Prod;
+            this.apiEnv = EnvironmentTypes.ApiEnv.Prod;
         }
 
         // Base the List Manager API environment off what
         // the user provides for the props.apiEnv value.
         if (props.apiEnv) {
-            if (props.apiEnv === ApiEnv.Prod) {
-                this.listManagerApiEnv = ListManagerApiEnv.Prod;
+            if (props.apiEnv === EnvironmentTypes.ApiEnv.Prod) {
+                this.listManagerApiEnv =
+                    EnvironmentTypes.ListManagerApiEnv.Prod;
             } else {
-                this.listManagerApiEnv = ListManagerApiEnv.Dev;
+                this.listManagerApiEnv = EnvironmentTypes.ListManagerApiEnv.Dev;
             }
         } else {
-            this.listManagerApiEnv = ListManagerApiEnv.Prod;
+            this.listManagerApiEnv = EnvironmentTypes.ListManagerApiEnv.Prod;
         }
 
         // The ad zone touch drag sensitivity setting.
@@ -794,18 +690,20 @@ export class AdadaptedReactNativeSdk {
         return new Promise<void>((resolve, reject) => {
             this.getDeviceInformation()
                 .then((deviceInfoObj) => {
-                    const deviceInfo = JSON.parse(deviceInfoObj) as DeviceInfo;
+                    const deviceInfo = JSON.parse(
+                        deviceInfoObj
+                    ) as DeviceTypes.DeviceInfo;
                     this.deviceInfo = deviceInfo;
-                    this.deviceOs =
-                        deviceInfo.systemName === "ios"
-                            ? DeviceOS.IOS
-                            : DeviceOS.ANDROID;
+                    this.deviceOs = deviceInfo.systemName.includes("ios")
+                        ? DeviceTypes.DeviceOS.IOS
+                        : DeviceTypes.DeviceOS.ANDROID;
                     // Pass custom advertiserId - ios only
-                    if (Platform.OS === "ios") {
+                    if (Platform.OS.includes("ios")) {
                         if (!(props.advertiserId === undefined)) {
                             deviceInfo.udid = props.advertiserId;
                         }
                     }
+                    console.log("init info:", this.appId, deviceInfo.udid)
                     // Pass device info along with API call
                     adadaptedApiRequests
                         .initializeSession(
@@ -838,29 +736,26 @@ export class AdadaptedReactNativeSdk {
                             this.apiEnv
                         )
                         .then((response) => {
+                            console.log("created at:", response.data)
                             NativeModules.AdadaptedReactNativeSdk.storeCurrentSessionId(
                                 response.data.session_id
                             );
                             this.sessionId = response.data.session_id;
                             this.sessionInfo = response.data;
+
                             this.adZones = this.generateAdZones(
                                 response.data.zones
                             );
 
                             if ((props.offScreenAdZoneIds ?? []).length > 0) {
-                                this.offScreenAdZones =
-                                this.generateAdZones(
+                                this.offScreenAdZones = this.generateAdZones(
                                     response.data.zones,
                                     true
                                 );
                             }
 
-                            if (props.adContext) {
-                                this.adContext = props.adContext;
-                            }
-
                             // Start the session data refresh timer.
-                            this.onRefreshAdZones(props.adContext ? true : false);
+                            this.onRefreshAdZones();
 
                             // Get all possible keyword intercept values.
                             // We don't need to wait for this to complete

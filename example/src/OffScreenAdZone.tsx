@@ -247,16 +247,19 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                 <View>
                     <Text style={styles.spaceFiller}>{fillText}</Text>
                 </View>
-                    <InView
-                        onChange={(inView: boolean) => {
-                            setIsVisible(inView);
-                        }}
-                        style={styles.adZoneContainer}
-                    >
-                        <View style={styles.adZoneContainer}>
-                        {props.adZoneInfoList && props.adZoneInfoList.find(zone => zone.zoneId === "110003")?.adZone}
-                        </View>
-                    </InView>
+                <InView
+                    onChange={(inView: boolean) => {
+                        setIsVisible(inView);
+                    }}
+                    style={styles.adZoneContainer}
+                >
+                    <View style={styles.adZoneContainer}>
+                        {props.adZoneInfoList &&
+                            props.adZoneInfoList.find(
+                                (zone) => zone.zoneId === "110003"
+                            )?.adZone}
+                    </View>
+                </InView>
             </IOScrollView>
         </SafeAreaView>
     );
