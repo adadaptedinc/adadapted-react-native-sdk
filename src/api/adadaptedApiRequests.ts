@@ -58,7 +58,6 @@ export function refreshSessionData(
     deviceOS: DeviceTypes.DeviceOS,
     apiEnv: EnvironmentTypes.ApiEnv
 ): Promise<AxiosResponse<RefreshSessionDataResponse>> {
-    console.log("refreshSessionData", requestData.adContext)
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.refreshSessionData()
         : axios(

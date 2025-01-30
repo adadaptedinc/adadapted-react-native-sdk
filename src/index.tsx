@@ -703,7 +703,6 @@ export class AdadaptedReactNativeSdk {
                             deviceInfo.udid = props.advertiserId;
                         }
                     }
-                    console.log("init info:", this.appId, deviceInfo.udid)
                     // Pass device info along with API call
                     adadaptedApiRequests
                         .initializeSession(
@@ -736,7 +735,6 @@ export class AdadaptedReactNativeSdk {
                             this.apiEnv
                         )
                         .then((response) => {
-                            console.log("created at:", response.data)
                             NativeModules.AdadaptedReactNativeSdk.storeCurrentSessionId(
                                 response.data.session_id
                             );
