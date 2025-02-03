@@ -63,7 +63,7 @@ export const App = () => {
             .initialize({
                 appId: "7D58810X6333241C",
                 apiEnv: EnvironmentTypes.ApiEnv.Dev,
-                // iOS Optional custom advertiserID - Delete next line to use IDFA instead.
+                // Optional custom advertiserID - Delete next line to use IDFA instead.
                 advertiserId: "REACT-NATIVE-TEST-ADVERTISER-ID",
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
@@ -71,10 +71,10 @@ export const App = () => {
                     setAdZoneInfoList(aaSdk!.getAdZones());
                     setOffScreenAdZoneInfoList(aaSdk.getOffScreenAdZones());
                 },
-                onAddToListTriggered: (details) => {
+                onAddToListTriggered: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
-                    for (const item of details.items) {
+                    for (const item of items) {
                         selectItem({
                             itemName: item.product_title,
                         });

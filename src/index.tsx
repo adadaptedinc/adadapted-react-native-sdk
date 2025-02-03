@@ -12,7 +12,7 @@ import {
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
     AdSession,
-    AdZoneDetailedListItemInfo,
+    DetailedListItem,
     KeywordIntercepts,
     KeywordSearchTerm,
     ListManagerEvent,
@@ -65,13 +65,13 @@ export interface InitializeProps {
     onAdZonesRefreshed?(): void;
     /**
      * Callback that gets triggered when an "add to list" item/items are clicked.
-     * @param detail - details about the list items to add to cart.
+     * @param items - The array of items to "add to list".
      */
-    onAddToListTriggered?(detail: AdZoneDetailedListItemInfo): void;
+    onAddToListTriggered?(items: DetailedListItem[]): void;
     /**
      * Callback that gets triggered when an "add to list"
      * occurs by means of an "out of app" data payload.
-     * @param detail - Details about payloads clients must go through.
+     * @param payloads - All payloads the client must go through.
      */
     onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
     /**
@@ -185,11 +185,11 @@ export class AdadaptedReactNativeSdk {
     /**
      * If provided, triggers when an "add to list" item is
      * clicked in an ad zone.
-     * @param detail - The array of items to "add to list".
+     * @param items - The array of items to "add to list".
      * @param isExternalPayload - If true, the items are from an external payload.
      */
     private onAddToListTriggered: (
-        detail: AdZoneDetailedListItemInfo,
+        items: DetailedListItem[],
         isExternalPayload?: boolean
     ) => void | undefined;
     /**
@@ -254,6 +254,12 @@ export class AdadaptedReactNativeSdk {
         return this.offScreenAdZones;
     }
 
+    /**
+     * Sets an ad context to replace an ad zone's ads with contextual ads for recipes.
+     * @param adContext - Object containing the contextual term and the associted ad zone.
+     * @param adContext.contextIds - An array of contextual ad ids.
+     * @param adContext.zoneIds - An array of zone ids for applying contextual ads.
+     */
     public setAdContext(adContext: {
         contextIds: string[];
         zoneIds: string[];
@@ -262,6 +268,9 @@ export class AdadaptedReactNativeSdk {
         this.onRefreshAdZones(true);
     }
 
+    /**
+     * Clear the contextual ads from ad zones to return standard ads to the ad zones.
+     */
     public clearAdContext(): void {
         this.adContext = undefined;
         this.onRefreshAdZones(true);
@@ -324,11 +333,8 @@ export class AdadaptedReactNativeSdk {
                         this.xyAdZoneDragDistanceAllowed || 25
                     }
                     adZoneData={adZones[Number(zoneId)]}
-                    onAddToListTriggered={(details) => {
-                        safeInvoke(this.onAddToListTriggered, {
-                            zoneId,
-                            items: details,
-                        });
+                    onAddToListTriggered={(items) => {
+                        safeInvoke(this.onAddToListTriggered, items);
                     }}
                     isAdZoneVisible={this.isAdZoneVisible}
                     offScreenAdZone={offScreenAdZone ? true : false}

@@ -284,6 +284,10 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                     automaticallyAdjustContentInsets={false}
                     style={styles.webView}
                     onTouchStart={(e) => {
+                        triggerReportAdEvent(
+                            props.adZoneData.ads[adIndexShown],
+                            ReportedEventType.INTERACTION
+                        );
                         setTouchStartCoords({
                             x: e.nativeEvent.pageX,
                             y: e.nativeEvent.pageY,
