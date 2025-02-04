@@ -19,7 +19,8 @@ import {
 } from "./adadaptedApiTypes";
 import axios, { AxiosResponse } from "axios";
 import * as adadaptedApiRequestMocks from "./adadaptedApiRequests.mock";
-import { ApiEnv, DeviceOS, ListManagerApiEnv, PayloadApiEnv } from "../index";
+import { DeviceTypes } from "../componentTypes/Device";
+import { EnvironmentTypes } from "../componentTypes/Environment";
 
 /**
  * Makes an API request to initialize the session for the AdAdapted API.
@@ -30,10 +31,10 @@ import { ApiEnv, DeviceOS, ListManagerApiEnv, PayloadApiEnv } from "../index";
  */
 export function initializeSession(
     requestData: InitializeSessionRequest,
-    deviceOS: DeviceOS,
-    apiEnv: ApiEnv
+    deviceOS: DeviceTypes.DeviceOS,
+    apiEnv: EnvironmentTypes.ApiEnv
 ): Promise<AxiosResponse<InitializeSessionResponse>> {
-    return apiEnv === ApiEnv.Mock
+    return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.initializeSession()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/sessions/initialize`, {
               method: "POST",
@@ -54,13 +55,13 @@ export function initializeSession(
  */
 export function refreshSessionData(
     requestData: RefreshSessionDataRequest,
-    deviceOS: DeviceOS,
-    apiEnv: ApiEnv
+    deviceOS: DeviceTypes.DeviceOS,
+    apiEnv: EnvironmentTypes.ApiEnv
 ): Promise<AxiosResponse<RefreshSessionDataResponse>> {
-    return apiEnv === ApiEnv.Mock
+    return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.refreshSessionData()
         : axios(
-              `${apiEnv}/v/0.9.5/${deviceOS}/ads/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}`,
+              `${apiEnv}/v/0.9.5/${deviceOS}/ads/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}&sdk=${requestData.sdkVersion}&contextID=${requestData.adContext?.contextIds}&zoneID=${requestData.adContext?.zoneIds}`,
               {
                   method: "GET",
                   headers: {
@@ -80,10 +81,10 @@ export function refreshSessionData(
  */
 export function reportAdEvent(
     requestData: ReportAdEventRequest,
-    deviceOS: DeviceOS,
-    apiEnv: ApiEnv
+    deviceOS: DeviceTypes.DeviceOS,
+    apiEnv: EnvironmentTypes.ApiEnv
 ): Promise<AxiosResponse<ReportAdEventResponse>> {
-    return apiEnv === ApiEnv.Mock
+    return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportAdEvent()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/ads/events`, {
               method: "POST",
@@ -104,10 +105,10 @@ export function reportAdEvent(
  */
 export function getKeywordIntercepts(
     requestData: KeywordInterceptsRequest,
-    deviceOS: DeviceOS,
-    apiEnv: ApiEnv
+    deviceOS: DeviceTypes.DeviceOS,
+    apiEnv: EnvironmentTypes.ApiEnv
 ): Promise<AxiosResponse<KeywordInterceptsResponse>> {
-    return apiEnv === ApiEnv.Mock
+    return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.getKeywordIntercepts()
         : axios(
               `${apiEnv}/v/0.9.5/${deviceOS}/intercepts/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}`,
@@ -130,10 +131,10 @@ export function getKeywordIntercepts(
  */
 export function reportInterceptEvent(
     requestData: ReportInterceptEventRequest,
-    deviceOS: DeviceOS,
-    apiEnv: ApiEnv
+    deviceOS: DeviceTypes.DeviceOS,
+    apiEnv: EnvironmentTypes.ApiEnv
 ): Promise<AxiosResponse<ReportInterceptEventResponse>> {
-    return apiEnv === ApiEnv.Mock
+    return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportInterceptEvent()
         : axios(`${apiEnv}/v/0.9.5/${deviceOS}/intercepts/events`, {
               method: "POST",
@@ -154,10 +155,10 @@ export function reportInterceptEvent(
  */
 export function reportListManagerEvents(
     requestData: ReportListManagerDataRequest,
-    deviceOS: DeviceOS,
-    apiEnv: ListManagerApiEnv
+    deviceOS: DeviceTypes.DeviceOS,
+    apiEnv: EnvironmentTypes.ListManagerApiEnv
 ): Promise<AxiosResponse<void>> {
-    return apiEnv === ListManagerApiEnv.Mock
+    return apiEnv === EnvironmentTypes.ListManagerApiEnv.Mock
         ? adadaptedApiRequestMocks.reportListManagerEvents()
         : axios(`${apiEnv}/v/1/${deviceOS}/events`, {
               method: "POST",
@@ -178,9 +179,9 @@ export function reportListManagerEvents(
  */
 export function reportPayloadContentStatus(
     requestData: ReportPayloadDataRequest,
-    apiEnv: PayloadApiEnv
+    apiEnv: EnvironmentTypes.PayloadApiEnv
 ): Promise<AxiosResponse<void>> {
-    return apiEnv === PayloadApiEnv.Mock
+    return apiEnv === EnvironmentTypes.PayloadApiEnv.Mock
         ? adadaptedApiRequestMocks.reportPayloadContentStatus()
         : axios(`${apiEnv}/v/1/tracking`, {
               method: "POST",
@@ -200,9 +201,9 @@ export function reportPayloadContentStatus(
  */
 export function retrievePayloadContent(
     requestData: RetrievePayloadItemDataRequest,
-    apiEnv: PayloadApiEnv
+    apiEnv: EnvironmentTypes.PayloadApiEnv
 ): Promise<AxiosResponse<RetrievePayloadItemDataResponse>> {
-    return apiEnv === PayloadApiEnv.Mock
+    return apiEnv === EnvironmentTypes.PayloadApiEnv.Mock
         ? adadaptedApiRequestMocks.retrievePayloadContent()
         : axios(`${apiEnv}/v/1/pickup`, {
               method: "POST",
