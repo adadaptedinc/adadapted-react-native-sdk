@@ -7,9 +7,9 @@ import { useState, useEffect } from "react";
 import {
     AdadaptedReactNativeSdk,
     AdZoneInfo,
-    ApiEnv,
     KeywordSearchResult,
 } from "../../src/index";
+import { EnvironmentTypes } from "../../src/componentTypes/Environment";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StandardAdZonePage } from "./StandardAdZone";
@@ -59,12 +59,11 @@ export const App = () => {
 
     // - Define all useEffect triggers.
     useEffect(() => {
-        // You can use the "AdAdapted SDK Tester (iOS)" app in Platform dev for testing.
         aaSdk
             .initialize({
                 appId: "7D58810X6333241C",
-                apiEnv: ApiEnv.Dev,
-                // iOS Optional custom advertiserID - Delete next line to use IDFA instead.
+                apiEnv: EnvironmentTypes.ApiEnv.Dev,
+                // Optional custom advertiserID - Delete next line to use IDFA instead.
                 advertiserId: "REACT-NATIVE-TEST-ADVERTISER-ID",
                 xyDragDistanceAllowed: 30,
                 onAdZonesRefreshed: () => {
@@ -72,10 +71,10 @@ export const App = () => {
                     setAdZoneInfoList(aaSdk!.getAdZones());
                     setOffScreenAdZoneInfoList(aaSdk.getOffScreenAdZones());
                 },
-                onAddToListTriggered: (details) => {
+                onAddToListTriggered: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
-                    for (const item of details.items) {
+                    for (const item of items) {
                         selectItem({
                             itemName: item.product_title,
                         });
@@ -98,7 +97,7 @@ export const App = () => {
                     }
                 },
                 // List an array of ad zones that contain off-screen ads here if applicable.
-                offScreenAdZone: [102110],
+                offScreenAdZoneIds: [110003],
             })
             .then(() => {
                 setSessionId(aaSdk.getSessionId());

@@ -166,7 +166,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                 <Button
                     title="standard ad zone"
                     onPress={() => navigation.navigate("StandardAdZone")}
-                ></Button>
+                />
                 <Text style={styles.sessionIdContainer}>
                     Session ID: {props.sessionId}
                 </Text>
@@ -247,22 +247,19 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                 <View>
                     <Text style={styles.spaceFiller}>{fillText}</Text>
                 </View>
-                {props.adZoneInfoList?.map((adZoneInfo, idx) => {
-                    return (
-                        <InView
-                            key={idx}
-                            onChange={(inView: boolean) => {
-                                setIsVisible(inView);
-                            }}
-                            style={styles.adZoneContainer}
-                        >
-                            <View style={styles.adZoneContainer}>
-                                {props.adZoneInfoList &&
-                                    props.adZoneInfoList[0]?.adZone}
-                            </View>
-                        </InView>
-                    );
-                })}
+                <InView
+                    onChange={(inView: boolean) => {
+                        setIsVisible(inView);
+                    }}
+                    style={styles.adZoneContainer}
+                >
+                    <View style={styles.adZoneContainer}>
+                        {props.adZoneInfoList &&
+                            props.adZoneInfoList.find(
+                                (zone) => zone.zoneId === "110003"
+                            )?.adZone}
+                    </View>
+                </InView>
             </IOScrollView>
         </SafeAreaView>
     );

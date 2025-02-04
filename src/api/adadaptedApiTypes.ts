@@ -156,11 +156,6 @@ export interface OutOfAppDataPayload {
     detailed_list_items: DetailedListItem[];
 }
 
-export interface AdZoneDetailedListItemInfo {
-    zoneId: string;
-    items: DetailedListItem[];
-}
-
 /**
  * The definition of a Detailed List Item.
  */
@@ -571,6 +566,17 @@ export interface RefreshSessionDataRequest {
      * The current session ID.
      */
     sid: string;
+    /**
+     * The current sdk version.
+     */
+    sdkVersion: string;
+    /**
+     * The context IDs and associated zone IDs.
+     */
+    adContext?: {
+        contextIds: string[] | undefined;
+        zoneIds: string[];
+    };
 }
 
 /**

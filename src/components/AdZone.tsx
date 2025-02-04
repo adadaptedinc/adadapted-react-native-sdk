@@ -3,109 +3,14 @@
  * @module
  */
 import React, { useEffect, useState } from "react";
-import {
-    DeviceEventEmitter,
-    Linking,
-    StyleSheet,
-    View,
-    ViewStyle,
-} from "react-native";
+import { DeviceEventEmitter, Linking, StyleSheet, View } from "react-native";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
-import {
-    Ad,
-    AdActionType,
-    DetailedListItem,
-    ReportedEventType,
-    Zone,
-} from "../api/adadaptedApiTypes";
+import { Ad, AdActionType, ReportedEventType } from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
-import { ApiEnv, DeviceOS } from "../index";
 import { safeInvoke } from "../util";
 import { ReportAdButton } from "./ReportAdButton";
+import { AdZoneTypes } from "src/componentTypes/AdZone";
 
-/**
- * Props interface for {@link AdZone}.
- */
-interface Props {
-    /**
-     * The app ID.
-     */
-    appId: string;
-    /**
-     * The session ID.
-     */
-    sessionId: string;
-    /**
-     * The UDID.
-     */
-    udid: string;
-    /**
-     * The touch sensitivity of the Ad Zone in both the X and Y directions.
-     * This is used to determine the click/press sensitivity when the
-     * Ad Zone is being touched by the user as a regular touch or while
-     * scrolling the view. If the amount of touch "drag" distance in either
-     * X or Y direction is less than this value, we will treat the action as
-     * a click/press on the Ad Zone.
-     */
-    xyDragDistanceAllowed: number;
-    /**
-     * The device OS used for API requests.
-     */
-    deviceOs: DeviceOS;
-    /**
-     * The API environment to use when making an API request.
-     */
-    apiEnv: ApiEnv;
-    /**
-     * The ad zone data.
-     */
-    adZoneData: Zone;
-    /**
-     * Callback that gets triggered when an "add to list" item/items are clicked.
-     * @param items - The array of items to "add to list".
-     */
-    onAddToListTriggered?(items: DetailedListItem[]): void;
-    /**
-     * An ad zone that is not visible on screen for the initial render.
-     */
-    offScreenAdZone: boolean;
-    /**
-     * Track the ad zone visibility in parent component. (for off-screen ads)
-     */
-    isAdZoneVisible?: boolean;
-}
-
-/**
- * Interface for tracking "touch" coordinates.
- */
-interface TouchCoordinates {
-    /**
-     * The X coordinate for the touch.
-     */
-    x: number;
-    /**
-     * The Y coordinate for the touch.
-     */
-    y: number;
-}
-
-/**
- * Defines the style typing for the component.
- */
-interface StyleDef {
-    /**
-     * Styles for the main View element.
-     */
-    mainView: ViewStyle;
-    /**
-     * Styles for the WebView element.
-     */
-    webView: ViewStyle;
-    /**
-     * Styles for the ReportAdButton.
-     */
-    reportAd: ViewStyle;
-}
 /**
  * Timer used for cycling through ads in the zone
  * based on the ad "refresh time" for each ad.
@@ -117,7 +22,7 @@ let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
  * @param props - properties passed to AdZone.
  * @returns an AdZone JSX Element.
  */
-export const AdZone = (props: Props): React.ReactElement => {
+export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     /**
      * Tracks the current ad index being shown.
      */
@@ -127,10 +32,11 @@ export const AdZone = (props: Props): React.ReactElement => {
     /**
      * Tracks the coordinates when the user started touching the Ad View.
      */
-    const [touchStartCoords, setTouchStartCoords] = useState<TouchCoordinates>({
-        x: 0,
-        y: 0,
-    });
+    const [touchStartCoords, setTouchStartCoords] =
+        useState<AdZoneTypes.TouchCoordinates>({
+            x: 0,
+            y: 0,
+        });
 
     /**
      * Track ad visibility (for off-screen ads).
@@ -150,6 +56,7 @@ export const AdZone = (props: Props): React.ReactElement => {
         return () => {
             clearTimeout(cycleAdTimer);
             DeviceEventEmitter.removeAllListeners("acknowledge");
+            DeviceEventEmitter.removeAllListeners("visibility-event");
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -177,11 +84,18 @@ export const AdZone = (props: Props): React.ReactElement => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAdZoneVisible]);
 
+    useEffect(() => {
+        if (props.adZoneData.ads.length > 0) {
+            cycleDisplayedAd();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.isContextualAd]);
+
     /**
      * Generates all component related styles.
      * @returns the styles needed for the component.
      */
-    function generateStyles(): StyleDef {
+    function generateStyles(): AdZoneTypes.StyleDef {
         return StyleSheet.create({
             mainView: {
                 width: "100%",
@@ -326,7 +240,7 @@ export const AdZone = (props: Props): React.ReactElement => {
             nextAdIndex = 0;
         }
 
-        if (!lastAd.impression_tracked && !isAdZoneVisible) {
+        if (lastAd && !lastAd.impression_tracked && !isAdZoneVisible) {
             // Send invisible ad impression if ad was not visible before end of timer cycle.
             triggerReportAdEvent(
                 lastAd,
@@ -334,7 +248,7 @@ export const AdZone = (props: Props): React.ReactElement => {
             );
         }
 
-        if (lastAd.impression_tracked) {
+        if (lastAd && lastAd.impression_tracked) {
             // Reset ad impression tracking status.
             lastAd.impression_tracked = false;
         }
@@ -348,7 +262,10 @@ export const AdZone = (props: Props): React.ReactElement => {
     function sendAdImpression(): void {
         const ad = props.adZoneData.ads[adIndexShown];
 
-        if (ad.impression_tracked === undefined || !ad.impression_tracked) {
+        if (
+            ad &&
+            (ad.impression_tracked === undefined || !ad.impression_tracked)
+        ) {
             triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
             ad.impression_tracked = true;
         }
@@ -367,6 +284,10 @@ export const AdZone = (props: Props): React.ReactElement => {
                     automaticallyAdjustContentInsets={false}
                     style={styles.webView}
                     onTouchStart={(e) => {
+                        triggerReportAdEvent(
+                            props.adZoneData.ads[adIndexShown],
+                            ReportedEventType.INTERACTION
+                        );
                         setTouchStartCoords({
                             x: e.nativeEvent.pageX,
                             y: e.nativeEvent.pageY,
@@ -374,10 +295,11 @@ export const AdZone = (props: Props): React.ReactElement => {
                     }}
                     onTouchEnd={(e) => {
                         if (touchStartCoords) {
-                            const touchEndCoords: TouchCoordinates = {
-                                x: e.nativeEvent.pageX,
-                                y: e.nativeEvent.pageY,
-                            };
+                            const touchEndCoords: AdZoneTypes.TouchCoordinates =
+                                {
+                                    x: e.nativeEvent.pageX,
+                                    y: e.nativeEvent.pageY,
+                                };
 
                             if (
                                 Math.abs(

@@ -162,8 +162,26 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                     Session ID: {props.sessionId}
                 </Text>
                 <View style={styles.adZoneContainer}>
-                    {props.adZoneInfoList && props.adZoneInfoList[1]?.adZone}
+                    {props.adZoneInfoList &&
+                        props.adZoneInfoList.find(
+                            (zone) => zone.zoneId === "102110"
+                        )?.adZone}
                 </View>
+                <>
+                    <Button
+                        title="set ad context"
+                        onPress={() =>
+                            props.aaSdk.setAdContext({
+                                contextIds: ["organic"],
+                                zoneIds: ["102110"],
+                            })
+                        }
+                    ></Button>
+                    <Button
+                        title="clear ad context"
+                        onPress={() => props.aaSdk.clearAdContext()}
+                    ></Button>
+                </>
                 <TextInput
                     value={searchValue}
                     style={styles.searchTextField}
