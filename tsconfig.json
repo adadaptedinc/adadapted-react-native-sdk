@@ -1,9 +1,9 @@
 {
-    "extends": "@react-native/typescript-config/tsconfig.json",
+    "extends": "@react-native/typescript-config",
     "compilerOptions": {
-        "baseUrl": ".",
         "paths": {
-            "adadapted-react-native-sdk": ["./src/index"]
+            "adadapted-react-native-sdk": ["./src/index"],
+            "src/*": ["./src/*"]
         },
         "allowUnreachableCode": false,
         "allowUnusedLabels": false,
@@ -26,6 +26,6 @@
         "noEmit": false,
         "emitDeclarationOnly": false
     },
-    "include": ["src/**/*.ts", "src/**/*.tsx", "index.tsx"],
+    "include": ["src/**/*.ts", "src/**/*.tsx", "index.tsx", "index.ts", "jest.setup.ts"],
     "exclude": ["node_modules"]
 }

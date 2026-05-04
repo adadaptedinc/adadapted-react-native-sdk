@@ -114,7 +114,6 @@ export function safeInvoke<A1, A2, A3, A4, A5, A6, R>(
  * @param args - All arguments to call with the function.
  * @returns the method to be called if its defined.
  */
-// eslint-disable-next-line @typescript-eslint/ban-types
 export function safeInvoke(func: Function | nil, ...args: any[]): any {
     if (func) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument

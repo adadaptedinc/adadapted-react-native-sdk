@@ -96,7 +96,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
      * @returns the styles needed for the component.
      */
     function generateStyles(): AdZoneTypes.StyleDef {
-        return StyleSheet.create({
+        return StyleSheet.create<AdZoneTypes.StyleDef>({
             mainView: {
                 width: "100%",
                 height: "100%",

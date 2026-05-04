@@ -34,15 +34,35 @@ Once the react-native app server is running, we need to open a new console tab a
 
 ### iOS
 
-Run the following command:
+**NOTE:** _You must have Xcode installed in order to run the iOS emulator. You can download Xcode [here](https://developer.apple.com/xcode/resources/)._
 
-```javascript
-react-native run-ios
+**Daily workflow** (app already installed on simulator):
+
+```bash
+# Terminal 1 — keep running
+npm start
+
+# Terminal 2 — boot simulator (if not already running), then launch the app
+npm run ios-sim-boot
+npm run ios-sim-launch
 ```
 
-This will run the test application within the iOS emulator once it has finished building (might take a minute or two in order to complete the initial build).
+**After native code changes** (full rebuild required):
 
-**NOTE:** _You must have Xcode installed in order to run the iOS emulator. You can download Xcode [here](https://developer.apple.com/xcode/resources/)._
+```bash
+# Terminal 1 — keep running
+npm start
+
+# Terminal 2
+npm run ios-sim-build
+```
+
+| Script | What it does |
+|--------|-------------|
+| `npm run ios-sim-boot` | Prompts for a simulator to boot and opens the Simulator app |
+| `npm run ios-sim-launch` | Prompts for a booted simulator and launches the app on it |
+| `npm run ios-sim-build` | Prompts for a simulator, then does a full rebuild — builds, installs, and launches (takes a few minutes) |
+| `npm run ios-sim-log` | Prompts for a booted simulator and streams its logs to the terminal (Ctrl+C to stop) |
 
 ---
 

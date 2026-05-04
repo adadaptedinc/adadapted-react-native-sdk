@@ -1,5 +1,8 @@
 require_relative '../node_modules/react-native/scripts/react_native_pods'
 
+# Disable New Architecture until all native deps are fully compatible
+ENV['RCT_NEW_ARCH_ENABLED'] = '0'
+
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
@@ -28,4 +31,20 @@ post_install do |installer|
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # fmt 11.x disables consteval only for Apple Clang < 14, but Xcode 26 (Apple Clang 17+)
+    # also cannot correctly evaluate fmt's consteval format-string checks. Extend the
+    # exclusion to all Apple Clang versions by patching the version guard in base.h.
+    fmt_base = File.join(installer.sandbox.pod_dir('fmt'), 'include/fmt/base.h')
+    if File.exist?(fmt_base)
+      content = File.read(fmt_base)
+      patched = content.gsub(
+        'defined(__apple_build_version__) && __apple_build_version__ < 14000029L',
+        'defined(__apple_build_version__)'
+      )
+      if patched != content
+        FileUtils.chmod('u+w', fmt_base)
+        File.write(fmt_base, patched)
+      end
+    end
 end
