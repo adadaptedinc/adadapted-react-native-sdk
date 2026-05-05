@@ -1,0 +1,57 @@
+name: Renovate Slack Notifications
+on:
+    workflow_run:
+        workflows: ["Merge Branch", "Deploy Environment"]
+        types: [completed]
+        branches:
+            - main
+            - "renovate/**"
+    pull_request:
+        types: [opened]
+jobs:
+    notify-failure:
+        if: |
+            github.event_name == 'workflow_run' &&
+            github.event.workflow_run.conclusion == 'failure' &&
+            github.event.workflow_run.head_commit.author.name == 'renovate[bot]'
+        runs-on: ubuntu-latest
+        permissions: {}
+        env:
+            SLACK_WEBHOOK_URL: ${{ secrets.MSP_RENOVATE_SLACK_WEBHOOK_URL }}
+            REPO_NAME: ${{ github.event.repository.name }}
+            WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+            RUN_URL: ${{ github.event.workflow_run.html_url }}
+            HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+            COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+        steps:
+            - name: Send Slack notification on Renovate CI failure
+              run: |
+                  commit_msg="${COMMIT_MSG%%$'\n'*}"
+
+                  if [ "$HEAD_BRANCH" = "main" ]; then
+                    text=$(printf "❌ *Renovate Update: Post-Merge Failure*\n*Repository:* %s\n*Commit:* %s\n*Workflow:* %s\n<%s|View Run>" "$REPO_NAME" "$commit_msg" "$WORKFLOW_NAME" "$RUN_URL")
+                  else
+                    text=$(printf "❌ *Renovate Update: Pre-Merge Failure*\n*Repository:* %s\n*Branch:* %s\n*Commit:* %s\n*Workflow:* %s\n<%s|View Run>" "$REPO_NAME" "$HEAD_BRANCH" "$commit_msg" "$WORKFLOW_NAME" "$RUN_URL")
+                  fi
+
+                  payload=$(jq -n --arg text "$text" '{text: $text}')
+                  curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
+    notify-major-update:
+        if: |
+            github.event_name == 'pull_request' &&
+            github.event.pull_request.user.login == 'renovate[bot]' &&
+            contains(github.event.pull_request.labels.*.name, 'major')
+        runs-on: ubuntu-latest
+        permissions: {}
+        env:
+            SLACK_WEBHOOK_URL: ${{ secrets.MSP_RENOVATE_SLACK_WEBHOOK_URL }}
+            REPO_NAME: ${{ github.event.repository.name }}
+            PR_TITLE: ${{ github.event.pull_request.title }}
+            PR_URL: ${{ github.event.pull_request.html_url }}
+        steps:
+            - name: Send Slack notification for major update PR
+              run: |
+                  text=$(printf "⚠️ *Renovate Update: Major Dependency Version Requires Approval*\n*Repository:* %s\n*Pull Request:* %s\n<%s|Review Pull Request>" "$REPO_NAME" "$PR_TITLE" "$PR_URL")
+                  payload=$(jq -n --arg text "$text" '{text: $text}')
+
+                  curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"

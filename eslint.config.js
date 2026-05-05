@@ -29,7 +29,7 @@ module.exports = tseslint.config(
     ...compat.extends(
         "plugin:jsdoc/recommended",
         "plugin:react/recommended",
-        "plugin:react-hooks/recommended"
+        "plugin:react-hooks/recommended",
     ),
     ...tseslint.configs.recommendedTypeChecked,
     {
@@ -88,7 +88,7 @@ module.exports = tseslint.config(
             "@typescript-eslint/no-misused-promises": "off",
             "@typescript-eslint/no-namespace": "off",
             "@typescript-eslint/no-non-null-asserted-optional-chain": "error",
-            "@typescript-eslint/no-shadow": ["error", { "hoist": "all" }],
+            "@typescript-eslint/no-shadow": ["error", { hoist: "all" }],
             "@typescript-eslint/no-this-alias": "error",
             "@typescript-eslint/no-unsafe-assignment": "off",
             "@typescript-eslint/no-unsafe-call": "off",
@@ -105,17 +105,17 @@ module.exports = tseslint.config(
             "@typescript-eslint/restrict-template-expressions": "off",
             "@typescript-eslint/triple-slash-reference": [
                 "error",
-                { "path": "always", "types": "prefer-import", "lib": "always" },
+                { path: "always", types: "prefer-import", lib: "always" },
             ],
             "@typescript-eslint/unbound-method": "off",
             "@typescript-eslint/unified-signatures": "error",
             "arrow-parens": ["off", "always"],
             "brace-style": ["off", "off"],
             "comma-dangle": "off",
-            "complexity": "off",
+            complexity: "off",
             "constructor-super": "error",
             "eol-last": "off",
-            "eqeqeq": ["error", "smart"],
+            eqeqeq: ["error", "smart"],
             "for-direction": "error",
             "getter-return": "error",
             "guard-for-in": "error",
@@ -134,7 +134,7 @@ module.exports = tseslint.config(
             "id-match": "error",
             "import/no-default-export": "error",
             "import/order": "off",
-            "indent": ["off"],
+            indent: ["off"],
             "jest/no-commented-out-tests": "off",
             "jest/no-disabled-tests": "warn",
             "jest/expect-expect": "off",
@@ -164,7 +164,7 @@ module.exports = tseslint.config(
             "no-console": [
                 "error",
                 {
-                    "allow": [
+                    allow: [
                         "warn",
                         "dir",
                         "timeLog",
@@ -247,8 +247,8 @@ module.exports = tseslint.config(
             "prefer-arrow/prefer-arrow-functions": "off",
             "prefer-const": "error",
             "quote-props": "off",
-            "quotes": ["error", "double"],
-            "radix": "error",
+            quotes: ["error", "double"],
+            radix: "error",
             "react/display-name": "off",
             "react/jsx-boolean-value": "off",
             "react/jsx-curly-spacing": "off",
@@ -261,7 +261,7 @@ module.exports = tseslint.config(
             "react/jsx-no-undef": "error",
             "react/jsx-tag-spacing": [
                 "off",
-                { "afterOpening": "allow", "closingSlash": "allow" },
+                { afterOpening: "allow", closingSlash: "allow" },
             ],
             "react/jsx-uses-react": "error",
             "react/jsx-uses-vars": "error",
@@ -282,14 +282,14 @@ module.exports = tseslint.config(
             "react/require-render-return": "error",
             "react/self-closing-comp": "error",
             "require-yield": "error",
-            "semi": ["error", "always"],
+            semi: ["error", "always"],
             "space-before-function-paren": "off",
             "space-in-parens": ["off", "never"],
-            "spaced-comment": ["error", "always", { "markers": ["/"] }],
+            "spaced-comment": ["error", "always", { markers: ["/"] }],
             "use-isnan": "error",
             "valid-typeof": "off",
             "react-hooks/rules-of-hooks": "error",
             "react-hooks/exhaustive-deps": "warn",
         },
-    }
+    },
 );

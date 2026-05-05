@@ -26,6 +26,12 @@
         "noEmit": false,
         "emitDeclarationOnly": false
     },
-    "include": ["src/**/*.ts", "src/**/*.tsx", "index.tsx", "index.ts", "jest.setup.ts"],
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "index.tsx",
+        "index.ts",
+        "jest.setup.ts"
+    ],
     "exclude": ["node_modules"]
 }

@@ -107,7 +107,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
 
             if (aasdkSearchResults.length > 0) {
                 const randomIndex = Math.floor(
-                    Math.floor(Math.random() * aasdkSearchResults.length)
+                    Math.floor(Math.random() * aasdkSearchResults.length),
                 );
                 finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
 
@@ -130,7 +130,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                             .startsWith(searchValue.toLowerCase())
                     ) {
                         finalStandardProductSearchResultsStringStart.push(
-                            productName
+                            productName,
                         );
                     } else if (
                         productName
@@ -138,7 +138,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                             .indexOf(searchValue.toLowerCase()) !== -1
                     ) {
                         finalStandardProductSearchResultsStringContains.push(
-                            productName
+                            productName,
                         );
                     }
                 }
@@ -146,7 +146,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
 
             const finalSearchResult =
                 finalStandardProductSearchResultsStringStart.concat(
-                    finalStandardProductSearchResultsStringContains
+                    finalStandardProductSearchResultsStringContains,
                 );
             setStandardProductSearchResultItemList(finalSearchResult);
             setAasdkSearchResultItemList(finalAasdkSearchResults);
@@ -219,7 +219,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                                     if (props.aaSdk && isKeywordIntercept) {
                                         // Report up the "selected" event to the AA SDK.
                                         props.aaSdk.reportKeywordInterceptTermSelected(
-                                            itemName
+                                            itemName,
                                         );
                                     }
                                     setSearchValue("");
@@ -229,7 +229,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                                     {itemName}
                                 </Text>
                             </TouchableOpacity>
-                        )
+                        ),
                     )}
                 </View>
                 <View style={styles.listItemContainer}>
@@ -256,7 +256,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                     <View style={styles.adZoneContainer}>
                         {props.adZoneInfoList &&
                             props.adZoneInfoList.find(
-                                (zone) => zone.zoneId === "110003"
+                                (zone) => zone.zoneId === "110003",
                             )?.adZone}
                     </View>
                 </InView>

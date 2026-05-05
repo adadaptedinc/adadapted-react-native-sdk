@@ -99,7 +99,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
 
             if (aasdkSearchResults.length > 0) {
                 const randomIndex = Math.floor(
-                    Math.floor(Math.random() * aasdkSearchResults.length)
+                    Math.floor(Math.random() * aasdkSearchResults.length),
                 );
                 finalAasdkSearchResults.push(aasdkSearchResults[randomIndex]);
 
@@ -121,7 +121,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                             .startsWith(searchValue.toLowerCase())
                     ) {
                         finalStandardProductSearchResultsStringStart.push(
-                            productName
+                            productName,
                         );
                     } else if (
                         productName
@@ -129,7 +129,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                             .indexOf(searchValue.toLowerCase()) !== -1
                     ) {
                         finalStandardProductSearchResultsStringContains.push(
-                            productName
+                            productName,
                         );
                     }
                 }
@@ -137,7 +137,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
 
             const finalSearchResult =
                 finalStandardProductSearchResultsStringStart.concat(
-                    finalStandardProductSearchResultsStringContains
+                    finalStandardProductSearchResultsStringContains,
                 );
             setStandardProductSearchResultItemList(finalSearchResult);
             setAasdkSearchResultItemList(finalAasdkSearchResults);
@@ -164,7 +164,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                 <View style={styles.adZoneContainer}>
                     {props.adZoneInfoList &&
                         props.adZoneInfoList.find(
-                            (zone) => zone.zoneId === "102110"
+                            (zone) => zone.zoneId === "102110",
                         )?.adZone}
                 </View>
                 <>
@@ -232,7 +232,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                                     if (props.aaSdk && isKeywordIntercept) {
                                         // Report up the "selected" event to the AA SDK.
                                         props.aaSdk.reportKeywordInterceptTermSelected(
-                                            itemName
+                                            itemName,
                                         );
                                     }
                                     setSearchValue("");
@@ -242,7 +242,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                                     {itemName}
                                 </Text>
                             </TouchableOpacity>
-                        )
+                        ),
                     )}
                 </View>
                 <View style={styles.listItemContainer}>

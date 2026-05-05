@@ -27,7 +27,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
      * Tracks the current ad index being shown.
      */
     const [adIndexShown, setAdIndexShown] = useState(
-        Math.floor(Math.random() * props.adZoneData.ads.length)
+        Math.floor(Math.random() * props.adZoneData.ads.length),
     );
     /**
      * Tracks the coordinates when the user started touching the Ad View.
@@ -146,7 +146,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         ) {
             safeInvoke(
                 props.onAddToListTriggered,
-                currentlyDisplayedAd.payload.detailed_list_items
+                currentlyDisplayedAd.payload.detailed_list_items,
             );
         }
 
@@ -165,7 +165,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                         if (item.product_title === itemName) {
                             triggerReportAdEvent(
                                 ad,
-                                ReportedEventType.INTERACTION
+                                ReportedEventType.INTERACTION,
                             );
                         }
                     });
@@ -200,7 +200,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                     ],
                 },
                 props.deviceOs,
-                props.apiEnv
+                props.apiEnv,
             )
             .then(() => {
                 // Do nothing with the response for now...
@@ -244,7 +244,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             // Send invisible ad impression if ad was not visible before end of timer cycle.
             triggerReportAdEvent(
                 lastAd,
-                ReportedEventType.INVISIBLE_IMPRESSION
+                ReportedEventType.INVISIBLE_IMPRESSION,
             );
         }
 
@@ -286,7 +286,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                     onTouchStart={(e) => {
                         triggerReportAdEvent(
                             props.adZoneData.ads[adIndexShown],
-                            ReportedEventType.INTERACTION
+                            ReportedEventType.INTERACTION,
                         );
                         setTouchStartCoords({
                             x: e.nativeEvent.pageX,
@@ -303,14 +303,14 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
                             if (
                                 Math.abs(
-                                    touchStartCoords.x - touchEndCoords.x
+                                    touchStartCoords.x - touchEndCoords.x,
                                 ) < props.xyDragDistanceAllowed &&
                                 Math.abs(
-                                    touchStartCoords.y - touchEndCoords.y
+                                    touchStartCoords.y - touchEndCoords.y,
                                 ) < props.xyDragDistanceAllowed
                             ) {
                                 onAdZoneSelected(
-                                    props.adZoneData.ads[adIndexShown]
+                                    props.adZoneData.ads[adIndexShown],
                                 );
                             }
 

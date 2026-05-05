@@ -190,7 +190,7 @@ export class AdadaptedReactNativeSdk {
      */
     private onAddToListTriggered: (
         items: DetailedListItem[],
-        isExternalPayload?: boolean
+        isExternalPayload?: boolean,
     ) => void | undefined;
     /**
      * If provided, triggers when an "add to list"
@@ -198,7 +198,7 @@ export class AdadaptedReactNativeSdk {
      * @param payloads - All payloads the client must go through.
      */
     private onOutOfAppPayloadAvailable: (
-        payloads: OutOfAppDataPayload[]
+        payloads: OutOfAppDataPayload[],
     ) => void | undefined;
     /**
      * Deeplink event listener.
@@ -309,7 +309,7 @@ export class AdadaptedReactNativeSdk {
             NativeModules.AdadaptedReactNativeSdk.getDeviceInfo().then(
                 (response: string) => {
                     resolve(response);
-                }
+                },
             );
         });
     }
@@ -317,7 +317,7 @@ export class AdadaptedReactNativeSdk {
     private adZoneTemplate(
         adZones: { [key: number]: Zone },
         zoneId: string,
-        offScreenAdZone: boolean
+        offScreenAdZone: boolean,
     ): AdZoneInfo {
         return {
             zoneId: adZones[Number(zoneId)].id,
@@ -352,7 +352,7 @@ export class AdadaptedReactNativeSdk {
      */
     private generateAdZones(
         adZones: { [key: number]: Zone },
-        offScreenAdZone: boolean = false
+        offScreenAdZone: boolean = false,
     ): AdZoneInfo[] {
         const adZoneInfoList: AdZoneInfo[] = [];
         const offScreenAdZoneList: AdZoneInfo[] = [];
@@ -362,7 +362,7 @@ export class AdadaptedReactNativeSdk {
                 if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
                     if (this.offScreenAdZoneIds.includes(Number(adZoneId))) {
                         offScreenAdZoneList.push(
-                            this.adZoneTemplate(adZones, adZoneId, true)
+                            this.adZoneTemplate(adZones, adZoneId, true),
                         );
                     }
                 }
@@ -371,7 +371,7 @@ export class AdadaptedReactNativeSdk {
             for (const adZoneId in adZones) {
                 if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
                     adZoneInfoList.push(
-                        this.adZoneTemplate(adZones, adZoneId, false)
+                        this.adZoneTemplate(adZones, adZoneId, false),
                     );
                 }
             }
@@ -393,8 +393,8 @@ export class AdadaptedReactNativeSdk {
         const timerMs = immediateRefresh
             ? 0
             : this.sessionInfo!.polling_interval_ms >= 300000
-            ? this.sessionInfo!.polling_interval_ms
-            : 300000;
+              ? this.sessionInfo!.polling_interval_ms
+              : 300000;
 
         this.refreshAdZonesTimer = setTimeout(() => {
             adadaptedApiRequests
@@ -407,7 +407,7 @@ export class AdadaptedReactNativeSdk {
                         adContext: this.adContext,
                     },
                     this.deviceOs!,
-                    this.apiEnv
+                    this.apiEnv,
                 )
                 .then((response) => {
                     this.sessionInfo = response.data;
@@ -415,7 +415,7 @@ export class AdadaptedReactNativeSdk {
                     if (this.offScreenAdZones.length > 0) {
                         this.offScreenAdZones = this.generateAdZones(
                             response.data.zones,
-                            true
+                            true,
                         );
                     }
 
@@ -451,7 +451,7 @@ export class AdadaptedReactNativeSdk {
                     uid: this.deviceInfo!.udid,
                 },
                 this.deviceOs!,
-                this.apiEnv
+                this.apiEnv,
             )
             .then((response) => {
                 this.keywordIntercepts = response.data;
@@ -464,7 +464,7 @@ export class AdadaptedReactNativeSdk {
      * @returns the term if it was found based on the provided term ID.
      */
     private getKeywordInterceptTerm(
-        termId: string
+        termId: string,
     ): KeywordSearchTerm | undefined {
         let term: KeywordSearchTerm | undefined;
 
@@ -499,7 +499,7 @@ export class AdadaptedReactNativeSdk {
         eventSource: ListManagerEventSource,
         eventName: ListManagerEventName,
         itemNames: string[],
-        listName?: string
+        listName?: string,
     ): ReportListManagerDataRequest {
         const eventList: ListManagerEvent[] = [];
 
@@ -534,7 +534,7 @@ export class AdadaptedReactNativeSdk {
 
         if (dataIndex !== -1) {
             const encodedData: string = event.url.substr(
-                `${dataIndex}${searchStr.length}`
+                `${dataIndex}${searchStr.length}`,
             );
             const payloadData = JSON.parse(base64.decode(encodedData));
             const payloadId = payloadData.payload_id;
@@ -587,7 +587,7 @@ export class AdadaptedReactNativeSdk {
                     session_id: this.sessionId!,
                     udid: this.deviceInfo!.udid,
                 },
-                this.payloadApiEnv
+                this.payloadApiEnv,
             )
             .then((response) => {
                 const finalItemList: OutOfAppDataPayload[] = [];
@@ -697,7 +697,7 @@ export class AdadaptedReactNativeSdk {
             this.getDeviceInformation()
                 .then((deviceInfoObj) => {
                     const deviceInfo = JSON.parse(
-                        deviceInfoObj
+                        deviceInfoObj,
                     ) as DeviceTypes.DeviceInfo;
                     this.deviceInfo = deviceInfo;
                     this.deviceOs = deviceInfo.systemName.includes("ios")
@@ -719,11 +719,11 @@ export class AdadaptedReactNativeSdk {
                                 sdk_version: packageJson.version,
                                 device_width: parseInt(
                                     deviceInfo.deviceWidth,
-                                    10
+                                    10,
                                 ),
                                 device_height: parseInt(
                                     deviceInfo.deviceHeight,
-                                    10
+                                    10,
                                 ),
                                 device_density: deviceInfo.deviceScreenDensity,
                                 device_carrier: deviceInfo.deviceCarrier,
@@ -738,23 +738,23 @@ export class AdadaptedReactNativeSdk {
                                     deviceInfo.isAdTrackingEnabled,
                             },
                             this.deviceOs,
-                            this.apiEnv
+                            this.apiEnv,
                         )
                         .then((response) => {
                             NativeModules.AdadaptedReactNativeSdk.storeCurrentSessionId(
-                                response.data.session_id
+                                response.data.session_id,
                             );
                             this.sessionId = response.data.session_id;
                             this.sessionInfo = response.data;
 
                             this.adZones = this.generateAdZones(
-                                response.data.zones
+                                response.data.zones,
                             );
 
                             if ((props.offScreenAdZoneIds ?? []).length > 0) {
                                 this.offScreenAdZones = this.generateAdZones(
                                     response.data.zones,
-                                    true
+                                    true,
                                 );
                             }
 
@@ -785,7 +785,7 @@ export class AdadaptedReactNativeSdk {
                             this.deepLinkOnEventListener =
                                 Linking.addEventListener(
                                     "url",
-                                    this.handleDeepLink
+                                    this.handleDeepLink,
                                 );
 
                             // // Initialize an event listener to intercept App state changes.
@@ -821,11 +821,11 @@ export class AdadaptedReactNativeSdk {
 
         if (!this.deviceInfo) {
             console.error(
-                "AdAdapted SDK has not been initialized with device info."
+                "AdAdapted SDK has not been initialized with device info.",
             );
         } else if (!this.sessionId) {
             console.error(
-                "AdAdapted SDK has not been initialized with session id."
+                "AdAdapted SDK has not been initialized with session id.",
             );
         } else if (!this.keywordIntercepts) {
             console.error("No available keyword intercepts.");
@@ -863,10 +863,10 @@ export class AdadaptedReactNativeSdk {
 
             // Sort the final results by priority.
             finalResultListStartsWith.sort((a, b) =>
-                a.priority > b.priority ? 1 : -1
+                a.priority > b.priority ? 1 : -1,
             );
             finalResultListContains.sort((a, b) =>
-                a.priority > b.priority ? 1 : -1
+                a.priority > b.priority ? 1 : -1,
             );
 
             // If there are no events to report at this point,
@@ -893,7 +893,7 @@ export class AdadaptedReactNativeSdk {
                         events: finalEventsList,
                     },
                     this.deviceOs!,
-                    this.apiEnv
+                    this.apiEnv,
                 )
                 .then(() => {
                     // Do nothing with the response for now...
@@ -920,11 +920,11 @@ export class AdadaptedReactNativeSdk {
 
         if (!this.deviceInfo) {
             console.error(
-                "AdAdapted SDK has not been initialized with device info."
+                "AdAdapted SDK has not been initialized with device info.",
             );
         } else if (!this.sessionId) {
             console.error(
-                "AdAdapted SDK has not been initialized with session id."
+                "AdAdapted SDK has not been initialized with session id.",
             );
         } else if (!this.keywordIntercepts) {
             console.error("No available keyword intercepts.");
@@ -949,7 +949,7 @@ export class AdadaptedReactNativeSdk {
                         ],
                     },
                     this.deviceOs!,
-                    this.apiEnv
+                    this.apiEnv,
                 )
                 .then(() => {
                     // Do nothing with the response for now...
@@ -979,11 +979,11 @@ export class AdadaptedReactNativeSdk {
 
         if (!this.deviceInfo) {
             console.error(
-                "AdAdapted SDK has not been initialized with device info."
+                "AdAdapted SDK has not been initialized with device info.",
             );
         } else if (!this.sessionId) {
             console.error(
-                "AdAdapted SDK has not been initialized with session id."
+                "AdAdapted SDK has not been initialized with session id.",
             );
         } else if (!this.keywordIntercepts) {
             console.error("No available keyword intercepts.");
@@ -1013,7 +1013,7 @@ export class AdadaptedReactNativeSdk {
                         events: termEvents,
                     },
                     this.deviceOs!,
-                    this.apiEnv
+                    this.apiEnv,
                 )
                 .then(() => {
                     // Do nothing with the response for now...
@@ -1029,20 +1029,20 @@ export class AdadaptedReactNativeSdk {
      */
     public reportItemsAddedToList(
         itemNames: string[],
-        listName?: string
+        listName?: string,
     ): void {
         const requestData = this.getListManagerApiRequestData(
             ListManagerEventSource.APP,
             ListManagerEventName.ADDED_TO_LIST,
             itemNames,
-            listName
+            listName,
         );
 
         adadaptedApiRequests
             .reportListManagerEvents(
                 requestData,
                 this.deviceOs!,
-                this.listManagerApiEnv
+                this.listManagerApiEnv,
             )
             .then()
             .catch(() => {
@@ -1058,20 +1058,20 @@ export class AdadaptedReactNativeSdk {
      */
     public reportItemsCrossedOffList(
         itemNames: string[],
-        listName?: string
+        listName?: string,
     ): void {
         const requestData = this.getListManagerApiRequestData(
             ListManagerEventSource.APP,
             ListManagerEventName.CROSSED_OFF_LIST,
             itemNames,
-            listName
+            listName,
         );
 
         adadaptedApiRequests
             .reportListManagerEvents(
                 requestData,
                 this.deviceOs!,
-                this.listManagerApiEnv
+                this.listManagerApiEnv,
             )
             .then()
             .catch(() => {
@@ -1087,20 +1087,20 @@ export class AdadaptedReactNativeSdk {
      */
     public reportItemsDeletedFromList(
         itemNames: string[],
-        listName?: string
+        listName?: string,
     ): void {
         const requestData = this.getListManagerApiRequestData(
             ListManagerEventSource.APP,
             ListManagerEventName.DELETED_FROM_LIST,
             itemNames,
-            listName
+            listName,
         );
 
         adadaptedApiRequests
             .reportListManagerEvents(
                 requestData,
                 this.deviceOs!,
-                this.listManagerApiEnv
+                this.listManagerApiEnv,
             )
             .then()
             .catch(() => {
@@ -1128,7 +1128,7 @@ export class AdadaptedReactNativeSdk {
                         },
                     ],
                 },
-                this.payloadApiEnv
+                this.payloadApiEnv,
             )
             .then()
             .catch(() => {
@@ -1156,7 +1156,7 @@ export class AdadaptedReactNativeSdk {
                         },
                     ],
                 },
-                this.payloadApiEnv
+                this.payloadApiEnv,
             )
             .then()
             .catch(() => {

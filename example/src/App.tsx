@@ -92,7 +92,7 @@ export const App = () => {
 
                         // Mark this payload as acknowledged.
                         aaSdk.markPayloadContentAcknowledged(
-                            payload.payload_id
+                            payload.payload_id,
                         );
                     }
                 },
@@ -127,7 +127,7 @@ export const App = () => {
                 // Report the ad item as added to list manager.
                 aaSdk.reportItemsAddedToList(
                     [selectedItem.item.replacement],
-                    "My grocery list"
+                    "My grocery list",
                 );
                 listItem = selectedItem.item.replacement;
             } else if (selectedItem.itemName) {
@@ -137,7 +137,7 @@ export const App = () => {
                 // Report the non-ad item as added to list manager.
                 aaSdk.reportItemsAddedToList(
                     [selectedItem.itemName],
-                    "My grocery list"
+                    "My grocery list",
                 );
                 listItem = selectedItem.itemName;
             }

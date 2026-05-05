@@ -14,11 +14,13 @@ npm run prepare             # Build to lib/ (commonjs, module, typescript target
 ```
 
 Run a single test file:
+
 ```bash
 jest src/path/to/__tests__/file.test.ts
 ```
 
 Run tests matching a name:
+
 ```bash
 jest --testNamePattern="testName"
 ```
@@ -37,18 +39,18 @@ This is a React Native SDK that integrates the AdAdapted ad platform into mobile
 
 ### Module Responsibilities
 
-| File | Responsibility |
-|------|---------------|
-| `src/index.tsx` | Main SDK class — initialization, session management, zone creation, polling loop |
-| `src/components/AdZone.tsx` | React component that renders an ad zone with WebView cycling |
-| `src/components/ReportAdButton.tsx` | Optional "Report this Ad" UI component |
-| `src/api/adadaptedApiRequests.ts` | Axios HTTP client for all API calls; supports mock environment |
-| `src/api/adadaptedApiTypes.ts` | TypeScript interfaces for all API request/response shapes |
-| `src/api/adadaptedApiRequests.mock.ts` | Mock data used when `Environment.Mock` is set |
-| `src/componentTypes/Device.ts` | `DeviceOS` enum and `DeviceInfo` interface |
-| `src/componentTypes/Environment.ts` | API environment enums (Prod/Dev/Mock) for main API, List Manager, and Payload server |
-| `src/componentTypes/AdZone.ts` | Prop types for the `AdZone` component |
-| `src/util.ts` | `SafeInvoke` — overloaded helper for type-safe optional callback invocation |
+| File                                   | Responsibility                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `src/index.tsx`                        | Main SDK class — initialization, session management, zone creation, polling loop     |
+| `src/components/AdZone.tsx`            | React component that renders an ad zone with WebView cycling                         |
+| `src/components/ReportAdButton.tsx`    | Optional "Report this Ad" UI component                                               |
+| `src/api/adadaptedApiRequests.ts`      | Axios HTTP client for all API calls; supports mock environment                       |
+| `src/api/adadaptedApiTypes.ts`         | TypeScript interfaces for all API request/response shapes                            |
+| `src/api/adadaptedApiRequests.mock.ts` | Mock data used when `Environment.Mock` is set                                        |
+| `src/componentTypes/Device.ts`         | `DeviceOS` enum and `DeviceInfo` interface                                           |
+| `src/componentTypes/Environment.ts`    | API environment enums (Prod/Dev/Mock) for main API, List Manager, and Payload server |
+| `src/componentTypes/AdZone.ts`         | Prop types for the `AdZone` component                                                |
+| `src/util.ts`                          | `SafeInvoke` — overloaded helper for type-safe optional callback invocation          |
 
 ### Key Patterns
 

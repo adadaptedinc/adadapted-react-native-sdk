@@ -1,6 +1,6 @@
 {
   "name": "@adadapted/react-native-sdk",
-  "version": "3.5.0",
+  "version": "0.0.0-development",
   "description": "The AdAdapted react-native SDK.",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
@@ -21,7 +21,7 @@
     "lint": "eslint --version && eslint ./",
     "compile": "tsc --version && tsc --project tsconfig.json --noEmit --noErrorTruncation --pretty",
     "test-coverage": "rm -rf coverage && jest --version --clearCache && jest --coverage --clearCache",
-    "enable-git-hooks": "git config core.hooksPath .git-hooks",
+    "enable-pre-commit": "pre-commit install",
     "test": "jest --version --clearCache && jest --passWithNoTests",
     "prettier": "prettier --list-different \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
     "prepack": "bob build",

@@ -119,7 +119,7 @@ export function reportInterceptEvent(): Promise<
                 status: 200,
                 statusText: "200",
             });
-        }
+        },
     );
 }
 
@@ -197,7 +197,7 @@ export function retrievePayloadContent(): Promise<
                 status: 200,
                 statusText: "200",
             });
-        }
+        },
     );
 }
 
