@@ -41,6 +41,12 @@ local.properties
 *.keystore
 !debug.keystore
 
+# Eclipse / Buildship
+.project
+.classpath
+.settings/
+bin/
+
 # Cocoapods
 #
 example/ios/Pods
