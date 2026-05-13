@@ -19,7 +19,7 @@ export function safeInvoke<R>(func: (() => R) | nil): R | undefined;
  */
 export function safeInvoke<A1, R>(
     func: ((arg1: A1) => R) | nil,
-    arg1: NoInfer<A1>
+    arg1: NoInfer<A1>,
 ): R | undefined;
 /**
  * See main definition above.
@@ -32,7 +32,7 @@ export function safeInvoke<A1, R>(
 export function safeInvoke<A1, A2, R>(
     func: ((arg1: A1, arg2: A2) => R) | nil,
     arg1: NoInfer<A1>,
-    arg2: NoInfer<A2>
+    arg2: NoInfer<A2>,
 ): R | undefined;
 /**
  * See main definition above.
@@ -47,7 +47,7 @@ export function safeInvoke<A1, A2, A3, R>(
     func: ((arg1: A1, arg2: A2, arg3: A3) => R) | nil,
     arg1: NoInfer<A1>,
     arg2: NoInfer<A2>,
-    arg3: NoInfer<A3>
+    arg3: NoInfer<A3>,
 ): R | undefined;
 /**
  * See main definition above.
@@ -64,7 +64,7 @@ export function safeInvoke<A1, A2, A3, A4, R>(
     arg1: NoInfer<A1>,
     arg2: NoInfer<A2>,
     arg3: NoInfer<A3>,
-    arg4: NoInfer<A4>
+    arg4: NoInfer<A4>,
 ): R | undefined;
 /**
  * See main definition above.
@@ -83,7 +83,7 @@ export function safeInvoke<A1, A2, A3, A4, A5, R>(
     arg2: NoInfer<A2>,
     arg3: NoInfer<A3>,
     arg4: NoInfer<A4>,
-    arg5: NoInfer<A5>
+    arg5: NoInfer<A5>,
 ): R | undefined;
 /**
  * See main definition above.
@@ -106,7 +106,7 @@ export function safeInvoke<A1, A2, A3, A4, A5, A6, R>(
     arg3: NoInfer<A3>,
     arg4: NoInfer<A4>,
     arg5: NoInfer<A5>,
-    arg6: NoInfer<A6>
+    arg6: NoInfer<A6>,
 ): R | undefined;
 /**
  * See main definition above.
@@ -114,7 +114,6 @@ export function safeInvoke<A1, A2, A3, A4, A5, A6, R>(
  * @param args - All arguments to call with the function.
  * @returns the method to be called if its defined.
  */
-// eslint-disable-next-line @typescript-eslint/ban-types
 export function safeInvoke(func: Function | nil, ...args: any[]): any {
     if (func) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument

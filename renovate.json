@@ -1,0 +1,88 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:recommended", ":dependencyDashboard"],
+    "baseBranches": ["main"],
+    "enabledManagers": ["npm", "github-actions", "pre-commit"],
+    "automerge": false,
+    "schedule": ["* 14-21 * * 1"],
+    "automergeSchedule": ["* 14-21 * * 1"],
+    "prConcurrentLimit": 5,
+    "minimumReleaseAge": "2 days",
+    "constraints": {
+        "node": "24"
+    },
+    "ignoreDeps": ["node"],
+    "vulnerabilityAlerts": {
+        "enabled": true
+    },
+    "lockFileMaintenance": {
+        "enabled": true,
+        "automerge": true,
+        "automergeType": "pr",
+        "automergeStrategy": "squash",
+        "platformAutomerge": true,
+        "labels": ["deps", "automerge", "lockfile"]
+    },
+    "packageRules": [
+        {
+            "matchManagers": ["npm"],
+            "matchBaseBranches": ["main"],
+            "matchUpdateTypes": ["patch", "minor"],
+            "groupName": "All npm patch+minor updates",
+            "groupSlug": "npm-patch-minor-all",
+            "automerge": true,
+            "automergeType": "pr",
+            "automergeStrategy": "squash",
+            "labels": ["deps", "automerge"]
+        },
+        {
+            "matchManagers": ["npm"],
+            "matchBaseBranches": ["main"],
+            "matchUpdateTypes": ["major"],
+            "automerge": false,
+            "labels": ["deps", "major"],
+            "reviewers": ["jeramyadadapted", "steveadadapted"]
+        },
+        {
+            "matchManagers": ["npm"],
+            "matchBaseBranches": ["main"],
+            "matchDepTypes": ["devDependencies"],
+            "matchUpdateTypes": ["major"],
+            "automerge": false,
+            "automergeType": "pr",
+            "automergeStrategy": "squash",
+            "labels": ["deps", "dev", "automerge"]
+        },
+        {
+            "matchManagers": ["pre-commit"],
+            "matchUpdateTypes": ["major", "minor", "patch"],
+            "groupName": "Pre-commit hook updates",
+            "groupSlug": "pre-commit-all",
+            "automerge": true,
+            "automergeType": "pr",
+            "automergeStrategy": "squash",
+            "labels": ["deps", "pre-commit", "automerge"]
+        },
+        {
+            "matchManagers": ["github-actions"],
+            "pinDigests": true
+        },
+        {
+            "matchManagers": ["github-actions"],
+            "matchUpdateTypes": ["minor", "patch"],
+            "groupName": "GitHub Actions minor+patch updates",
+            "groupSlug": "github-actions-minor-patch",
+            "automerge": true,
+            "automergeType": "pr",
+            "automergeStrategy": "squash",
+            "labels": ["deps", "infra", "github-actions", "automerge"]
+        },
+        {
+            "matchManagers": ["github-actions"],
+            "matchUpdateTypes": ["major"],
+            "automerge": false,
+            "labels": ["deps", "infra", "github-actions", "major"],
+            "reviewers": ["jeramyadadapted", "steveadadapted"]
+        }
+    ]
+}

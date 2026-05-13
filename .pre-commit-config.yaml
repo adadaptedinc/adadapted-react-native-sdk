@@ -1,0 +1,37 @@
+default_install_hook_types:
+    - pre-commit
+    - commit-msg
+
+repos:
+    - repo: local
+      hooks:
+          - id: prettier
+            name: Prettier Fix
+            entry: npm run prettier-fix
+            language: system
+            pass_filenames: false
+            always_run: true
+            stages: [pre-commit]
+
+          - id: eslint
+            name: Lint Validation
+            entry: npm run lint
+            language: system
+            pass_filenames: false
+            always_run: true
+            stages: [pre-commit]
+
+          - id: compile
+            name: Compile Validation
+            entry: npm run compile
+            language: system
+            pass_filenames: false
+            always_run: true
+            stages: [pre-commit]
+
+    - repo: https://github.com/compilerla/conventional-pre-commit
+      rev: v4.4.0
+      hooks:
+          - id: conventional-pre-commit
+            stages: [commit-msg]
+            args: [--verbose]

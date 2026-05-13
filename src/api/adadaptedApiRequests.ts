@@ -32,7 +32,7 @@ import { EnvironmentTypes } from "../componentTypes/Environment";
 export function initializeSession(
     requestData: InitializeSessionRequest,
     deviceOS: DeviceTypes.DeviceOS,
-    apiEnv: EnvironmentTypes.ApiEnv
+    apiEnv: EnvironmentTypes.ApiEnv,
 ): Promise<AxiosResponse<InitializeSessionResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.initializeSession()
@@ -56,7 +56,7 @@ export function initializeSession(
 export function refreshSessionData(
     requestData: RefreshSessionDataRequest,
     deviceOS: DeviceTypes.DeviceOS,
-    apiEnv: EnvironmentTypes.ApiEnv
+    apiEnv: EnvironmentTypes.ApiEnv,
 ): Promise<AxiosResponse<RefreshSessionDataResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.refreshSessionData()
@@ -67,7 +67,7 @@ export function refreshSessionData(
                   headers: {
                       accept: "application/json",
                   },
-              }
+              },
           );
 }
 
@@ -82,7 +82,7 @@ export function refreshSessionData(
 export function reportAdEvent(
     requestData: ReportAdEventRequest,
     deviceOS: DeviceTypes.DeviceOS,
-    apiEnv: EnvironmentTypes.ApiEnv
+    apiEnv: EnvironmentTypes.ApiEnv,
 ): Promise<AxiosResponse<ReportAdEventResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportAdEvent()
@@ -106,7 +106,7 @@ export function reportAdEvent(
 export function getKeywordIntercepts(
     requestData: KeywordInterceptsRequest,
     deviceOS: DeviceTypes.DeviceOS,
-    apiEnv: EnvironmentTypes.ApiEnv
+    apiEnv: EnvironmentTypes.ApiEnv,
 ): Promise<AxiosResponse<KeywordInterceptsResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.getKeywordIntercepts()
@@ -117,7 +117,7 @@ export function getKeywordIntercepts(
                   headers: {
                       accept: "application/json",
                   },
-              }
+              },
           );
 }
 
@@ -132,7 +132,7 @@ export function getKeywordIntercepts(
 export function reportInterceptEvent(
     requestData: ReportInterceptEventRequest,
     deviceOS: DeviceTypes.DeviceOS,
-    apiEnv: EnvironmentTypes.ApiEnv
+    apiEnv: EnvironmentTypes.ApiEnv,
 ): Promise<AxiosResponse<ReportInterceptEventResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportInterceptEvent()
@@ -156,7 +156,7 @@ export function reportInterceptEvent(
 export function reportListManagerEvents(
     requestData: ReportListManagerDataRequest,
     deviceOS: DeviceTypes.DeviceOS,
-    apiEnv: EnvironmentTypes.ListManagerApiEnv
+    apiEnv: EnvironmentTypes.ListManagerApiEnv,
 ): Promise<AxiosResponse<void>> {
     return apiEnv === EnvironmentTypes.ListManagerApiEnv.Mock
         ? adadaptedApiRequestMocks.reportListManagerEvents()
@@ -179,7 +179,7 @@ export function reportListManagerEvents(
  */
 export function reportPayloadContentStatus(
     requestData: ReportPayloadDataRequest,
-    apiEnv: EnvironmentTypes.PayloadApiEnv
+    apiEnv: EnvironmentTypes.PayloadApiEnv,
 ): Promise<AxiosResponse<void>> {
     return apiEnv === EnvironmentTypes.PayloadApiEnv.Mock
         ? adadaptedApiRequestMocks.reportPayloadContentStatus()
@@ -201,7 +201,7 @@ export function reportPayloadContentStatus(
  */
 export function retrievePayloadContent(
     requestData: RetrievePayloadItemDataRequest,
-    apiEnv: EnvironmentTypes.PayloadApiEnv
+    apiEnv: EnvironmentTypes.PayloadApiEnv,
 ): Promise<AxiosResponse<RetrievePayloadItemDataResponse>> {
     return apiEnv === EnvironmentTypes.PayloadApiEnv.Mock
         ? adadaptedApiRequestMocks.retrievePayloadContent()

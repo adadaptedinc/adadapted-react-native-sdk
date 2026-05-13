@@ -1,4 +1,4 @@
-import { ViewStyle } from "react-native/types";
+import { ViewStyle } from "react-native";
 import { Zone, DetailedListItem } from "src/api/adadaptedApiTypes";
 import { DeviceTypes } from "./Device";
 import { EnvironmentTypes } from "./Environment";
