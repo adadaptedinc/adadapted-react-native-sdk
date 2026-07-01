@@ -23,8 +23,6 @@ jobs:
                   registry-url: "https://registry.npmjs.org"
             - name: NPM Install
               run: npm ci
-            - name: NPM Audit Fix
-              run: npm audit fix
             - if: ${{ inputs.new_tag != '' }}
               name: Set package version from release tag
               run: npm version ${{inputs.new_tag}} --no-git-tag-version --allow-same-version
