@@ -40,8 +40,6 @@ jobs:
                   node-version: 24
             - name: NPM Install
               run: npm ci
-            - name: NPM Audit Fix
-              run: npm audit fix
             - name: Prettier Validation
               run: npm run prettier
             - name: Linting Validation
