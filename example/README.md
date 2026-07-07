@@ -1,36 +1,39 @@
 # AdAdapted React Native SDK / Example App
 
-Start by installing all NPM packages. From your console and within the `/example` directory run the following command:
+All commands below are run from the `/example` directory unless noted otherwise.
 
 ## Installing Dependencies
 
-```javascript
+Install the NPM packages:
+
+```bash
 npm install
 ```
 
----
+**iOS only** — install the CocoaPods dependencies. This project uses Bundler to pin the CocoaPods version, so install the gems first, then the pods:
 
-Next, from your console, navigate to the `/example/ios` directory and make sure all pod files are installed by running the following command:
-
-```javascript
-pod install
+```bash
+bundle install                 # first time only
+bundle exec pod install --project-directory=ios
 ```
+
+(Alternatively, from the repository root you can run `npm run example-app-install-pods`, which runs `pod install` in `example/ios` using whatever CocoaPods is on your PATH.)
 
 ## Starting The App Server
 
-Now, from the `/example` directory, start the react-native app server by running the following command:
+Start the Metro bundler and leave it running in its own terminal tab:
 
-```javascript
-react-native start --reset-cache
+```bash
+npm start
 ```
 
-Including the `--reset-cache` will make sure there are not any cached files being served when the app server is ran.
+This runs `react-native start --reset-cache`. The `--reset-cache` flag makes sure no stale cached files are served.
 
 ## Running Emulators
 
-Once the react-native app server is running, we need to open a new console tab and once again navigate to the `/example` directory. From here, we will start the application using one of the two approaches below.
+With Metro running (`npm start`), open a **new** terminal tab in `/example` and launch the app using one of the platform workflows below.
 
-**NOTE:** _You can run both emulators at the same time, you just need to make sure you do so from two separate console tabs._
+**NOTE:** _You can run both the iOS and Android emulators at the same time — just launch each from its own terminal tab._
 
 ### iOS
 
@@ -68,15 +71,30 @@ npm run ios-sim-build
 
 ### Android
 
-Run the following command:
+Start an Android emulator first (launch one from Android Studio's Device Manager, or run a booted device), then run:
 
-```javascript
-react-native run-android
+```bash
+# Terminal 1 — keep running
+npm start
+
+# Terminal 2 — builds, installs, and launches the app on the running emulator
+npm run run-android
 ```
 
-This will run the test application within the Android emulator once it has finished building (might take a minute or two in order to complete the initial build).
+The initial build may take a minute or two to complete. To stream the device logs in another tab:
 
-**NOTE:** _You must have Android Studio installed and setup in order to run the iOS emulator. You can download Android Studio [here](https://developer.android.com/studio). You will also need to have Java installed as well and can download it [here](https://www.oracle.com/java/technologies/javase-downloads.html)._
+```bash
+npm run log-android
+```
+
+Both scripts set `JAVA_HOME` to your installed Java 21 (`/usr/libexec/java_home -v 21`) and point `ANDROID_HOME` at `$HOME/Library/Android/sdk` before invoking `react-native`, so you don't need those environment variables exported globally.
+
+| Script | What it does |
+|--------|-------------|
+| `npm run run-android` | Builds, installs, and launches the app on the running Android emulator |
+| `npm run log-android` | Streams the Android device logs to the terminal (Ctrl+C to stop) |
+
+**NOTE:** _You must have Android Studio installed and set up in order to run the Android emulator. You can download Android Studio [here](https://developer.android.com/studio). You also need Java 21 installed; the `run-android`/`log-android` scripts expect it at the path returned by `/usr/libexec/java_home -v 21`._
 
 ---
 
