@@ -3,8 +3,10 @@ const fs = require("fs");
 const path = require("path");
 // Metro 0.80+ no longer exposes this via "metro-config/src/...";
 // the old internals are reachable through the "./private/*" export.
-const exclusionList =
-    require("metro-config/private/defaults/exclusionList").default;
+// Handle both export shapes: compiled builds expose it as `.default`,
+// while a plain CommonJS build exports the function directly.
+const exclusionListModule = require("metro-config/private/defaults/exclusionList");
+const exclusionList = exclusionListModule.default || exclusionListModule;
 const root = path.resolve(__dirname, "..");
 const pak = JSON.parse(
     fs.readFileSync(path.join(root, "package.json"), "utf8"),

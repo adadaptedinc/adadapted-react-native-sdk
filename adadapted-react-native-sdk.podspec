@@ -7,6 +7,9 @@ Pod::Spec.new do |s|
   # Strip any prerelease suffix (e.g. the semantic-release placeholder
   # "0.0.0-development"). CocoaPods' default ">= 0" requirement does not match
   # prerelease versions, which breaks local `:path` installs of this pod.
+  # NOTE: this also flattens genuine prerelease tags (e.g. "3.6.0-beta.1" ->
+  # "3.6.0"), which would then not match the `:tag` in s.source below. This
+  # SDK does not publish CocoaPods prereleases, so that tradeoff is acceptable.
   s.version      = package["version"].split("-").first
   s.summary      = package["description"]
   s.homepage     = package["homepage"]
