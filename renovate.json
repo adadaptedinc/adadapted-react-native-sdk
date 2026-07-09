@@ -25,6 +25,12 @@
     },
     "packageRules": [
         {
+            "description": "Pin Babel to v7 until the React Native toolchain (@react-native/babel-preset, metro, react-native-builder-bob) supports Babel 8. Allows v7 patch/minor updates but blocks the v8 major.",
+            "matchManagers": ["npm"],
+            "matchPackageNames": ["@babel/**"],
+            "allowedVersions": "<8"
+        },
+        {
             "matchManagers": ["npm"],
             "matchBaseBranches": ["main"],
             "matchUpdateTypes": ["patch", "minor"],
