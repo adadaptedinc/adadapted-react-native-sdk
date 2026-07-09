@@ -1,8 +1,5 @@
 require_relative '../node_modules/react-native/scripts/react_native_pods'
 
-# Disable New Architecture until all native deps are fully compatible
-ENV['RCT_NEW_ARCH_ENABLED'] = '0'
-
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
