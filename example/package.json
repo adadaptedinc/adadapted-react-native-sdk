@@ -23,14 +23,13 @@
     "react-native-intersection-observer": "^0.3.1",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
-    "react-native-webview": "^13.16.1",
-    "react-router-native": "^6.30.3"
+    "react-native-webview": "^13.16.1"
   },
   "devDependencies": {
-    "@react-native-community/cli": "20.2.0",
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.2",
     "@babel/runtime": "^7.20.0",
+    "@react-native-community/cli": "20.2.0",
     "@react-native/babel-preset": "0.86.2",
     "@react-native/eslint-config": "0.86.2",
     "@react-native/metro-config": "0.86.2",
