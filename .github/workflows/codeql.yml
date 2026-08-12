@@ -1,0 +1,60 @@
+# CodeQL code scanning (advanced setup).
+#
+# This replaces GitHub's default CodeQL setup, which cannot express the
+# build-mode below. Default setup must be disabled for this workflow to
+# publish results:
+#   Settings > Code security > Code scanning > CodeQL analysis > Advanced
+#
+# All four languages use `build-mode: none` so nothing has to be compiled.
+# java-kotlin specifically CANNOT use autobuild: android/build.gradle puts
+# `com.facebook.react:react-native-gradle-plugin` on the buildscript
+# classpath, and that artifact is not published to Maven Central or Google
+# Maven at any version. React Native ships it inside
+# node_modules/@react-native/gradle-plugin, and example/android/settings.gradle
+# substitutes it via `includeBuild`. Autobuild runs before `npm install`, so
+# there is no node_modules to substitute from and dependency resolution fails.
+
+name: CodeQL
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    schedule:
+        # Weekly, Mondays — aligned with the Renovate window in renovate.json.
+        - cron: "27 15 * * 1"
+
+permissions:
+    contents: read
+
+jobs:
+    analyze:
+        name: Analyze (${{ matrix.language }})
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            security-events: write # required to upload SARIF results
+            contents: read
+            actions: read
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - language: actions
+                    - language: java-kotlin
+                    - language: javascript-typescript
+                    - language: ruby
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+            - name: Initialize CodeQL
+              uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+              with:
+                  languages: ${{ matrix.language }}
+                  build-mode: none
+                  # Matches the query suite the previous default setup used.
+                  queries: security-extended
+            - name: Perform CodeQL Analysis
+              uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+              with:
+                  category: "/language:${{ matrix.language }}"
