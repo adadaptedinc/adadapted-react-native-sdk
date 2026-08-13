@@ -1,18 +1,27 @@
 # CodeQL code scanning (advanced setup).
 #
 # This replaces GitHub's default CodeQL setup, which cannot express the
-# build-mode below. Default setup must be disabled for this workflow to
-# publish results:
+# per-language build modes below. Default setup must stay disabled or SARIF
+# upload is rejected with "CodeQL analyses from advanced configurations cannot
+# be processed when the default setup is enabled":
 #   Settings > Code security > Code scanning > CodeQL analysis > Advanced
 #
-# All four languages use `build-mode: none` so nothing has to be compiled.
-# java-kotlin specifically CANNOT use autobuild: android/build.gradle puts
-# `com.facebook.react:react-native-gradle-plugin` on the buildscript
-# classpath, and that artifact is not published to Maven Central or Google
-# Maven at any version. React Native ships it inside
-# node_modules/@react-native/gradle-plugin, and example/android/settings.gradle
-# substitutes it via `includeBuild`. Autobuild runs before `npm install`, so
-# there is no node_modules to substitute from and dependency resolution fails.
+# java-kotlin requires build-mode: manual. Buildless extraction (build-mode:
+# none) only understands Java, and this repository contains no Java at all -
+# just four Kotlin files - so `none` extracts nothing and fails the run with
+# "CodeQL could not process any code written in Java/Kotlin" (exit 32).
+#
+# Autobuild cannot be used either: android/build.gradle puts
+# com.facebook.react:react-native-gradle-plugin on the buildscript classpath,
+# and that artifact is not published to Maven Central or Google Maven at any
+# version. React Native ships it inside node_modules/@react-native/
+# gradle-plugin, and example/android/settings.gradle substitutes it via
+# includeBuild. Autobuild runs before any npm install, so there is no
+# node_modules to substitute from. Hence the explicit `npm ci` below.
+#
+# Only example/ needs installing: example/android/build.gradle resolves
+# react-native from "$rootDir/../node_modules", and autolinking runs from
+# example/. The root package is not involved in the Android build.
 
 name: CodeQL
 
@@ -32,7 +41,7 @@ jobs:
     analyze:
         name: Analyze (${{ matrix.language }})
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        timeout-minutes: 45
         permissions:
             security-events: write # required to upload SARIF results
             contents: read
@@ -42,18 +51,73 @@ jobs:
             matrix:
                 include:
                     - language: actions
+                      build-mode: none
                     - language: java-kotlin
+                      build-mode: manual
                     - language: javascript-typescript
+                      build-mode: none
                     - language: ruby
+                      build-mode: none
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+            # JDK 17 matches jvmToolchain(17) and sourceCompatibility in
+            # android/build.gradle, so Gradle does not need to provision a
+            # toolchain.
+            - if: matrix.language == 'java-kotlin'
+              name: Set up JDK 17
+              uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+              with:
+                  distribution: temurin
+                  java-version: "17"
+
+            - if: matrix.language == 'java-kotlin'
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+              with:
+                  node-version: 24
+                  cache: npm
+                  cache-dependency-path: example/package-lock.json
+
+            - if: matrix.language == 'java-kotlin'
+              name: Install example app dependencies
+              working-directory: example
+              run: npm ci
+
             - name: Initialize CodeQL
               uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
               with:
                   languages: ${{ matrix.language }}
-                  build-mode: none
+                  build-mode: ${{ matrix.build-mode }}
                   # Matches the query suite the previous default setup used.
                   queries: security-extended
+
+            # Compiles only the SDK's Kotlin, which is all CodeQL needs to
+            # extract. The module is built through example/android because that
+            # is where settings.gradle maps :adadaptedreactnativesdk and
+            # supplies the React Native Gradle plugin.
+            #
+            # in-process keeps kotlinc inside the Gradle JVM; the Kotlin
+            # compile daemon would otherwise run outside CodeQL's tracer and
+            # the extractor would see no source.
+            #
+            # --rerun-tasks is load-bearing, not belt-and-braces. CodeQL can
+            # only extract code that is actually compiled during this step, so
+            # an UP-TO-DATE compileDebugKotlin yields an empty database and
+            # fails analysis with "CodeQL could not process any code written in
+            # Java/Kotlin" - while the build log still reports BUILD
+            # SUCCESSFUL. Fresh runners have no Gradle cache today, but adding
+            # build caching (e.g. gradle/actions/setup-gradle) without this
+            # flag would silently drop Kotlin coverage.
+            - if: matrix.language == 'java-kotlin'
+              name: Build Kotlin sources for extraction
+              working-directory: example/android
+              run: |
+                  ./gradlew :adadaptedreactnativesdk:compileDebugKotlin \
+                    --no-daemon \
+                    --console=plain \
+                    --rerun-tasks \
+                    -Dkotlin.compiler.execution.strategy=in-process
+
             - name: Perform CodeQL Analysis
               uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
               with:
