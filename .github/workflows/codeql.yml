@@ -83,6 +83,34 @@ jobs:
               working-directory: example
               run: npm ci
 
+            # Gradle configures every project in the build, including :app, and
+            # :app pulls in the NDK because newArchEnabled=true. The runner's
+            # image does not have the NDK version React Native asks for, so
+            # AGP tries to install it and fails with
+            # LicenceNotAcceptedException. Accepting the licences lets Gradle
+            # fetch it.
+            #
+            # :app cannot simply be left unconfigured: --configure-on-demand
+            # skips it, but then the dependency substitution that maps
+            # com.facebook.react:react-native onto the local React Native
+            # project never happens and the Kotlin fails to compile against
+            # unresolved React types.
+            #
+            # No NDK version is named here on purpose - Gradle installs
+            # whatever the current React Native requires, so this survives RN
+            # upgrades.
+            - if: matrix.language == 'java-kotlin'
+              name: Accept Android SDK licences
+              run: |
+                  sdkmanager="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools" \
+                    -name sdkmanager -type f 2>/dev/null | head -1)"
+                  if [ -z "$sdkmanager" ]; then
+                    echo "sdkmanager not found under ${ANDROID_HOME:-$ANDROID_SDK_ROOT}" >&2
+                    exit 1
+                  fi
+                  yes | "$sdkmanager" --licenses > /dev/null 2>&1 || true
+                  echo "Accepted licences using $sdkmanager"
+
             - name: Initialize CodeQL
               uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
               with:
