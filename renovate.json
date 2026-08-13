@@ -1,7 +1,7 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": ["config:recommended", ":dependencyDashboard"],
-    "baseBranches": ["main"],
+    "baseBranchPatterns": ["main"],
     "enabledManagers": ["npm", "github-actions", "pre-commit"],
     "automerge": false,
     "schedule": ["* 14-21 * * 1"],
