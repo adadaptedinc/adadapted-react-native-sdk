@@ -136,6 +136,15 @@ jobs:
             # SUCCESSFUL. Fresh runners have no Gradle cache today, but adding
             # build caching (e.g. gradle/actions/setup-gradle) without this
             # flag would silently drop Kotlin coverage.
+            #
+            # The heap override is needed because example/android/
+            # gradle.properties sets -Xmx2048m, and jetifying the react-android
+            # AAR (android.enableJetifier=true) exhausts that on a cold cache,
+            # failing with "Java heap space" inside JetifyTransform. Local runs
+            # do not hit it because the transform output is already cached.
+            # Jetifier is legacy support-library rewriting that React Native no
+            # longer needs; turning it off would avoid this entirely, but that
+            # changes how the example app builds and belongs in its own change.
             - if: matrix.language == 'java-kotlin'
               name: Build Kotlin sources for extraction
               working-directory: example/android
@@ -144,6 +153,7 @@ jobs:
                     --no-daemon \
                     --console=plain \
                     --rerun-tasks \
+                    -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g" \
                     -Dkotlin.compiler.execution.strategy=in-process
 
             - name: Perform CodeQL Analysis
