@@ -79,8 +79,13 @@ export namespace AdZoneTypes {
 
     /**
      * Defines the style typing for the component.
+     *
+     * Declared as a type alias rather than an interface on purpose. React
+     * Native's Strict TypeScript API constrains StyleSheet.create to a type
+     * with a `readonly [key: string]` index signature, and interfaces do not
+     * get an implicit index signature the way type aliases do.
      */
-    export interface StyleDef {
+    export type StyleDef = {
         /**
          * Styles for the main View element.
          */
@@ -93,5 +98,5 @@ export namespace AdZoneTypes {
          * Styles for the ReportAdButton.
          */
         reportAd: ViewStyle;
-    }
+    };
 }

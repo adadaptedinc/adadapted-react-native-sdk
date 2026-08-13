@@ -52,7 +52,10 @@ class AdadaptedReactNativeSdkModule(private val _reactContext: ReactApplicationC
         try {
             val packageInfo: PackageInfo = reactContext.packageManager.getPackageInfo(reactContext.packageName, 0);
 
-          bundleVersion = packageInfo.versionName
+            // versionName is @Nullable on newer platform SDKs, so fall back to
+            // the same value the NameNotFoundException branch below reports
+            // rather than letting a null reach the device payload.
+            bundleVersion = packageInfo.versionName ?: unknownValue;
         }
         catch(ex: PackageManager.NameNotFoundException) {
             bundleVersion = unknownValue;

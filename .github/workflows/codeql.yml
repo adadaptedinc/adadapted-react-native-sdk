@@ -137,14 +137,14 @@ jobs:
             # build caching (e.g. gradle/actions/setup-gradle) without this
             # flag would silently drop Kotlin coverage.
             #
-            # The heap override is needed because example/android/
-            # gradle.properties sets -Xmx2048m, and jetifying the react-android
-            # AAR (android.enableJetifier=true) exhausts that on a cold cache,
-            # failing with "Java heap space" inside JetifyTransform. Local runs
-            # do not hit it because the transform output is already cached.
-            # Jetifier is legacy support-library rewriting that React Native no
-            # longer needs; turning it off would avoid this entirely, but that
-            # changes how the example app builds and belongs in its own change.
+            # The heap override exists because example/android/gradle.properties
+            # sets -Xmx2048m, which is not enough for this build on a cold
+            # Gradle cache. It was originally added for a "Java heap space"
+            # failure inside JetifyTransform; android.enableJetifier has since
+            # been removed (React Native no longer needs that legacy
+            # support-library rewriting), so that specific transform is gone.
+            # The headroom is kept for the AGP 9 / Gradle 9 build, which is
+            # heavier than what the 2 GB default was sized for.
             - if: matrix.language == 'java-kotlin'
               name: Build Kotlin sources for extraction
               working-directory: example/android

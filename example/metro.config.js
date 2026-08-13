@@ -12,6 +12,19 @@ const pak = JSON.parse(
     fs.readFileSync(path.join(root, "package.json"), "utf8"),
 );
 
+/**
+ * Escapes a string for safe use inside a regular expression.
+ *
+ * This replaces the deprecated global `escape()`, which is a URL escaper rather
+ * than a regex escaper and would mangle any path containing characters such as
+ * a space into `%20`, silently producing a pattern that never matches.
+ * @param value - The string to escape.
+ * @returns The escaped string.
+ */
+function escapeForRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 const modules = [
     "@babel/runtime",
     ...Object.keys({
@@ -29,8 +42,19 @@ const modules = [
 const config = {
     resolver: {
         sourceExts: ["jsx", "js", "ts", "tsx", "json"],
-        blacklistRE: exclusionList([
-            new RegExp(`^${escape(path.join(root, "node_modules"))}\\/.*$`),
+        // Keeps the repo-root node_modules out of the module graph so the SDK
+        // sources under ../src resolve their peers from example/node_modules
+        // via extraNodeModules below.
+        //
+        // This was previously `blacklistRE`, an alias Metro has since removed.
+        // Metro silently ignored the unknown key, so root node_modules stayed
+        // in the graph and the SDK resolved a second copy of React, failing at
+        // runtime with "Invalid hook call" / "Cannot read property 'useState'
+        // of null" inside AdZone.
+        blockList: exclusionList([
+            new RegExp(
+                `^${escapeForRegExp(path.join(root, "node_modules"))}\\/.*$`,
+            ),
         ]),
         extraNodeModules: modules.reduce((acc, name) => {
             acc[name] = path.join(__dirname, "node_modules", name);

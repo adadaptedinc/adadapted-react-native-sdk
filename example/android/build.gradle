@@ -2,21 +2,27 @@
 
 buildscript {
     ext {
-        buildToolsVersion = "36.1.0"
+        buildToolsVersion = "37.0.0"
         minSdkVersion = 28
-        compileSdkVersion = 36
+        compileSdkVersion = 37
         targetSdkVersion = 36
-        ndkVersion = "30.0.14904198"
-        kotlinVersion = "2.0.21"
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "2.2.0"
     }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath('com.android.tools.build:gradle:8.7.3')
-        classpath("com.facebook.react:react-native-gradle-plugin:0.80.3")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        // Versions are deliberately omitted. React Native's Gradle plugin is
+        // supplied by the includeBuild in settings.gradle and provides the
+        // matching Android Gradle plugin and Kotlin plugin versions from its
+        // own version catalog. Pinning them here is what let this project
+        // drift to AGP 8.7.3 / react-native-gradle-plugin 0.80.3 while
+        // actually building against something else entirely.
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
     }
 }
 
