@@ -64,12 +64,10 @@
     "react-native-webview": "*"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@eslint/eslintrc": "^3.0.0",
     "@eslint/js": "^9.0.0",
     "@react-native/jest-preset": "^0.86.0",
     "@react-native/typescript-config": "^0.86.0",
-    "@types/react": "^19.0.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@types/react": "^19.0.0",
     "@types/react-native-base64": "^0.2.2",
