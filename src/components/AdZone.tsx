@@ -3,7 +3,14 @@
  * @module
  */
 import React, { useEffect, useState } from "react";
-import { DeviceEventEmitter, Linking, StyleSheet, View } from "react-native";
+import {
+    DeviceEventEmitter,
+    Linking,
+    StyleProp,
+    StyleSheet,
+    View,
+    ViewStyle,
+} from "react-native";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import { Ad, AdActionType, ReportedEventType } from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
@@ -116,16 +123,17 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     // Generate the styles each render in case the ad is updated with
     // new settings that need to be reflected in the styles of the view.
     const styles = generateStyles();
-    const finalMainViewStyle = styles.mainView;
 
-    if (
+    // If there is no ad to display, make the view take up no space.
+    //
+    // Composed rather than mutated: StyleSheet.create returns Readonly styles
+    // under React Native's Strict TypeScript API, and mutating the object it
+    // returns was never safe even when the types allowed it.
+    const finalMainViewStyle: StyleProp<ViewStyle> =
         !props.adZoneData.ads[adIndexShown] ||
         !props.adZoneData.ads[adIndexShown].creative_url
-    ) {
-        // If there is no ad to display, make the view take up no space.
-        finalMainViewStyle.width = 0;
-        finalMainViewStyle.height = 0;
-    }
+            ? [styles.mainView, { width: 0, height: 0 }]
+            : styles.mainView;
 
     /**
      * Triggers when the user selects the ad zone.

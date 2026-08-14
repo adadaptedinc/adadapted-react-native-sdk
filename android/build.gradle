@@ -8,9 +8,19 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.android.tools.build:gradle:8.7.2'
+    // The Android Gradle plugin and React Native Gradle plugin versions are
+    // deliberately omitted, matching the React Native 0.87 template. React
+    // Native's Gradle plugin is supplied by the consuming project's
+    // includeBuild and provides the matching AGP version.
+    //
+    // These used to be pinned to AGP 8.7.2 and react-native-gradle-plugin
+    // 0.75.1. The latter was never resolvable from any Maven repository - it
+    // only ever worked because includeBuild substitutes by group:module and
+    // ignores the version - so the pin silently meant nothing while looking
+    // authoritative.
+    classpath 'com.android.tools.build:gradle'
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    classpath("com.facebook.react:react-native-gradle-plugin:0.75.1")
+    classpath 'com.facebook.react:react-native-gradle-plugin'
   }
 }
 
@@ -27,11 +37,25 @@ def getExtOrIntegerDefault(name) {
 
 android {
   namespace "com.adadapted.adadaptedreactnativesdk"
-    compileSdk 34
-    buildToolsVersion '34.0.0'
+    // Driven by the consuming project's ext when present, falling back to the
+    // AdadaptedReactNativeSdk_* values in gradle.properties. These were
+    // previously hardcoded to 34 while gradle.properties advertised 33, so the
+    // helpers below existed but were never used for SDK levels.
+    //
+    // No explicit floor is needed. react-android 0.87.0 publishes
+    // aarMetadata minCompileSdk=34, so AGP already rejects any consumer below
+    // 34 with an error naming react-android. That is exactly the value this
+    // line hardcoded before, so deferring to the consumer gives up nothing.
+    // Clamping with Math.max here would duplicate React Native's own
+    // declaration, silently override the consumer instead of telling them, and
+    // hardcode a number that goes stale.
+    compileSdk getExtOrIntegerDefault('compileSdkVersion')
+    buildToolsVersion getExtOrDefault('buildToolsVersion')
     defaultConfig {
+      // Not ext-driven on purpose: 28 is this SDK's own floor and should not be
+      // lowered by a consuming app.
       minSdkVersion 28
-      targetSdk 34
+      targetSdk getExtOrIntegerDefault('targetSdkVersion')
       versionCode 1
     versionName "1.0"
   }
