@@ -41,6 +41,14 @@ android {
     // AdadaptedReactNativeSdk_* values in gradle.properties. These were
     // previously hardcoded to 34 while gradle.properties advertised 33, so the
     // helpers below existed but were never used for SDK levels.
+    //
+    // No explicit floor is needed. react-android 0.87.0 publishes
+    // aarMetadata minCompileSdk=34, so AGP already rejects any consumer below
+    // 34 with an error naming react-android. That is exactly the value this
+    // line hardcoded before, so deferring to the consumer gives up nothing.
+    // Clamping with Math.max here would duplicate React Native's own
+    // declaration, silently override the consumer instead of telling them, and
+    // hardcode a number that goes stale.
     compileSdk getExtOrIntegerDefault('compileSdkVersion')
     buildToolsVersion getExtOrDefault('buildToolsVersion')
     defaultConfig {
