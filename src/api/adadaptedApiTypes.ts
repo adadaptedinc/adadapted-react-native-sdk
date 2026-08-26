@@ -677,6 +677,38 @@ export interface ReportListManagerDataRequest extends BaseRequestInputs {
      *       this request too.
      */
     allow_retargeting: number;
+    /**
+     * The device name. Android calls this field "device" on this request.
+     */
+    device: string;
+    /**
+     * The device operating system.
+     */
+    os: string;
+    /**
+     * The device operating system version.
+     */
+    osv: string;
+    /**
+     * The device's timezone.
+     */
+    timezone: string;
+    /**
+     * The device's cellular carrier.
+     */
+    carrier: string;
+    /**
+     * The device width in pixels.
+     */
+    dw: number;
+    /**
+     * The device height in pixels.
+     */
+    dh: number;
+    /**
+     * The device screen density.
+     */
+    density: string;
 }
 
 /**

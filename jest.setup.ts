@@ -3,26 +3,32 @@
  * @module
  */
 import { NativeModules } from "react-native";
+import { DeviceTypes } from "./src/componentTypes/Device";
 
 /**
  * The device info the native bridge resolves, as the JSON string the real one
  * returns. Every test needs it, so it is stubbed once here.
+ *
+ * Typed rather than a loose literal on purpose. It is JSON.stringify'd, so nothing
+ * would otherwise check it against DeviceInfo, and a fixture carrying fields the
+ * bridge does not send (or missing ones it does) hides exactly the class of bug
+ * where the SDK quietly drops device data from its requests.
  */
-const DEVICE_INFO = {
+const DEVICE_INFO: DeviceTypes.DeviceInfo = {
     udid: "test-udid",
     deviceName: "test-device",
     systemName: "ios_react_native",
     systemVersion: "17.0",
     deviceCarrier: "test-carrier",
-    deviceHeight: 2532,
-    deviceWidth: 1170,
-    deviceScreenCustom: "3.0",
+    deviceModel: "test-model",
+    deviceHeight: "2532",
+    deviceWidth: "1170",
+    deviceScreenDensity: "3.0",
+    deviceLocale: "en-US",
+    deviceTimezone: "America/Detroit",
     bundleId: "com.test.app",
     bundleVersion: "1.0",
-    allowRetargeting: true,
     isAdTrackingEnabled: true,
-    deviceLocale: "en-US",
-    deviceUTCOffset: "-0500",
 };
 
 // Assigned onto NativeModules rather than through jest.mock("react-native").

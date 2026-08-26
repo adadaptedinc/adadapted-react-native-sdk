@@ -8,13 +8,15 @@
  * @module
  */
 import React from "react";
-import { AppState, Linking } from "react-native";
+import { Linking } from "react-native";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AdZone } from "../components/AdZone";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import {
     AdEventReport,
     AdRequestContext,
+    notifyAppActiveChanged,
+    notifySdkTeardown,
     setAdRequestContext,
     PendingAtlContent,
 } from "../adRequestContext";
@@ -50,7 +52,6 @@ let reportSdkEvent: jest.Mock;
 let forwardAddToList: jest.Mock;
 let pendingAtlContent: PendingAtlContent | undefined;
 let retrieveAdMock: jest.SpyInstance;
-let appStateHandler: ((status: string) => void) | undefined;
 
 /**
  * Builds an ad, overriding only what a test cares about.
@@ -134,6 +135,7 @@ function buildContext(): AdRequestContext {
         bundleId: "com.test.app",
         sdkVersion: "1.2.3",
         storeId: "store-1",
+        xyDragDistanceAllowed: undefined,
         getSessionId: () => SESSION_ID,
         reportAdEvent,
         reportSdkEvent,
@@ -179,18 +181,6 @@ beforeEach(() => {
 
     retrieveAdMock = jest.spyOn(adadaptedApiRequests, "retrieveAd");
     serveAd(buildAd());
-
-    appStateHandler = undefined;
-
-    jest.spyOn(AppState, "addEventListener").mockImplementation(
-        (type, handler) => {
-            if (type === "change") {
-                appStateHandler = handler as (status: string) => void;
-            }
-
-            return { remove: jest.fn() };
-        },
-    );
 
     jest.spyOn(Linking, "openURL").mockResolvedValue();
 });
@@ -238,11 +228,21 @@ describe("requesting an ad", () => {
 
         await settle();
 
-        expect(reportedTypes()).toContain(ReportedEventType.ZONE_MOUNTED);
+        // Counted, not merely present: a toContain assertion passes at any
+        // multiplicity and would miss a zone reporting two unmounts for one mount.
+        expect(
+            reportedTypes().filter(
+                (type) => type === ReportedEventType.ZONE_MOUNTED,
+            ),
+        ).toHaveLength(1);
 
         view.unmount();
 
-        expect(reportedTypes()).toContain(ReportedEventType.ZONE_UNMOUNTED);
+        expect(
+            reportedTypes().filter(
+                (type) => type === ReportedEventType.ZONE_UNMOUNTED,
+            ),
+        ).toHaveLength(1);
     });
 
     it("sends the recipe context the zone was given", async () => {
@@ -546,7 +546,7 @@ describe("visibility", () => {
         await settle();
 
         await act(async () => {
-            appStateHandler!("background");
+            notifyAppActiveChanged(false);
 
             await Promise.resolve();
         });
@@ -557,7 +557,7 @@ describe("visibility", () => {
         expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION_END);
 
         await act(async () => {
-            appStateHandler!("active");
+            notifyAppActiveChanged(true);
 
             await Promise.resolve();
         });
@@ -566,24 +566,48 @@ describe("visibility", () => {
         expect(retrieveAdMock).toHaveBeenCalledTimes(2);
     });
 
-    it("ignores the transient inactive state", async () => {
+    it("closes out its impression when the SDK is torn down", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
+        expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION);
+
+        // unmount() releases the request context, which makes every report a
+        // no-op, so zones have to be closed out before that happens.
         await act(async () => {
-            appStateHandler!("inactive");
+            notifySdkTeardown();
 
             await Promise.resolve();
         });
 
-        // The countdown must keep running, or an iOS app switcher glance would
-        // freeze the zone.
-        await advance(30_000);
+        const types = reportedTypes();
 
-        expect(retrieveAdMock).toHaveBeenCalledTimes(2);
+        expect(types).toContain(ReportedEventType.IMPRESSION_END);
+        expect(types).toContain(ReportedEventType.ZONE_UNMOUNTED);
+    });
+
+    it("reports one unmount even when teardown is followed by unmounting", async () => {
+        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        await act(async () => {
+            notifySdkTeardown();
+
+            await Promise.resolve();
+        });
+
+        view.unmount();
+
+        // Exactly one, however the zone goes away.
+        expect(
+            reportedTypes().filter(
+                (type) => type === ReportedEventType.ZONE_UNMOUNTED,
+            ),
+        ).toHaveLength(1);
     });
 });
 
@@ -902,6 +926,137 @@ describe("add to list without a zone handler", () => {
 
         expect(onAddToListTriggered).toHaveBeenCalled();
         expect(forwardAddToList).not.toHaveBeenCalled();
+    });
+});
+
+describe("slow and overlapping requests", () => {
+    it("does not bill an impression pair for an ad replaced on arrival", async () => {
+        // A response slower than the refresh interval. The countdown must not have
+        // been running while it was open, or the ad lands on an expired timer and
+        // is rotated away in the same tick it was shown.
+        serveAd(buildAd({ refresh_time: 15 }));
+
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        let release: (() => void) | undefined;
+
+        retrieveAdMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    release = () =>
+                        resolve({
+                            data: {
+                                success: true,
+                                data: {
+                                    ad: buildAd({
+                                        id: "ad-slow",
+                                        impression_id: "impression-slow",
+                                        refresh_time: 15,
+                                    }),
+                                    port_height: 100,
+                                    port_width: 320,
+                                },
+                            },
+                        });
+                }),
+        );
+
+        await advance(15_000);
+
+        // Well past the refresh interval, with the request still open.
+        await advance(60_000);
+
+        await act(async () => {
+            release!();
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        const slowImpressions = reportAdEvent.mock.calls.filter(
+            ([event]) =>
+                event.adId === "ad-slow" &&
+                event.eventType === ReportedEventType.IMPRESSION,
+        );
+        const slowEnds = reportAdEvent.mock.calls.filter(
+            ([event]) =>
+                event.adId === "ad-slow" &&
+                event.eventType === ReportedEventType.IMPRESSION_END,
+        );
+
+        expect(slowImpressions).toHaveLength(1);
+        expect(slowEnds).toHaveLength(0);
+    });
+
+    it("picks up a context change that arrived during the first request", async () => {
+        let release: (() => void) | undefined;
+
+        retrieveAdMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    release = () =>
+                        resolve({
+                            data: {
+                                success: true,
+                                data: {
+                                    ad: buildAd(),
+                                    port_height: 100,
+                                    port_width: 320,
+                                },
+                            },
+                        });
+                }),
+        );
+
+        const view = render(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
+        );
+
+        await settle();
+        expect(retrieveAdMock).toHaveBeenCalledTimes(1);
+
+        // Changed while the very first request is still open, so there is no
+        // loaded ad yet.
+        view.update(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-2" />,
+        );
+
+        await act(async () => {
+            release!();
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        // Deferred, not dropped: showing an ad chosen for the previous context
+        // until the next refresh is the bug this guards.
+        expect(retrieveAdMock).toHaveBeenCalledTimes(2);
+        expect(retrieveAdMock.mock.calls[1][0].contextId).toBe("recipe-2");
+    });
+});
+
+describe("touch sensitivity", () => {
+    it("falls back to the value given to initialize", async () => {
+        setAdRequestContext({
+            ...buildContext(),
+            xyDragDistanceAllowed: 100,
+        });
+
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        // A 40px drag is a scroll under the default 25, but a click under the 100
+        // this host configured at initialize().
+        await act(async () => {
+            tapCreative(40);
+
+            await Promise.resolve();
+        });
+
+        expect(reportedTypes()).toContain(ReportedEventType.INTERACTION);
     });
 });
 

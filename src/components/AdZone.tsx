@@ -8,15 +8,7 @@
  * @module
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-    AppState,
-    AppStateStatus,
-    Linking,
-    StyleProp,
-    StyleSheet,
-    View,
-    ViewStyle,
-} from "react-native";
+import { Linking, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import {
     Ad,
@@ -32,6 +24,8 @@ import { AdZoneTypes } from "../componentTypes/AdZone";
 import {
     getAdRequestContext,
     onAdRequestContextReady,
+    subscribeToAppActive,
+    subscribeToSdkTeardown,
 } from "../adRequestContext";
 
 /**
@@ -71,7 +65,12 @@ function resolveRefreshSeconds(refreshTime: number | undefined): number {
 export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const { zoneId } = props;
     const isVisible = props.isVisible;
-    const dragDistanceAllowed = props.xyDragDistanceAllowed ?? 25;
+    // Falls back to the value given to initialize() before the built-in default,
+    // so a host that configured it once there is still honoured.
+    const dragDistanceAllowed =
+        props.xyDragDistanceAllowed ??
+        getAdRequestContext()?.xyDragDistanceAllowed ??
+        25;
 
     /**
      * The ad currently displayed, or undefined when the zone is unfilled.
@@ -124,6 +123,11 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
          * while it is still waiting for the SDK to finish initializing.
          */
         started: false,
+        /**
+         * Whether the zone has already reported its unmount, so SDK teardown and
+         * component unmount cannot both report one.
+         */
+        closed: false,
         impressionTracked: false,
         impressionEndTracked: false,
         clickHandled: false,
@@ -255,6 +259,11 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     // by an effect rather than during render, and read only from callbacks that
     // cannot run before the first effect has flushed.
     const loadNextAdRef = useRef<(() => void) | undefined>(undefined);
+
+    // Same reason, for the first request. A zone that mounts before the SDK is
+    // ready starts later, and calling the fetchAd captured on the first render
+    // would request with whatever contextId was set at that moment.
+    const fetchAdRef = useRef<(() => void) | undefined>(undefined);
 
     /**
      * Starts the countdown with whatever time it has left.
@@ -476,10 +485,6 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const loadNextAd = useCallback((): void => {
         const state = zone.current;
 
-        // Armed before the request goes out, so a slow or failing response cannot
-        // leave the zone without a timer.
-        restartTimer();
-
         if (state.inFlight) {
             state.refetchWhenSettled = true;
 
@@ -490,17 +495,24 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             return;
         }
 
-        // Rotated out, so the ad the zone was showing is done.
+        // Deliberately no timer armed here. displayAd restarts it on every
+        // outcome, filled or not, so the zone always ends up with one. Arming it
+        // before the request meant the countdown ran while that request was open,
+        // and a response slower than the refresh time then arrived to an already
+        // expired timer: the new ad was displayed, its impression reported, and
+        // immediately rotated away again, billing a pair for an ad that was on
+        // screen for a single frame.
         endImpression();
 
         fetchAd();
-    }, [endImpression, fetchAd, restartTimer]);
+    }, [endImpression, fetchAd]);
 
     // Declared before the effects below so it flushes first on mount, which
-    // guarantees the ref is populated before any timer or response can read it.
+    // guarantees the refs are populated before any timer or response can read them.
     useEffect(() => {
         loadNextAdRef.current = loadNextAd;
-    }, [loadNextAd]);
+        fetchAdRef.current = fetchAd;
+    }, [loadNextAd, fetchAd]);
 
     // Mount and unmount. Mirrors AdZonePresenter.onStart / onStop.
     useEffect(() => {
@@ -521,7 +533,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             // Reported for every zone, whether it ever receives an ad or not.
             reportEvent(ReportedEventType.ZONE_MOUNTED);
 
-            fetchAd();
+            (fetchAdRef.current ?? fetchAd)();
         };
 
         // A host renders its layout immediately, while initialize() is still
@@ -541,11 +553,12 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
             state.mounted = false;
 
-            // Only if the mount was reported, so the two stay paired. reportEvent
-            // would drop this anyway while there is no context, so this is about
-            // keeping the pairing explicit rather than being the only thing
-            // stopping an unpaired unmount.
-            if (state.started) {
+            // Only if the mount was reported and the zone has not already been
+            // closed out by SDK teardown, so mounts and unmounts stay paired one
+            // to one however the zone goes away.
+            if (state.started && !state.closed) {
+                state.closed = true;
+
                 reportEvent(ReportedEventType.ZONE_UNMOUNTED);
             }
         };
@@ -570,32 +583,46 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     }, [isVisible]);
 
     // A backgrounded app is not showing its ads to anyone.
+    //
+    // The SDK owns the AppState subscription and calls in here, rather than each
+    // zone listening for itself. A zone's own listener registers first, because
+    // child effects run before the parent's and the SDK's registration waits on
+    // the native device info call, so on returning from the background this zone
+    // would have refetched before the SDK resolved the session and requested an ad
+    // against the session it was about to replace.
     useEffect(() => {
-        const onAppStateChange = (status: AppStateStatus): void => {
+        return subscribeToAppActive((isActive) => {
             const state = zone.current;
 
-            // "inactive" is an iOS-only transient state with no Android analogue,
-            // so it is ignored rather than treated as backgrounded.
-            if (status === "active") {
-                state.isAppActive = true;
+            state.isAppActive = isActive;
 
+            if (isActive) {
                 flushUnfilled();
                 trackImpression();
                 resumeTimer();
-            } else if (status === "background") {
-                state.isAppActive = false;
-
+            } else {
                 endImpression();
                 pauseTimer();
             }
-        };
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-        const subscription = AppState.addEventListener(
-            "change",
-            onAppStateChange,
-        );
+    // The SDK is going away. Close out while there is still a context to report
+    // through, because releasing it turns every report into a no-op.
+    useEffect(() => {
+        return subscribeToSdkTeardown(() => {
+            const state = zone.current;
 
-        return () => subscription.remove();
+            endImpression();
+            cancelTimer();
+
+            if (state.started && !state.closed) {
+                state.closed = true;
+
+                reportEvent(ReportedEventType.ZONE_UNMOUNTED);
+            }
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -603,13 +630,26 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const previousContextId = useRef(props.contextId);
 
     useEffect(() => {
+        const state = zone.current;
+
         if (previousContextId.current === props.contextId) {
             return;
         }
 
         previousContextId.current = props.contextId;
 
-        if (zone.current.loaded) {
+        if (state.inFlight) {
+            // The open request was built with the previous context, so pick the
+            // new one up as soon as it settles. Gating this on loaded instead
+            // dropped the change entirely for the very first request, leaving the
+            // zone showing an ad chosen for a context it is no longer in, with
+            // nothing to make it try again.
+            state.refetchWhenSettled = true;
+
+            return;
+        }
+
+        if (state.loaded) {
             loadNextAdRef.current?.();
         }
     }, [props.contextId]);

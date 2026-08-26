@@ -21,6 +21,16 @@ import { DeviceTypes } from "../componentTypes/Device";
 import { EnvironmentTypes } from "../componentTypes/Environment";
 
 /**
+ * How long any single request may take before it is abandoned.
+ *
+ * Deliberately below MINIMUM_AD_REFRESH_SECONDS in AdZone: a request that outlives
+ * its own zone's refresh interval is of no use by the time it lands, and a request
+ * that never settles at all would leave that zone's in-flight latch set and stop it
+ * ever serving again.
+ */
+const REQUEST_TIMEOUT_MS = 10000;
+
+/**
  * Makes an API request to retrieve a single ad for one zone.
  *
  * NOTE: The v1.0.0 routes carry no {os} path segment and take the app ID in the
@@ -40,6 +50,7 @@ export function retrieveAd(
         ? adadaptedApiRequestMocks.retrieveAd()
         : axios(`${apiEnv}/v/1.0.0/ad/retrieve`, {
               method: "POST",
+              timeout: REQUEST_TIMEOUT_MS,
               data: requestData,
               headers: {
                   accept: "application/json",
@@ -66,6 +77,7 @@ export function reportAdEvent(
         ? adadaptedApiRequestMocks.reportAdEvent()
         : axios(`${apiEnv}/v/1.0.0/ad/events`, {
               method: "POST",
+              timeout: REQUEST_TIMEOUT_MS,
               data: requestData,
               headers: {
                   accept: "application/json",
@@ -92,6 +104,7 @@ export function getKeywordIntercepts(
         ? adadaptedApiRequestMocks.getKeywordIntercepts()
         : axios(`${apiEnv}/v/1.0.0/intercept/retrieve`, {
               method: "POST",
+              timeout: REQUEST_TIMEOUT_MS,
               data: requestData,
               headers: {
                   accept: "application/json",
@@ -118,6 +131,7 @@ export function reportInterceptEvent(
         ? adadaptedApiRequestMocks.reportInterceptEvent()
         : axios(`${apiEnv}/v/1.0.0/intercept/events`, {
               method: "POST",
+              timeout: REQUEST_TIMEOUT_MS,
               data: requestData,
               headers: {
                   accept: "application/json",
@@ -144,6 +158,7 @@ export function reportListManagerEvents(
         ? adadaptedApiRequestMocks.reportListManagerEvents()
         : axios(`${apiEnv}/v/1/${deviceOS}/events`, {
               method: "POST",
+              timeout: REQUEST_TIMEOUT_MS,
               data: requestData,
               headers: {
                   accept: "application/json",
@@ -167,6 +182,7 @@ export function reportPayloadContentStatus(
         ? adadaptedApiRequestMocks.reportPayloadContentStatus()
         : axios(`${apiEnv}/v/1/tracking`, {
               method: "POST",
+              timeout: REQUEST_TIMEOUT_MS,
               data: requestData,
               headers: {
                   accept: "application/json",
@@ -189,6 +205,7 @@ export function retrievePayloadContent(
         ? adadaptedApiRequestMocks.retrievePayloadContent()
         : axios(`${apiEnv}/v/1/pickup`, {
               method: "POST",
+              timeout: REQUEST_TIMEOUT_MS,
               data: requestData,
               headers: {
                   accept: "application/json",

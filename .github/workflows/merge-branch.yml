@@ -46,6 +46,8 @@ jobs:
               run: npm run lint
             - name: Build Validation
               run: npm run compile
+            - name: Unit Tests
+              run: npm test
     create_release_version:
         if: ${{ github.event_name == 'push' && github.ref_name == 'main'}}
         needs: [validation]

@@ -12,6 +12,11 @@ import axios from "axios";
 import { AdadaptedReactNativeSdk } from "../index";
 import { EnvironmentTypes } from "../componentTypes/Environment";
 import { ListManagerEventSource, SdkEventName } from "../api/adadaptedApiTypes";
+import {
+    getAdRequestContext,
+    subscribeToAppActive,
+    subscribeToSdkTeardown,
+} from "../adRequestContext";
 
 jest.mock("axios");
 
@@ -45,15 +50,20 @@ async function initializeSdk(): Promise<AdadaptedReactNativeSdk> {
  * @returns the reported events, paired with the request body that carried them.
  */
 function reportedSdkEvents(): { name: string; source: string; body: any }[] {
-    return mockedAxios.mock.calls
-        .filter(([url]) => String(url).includes("/events"))
-        .flatMap(([, config]) =>
-            (config.data.events ?? []).map((event: any) => ({
-                name: event.event_name,
-                source: event.event_source,
-                body: config.data,
-            })),
-        );
+    return (
+        mockedAxios.mock.calls
+            // The list manager route specifically. A bare "/events" also matches the
+            // v1.0.0 ad events route, so a test that mounted a zone would silently
+            // start counting impressions as session events.
+            .filter(([url]) => String(url).includes("/v/1/"))
+            .flatMap(([, config]) =>
+                (config.data.events ?? []).map((event: any) => ({
+                    name: event.event_name,
+                    source: event.event_source,
+                    body: config.data,
+                })),
+            )
+    );
 }
 
 /**
@@ -247,7 +257,283 @@ describe("backgrounding and foregrounding", () => {
     });
 });
 
+describe("ordering against the ad zones", () => {
+    it("resolves the session before telling the zones the app is active", async () => {
+        const sdk = await initializeSdk();
+        const originalId = sdk.getSessionId();
+        const sessionsSeenByZones: (string | undefined)[] = [];
+
+        const unsubscribe = subscribeToAppActive((isActive) => {
+            if (isActive) {
+                sessionsSeenByZones.push(sdk.getSessionId());
+            }
+        });
+
+        appStateHandler!("background");
+
+        jest.setSystemTime(Date.now() + THIRTY_MINUTES_MS);
+
+        appStateHandler!("active");
+
+        unsubscribe();
+
+        // A zone told before the session rotated would refetch under the session
+        // that just ended, splitting the retrieve and its impression across two
+        // sessions. The zone must never observe the outgoing session here.
+        expect(sessionsSeenByZones).toEqual([sdk.getSessionId()]);
+        expect(sessionsSeenByZones).not.toContain(originalId);
+    });
+
+    it("tells the zones the app is backgrounded before reporting the session", async () => {
+        await initializeSdk();
+
+        const order: string[] = [];
+
+        const unsubscribe = subscribeToAppActive((isActive) => {
+            if (!isActive) {
+                order.push("zones-notified");
+            }
+        });
+
+        mockedAxios.mockImplementation(() => {
+            order.push("session-reported");
+
+            return Promise.resolve({ data: { success: true, data: {} } });
+        });
+
+        appStateHandler!("background");
+
+        unsubscribe();
+
+        // Each zone closes its impression while the session it belongs to is
+        // still the current one.
+        expect(order).toEqual(["zones-notified", "session-reported"]);
+    });
+
+    it("does not disturb the zones for a transient inactive state", async () => {
+        await initializeSdk();
+
+        const notified: boolean[] = [];
+        const unsubscribe = subscribeToAppActive((isActive) => {
+            notified.push(isActive);
+        });
+
+        appStateHandler!("inactive");
+
+        unsubscribe();
+
+        // iOS raises this for the app switcher and incoming calls. Passing it on
+        // would pause every zone's countdown for a glance at the switcher.
+        expect(notified).toEqual([]);
+    });
+
+    it("only fetches payloads on a real return from the background", async () => {
+        await initializeSdk();
+
+        const pickupsAfterInit = mockedAxios.mock.calls.filter(([url]) =>
+            String(url).includes("/pickup"),
+        ).length;
+
+        appStateHandler!("inactive");
+        appStateHandler!("active");
+
+        const pickupsNow = mockedAxios.mock.calls.filter(([url]) =>
+            String(url).includes("/pickup"),
+        ).length;
+
+        // Undelivered payloads are re-served until acknowledged, so a pickup per
+        // iOS glance re-fires onOutOfAppPayloadAvailable with the same items.
+        expect(pickupsNow).toBe(pickupsAfterInit);
+    });
+});
+
+describe("device data on reported events", () => {
+    it("carries everything the native SDKs send on this route", async () => {
+        await initializeSdk();
+
+        const [event] = reportedSdkEvents();
+
+        // These all rode on the deleted session initialize request. The bridge has
+        // always gathered them; dropping them silently degrades every report.
+        expect(event.body.device).toBe("test-device");
+        expect(event.body.os).toBe("ios_react_native");
+        expect(event.body.osv).toBe("17.0");
+        expect(event.body.timezone).toBe("America/Detroit");
+        expect(event.body.carrier).toBe("test-carrier");
+        expect(event.body.density).toBe("3.0");
+
+        // Strings over the bridge, numbers on the wire.
+        expect(event.body.dw).toBe(1170);
+        expect(event.body.dh).toBe(2532);
+    });
+});
+
+describe("initializing more than once", () => {
+    it("replaces its listeners instead of stacking them", async () => {
+        const removes: jest.Mock[] = [];
+        let registered = 0;
+
+        jest.spyOn(AppState, "addEventListener").mockImplementation(
+            (type, handler) => {
+                const remove = jest.fn();
+
+                if (type === "change") {
+                    registered += 1;
+                    appStateHandler = handler;
+                    removes.push(remove);
+                }
+
+                return { remove };
+            },
+        );
+
+        const sdk = new AdadaptedReactNativeSdk();
+
+        await sdk.initialize({
+            appId: APP_ID,
+            apiEnv: EnvironmentTypes.ApiEnv.Dev,
+        });
+        await sdk.initialize({
+            appId: APP_ID,
+            apiEnv: EnvironmentTypes.ApiEnv.Dev,
+        });
+
+        expect(registered).toBe(2);
+
+        // The first subscription must have been removed. Leaving it attached made
+        // every background report SESSION_BACKGROUNDED once per leaked listener,
+        // which StrictMode and Fast Refresh both trigger.
+        expect(removes[0]).toHaveBeenCalled();
+
+        mockedAxios.mockClear();
+
+        appStateHandler!("background");
+
+        const backgrounded = reportedSdkEvents().filter(
+            (event) => event.name === SdkEventName.SESSION_BACKGROUNDED,
+        );
+
+        expect(backgrounded).toHaveLength(1);
+    });
+});
+
+describe("add to list acknowledgement", () => {
+    /**
+     * Builds a pending ATL item.
+     * @param title - The product title.
+     * @returns the item.
+     */
+    function item(title: string) {
+        return {
+            product_title: title,
+            product_brand: "",
+            product_category: "",
+            product_barcode: "",
+            product_discount: "",
+            product_image: "",
+            product_sku: "",
+        };
+    }
+
+    it("keeps each zone's pending ad separate", async () => {
+        const sdk = await initializeSdk();
+        const context = getAdRequestContext()!;
+
+        // Two zones on screen, each with an add to list ad clicked.
+        context.setPendingAtlContent({
+            adId: "ad-a",
+            zoneId: "zone-a",
+            impressionId: "imp-a",
+            items: [item("Milk")],
+            isHandled: false,
+        });
+        context.setPendingAtlContent({
+            adId: "ad-b",
+            zoneId: "zone-b",
+            impressionId: "imp-b",
+            items: [item("Bread")],
+            isHandled: false,
+        });
+
+        mockedAxios.mockClear();
+
+        // A single slot meant zone B's click discarded zone A's pending content,
+        // losing A's interaction for good.
+        sdk.acknowledge("Milk");
+
+        const interactions = mockedAxios.mock.calls
+            .filter(([url]) => String(url).includes("/v/1.0.0/ad/events"))
+            .flatMap(
+                ([, config]) =>
+                    (
+                        config as never as {
+                            data: {
+                                events: { ad_id: string; event_type: string }[];
+                            };
+                        }
+                    ).data.events,
+            )
+            .filter((event) => event.event_type === "interaction");
+
+        expect(interactions).toHaveLength(1);
+        expect(interactions[0].ad_id).toBe("ad-a");
+    });
+
+    it("reports one interaction per ad however many items are acknowledged", async () => {
+        const sdk = await initializeSdk();
+        const context = getAdRequestContext()!;
+
+        context.setPendingAtlContent({
+            adId: "ad-a",
+            zoneId: "zone-a",
+            impressionId: "imp-a",
+            items: [item("Milk"), item("Bread")],
+            isHandled: false,
+        });
+
+        mockedAxios.mockClear();
+
+        sdk.acknowledge("Milk");
+        sdk.acknowledge("Bread");
+
+        const interactions = mockedAxios.mock.calls
+            .filter(([url]) => String(url).includes("/v/1.0.0/ad/events"))
+            .flatMap(
+                ([, config]) =>
+                    (
+                        config as never as {
+                            data: { events: { event_type: string }[] };
+                        }
+                    ).data.events,
+            )
+            .filter((event) => event.event_type === "interaction");
+
+        // AdContent.isHandled on Android guards the same way.
+        expect(interactions).toHaveLength(1);
+    });
+});
+
 describe("teardown", () => {
+    it("closes the zones out while there is still a context to report through", async () => {
+        const sdk = await initializeSdk();
+
+        let contextWhenToldToClose: unknown;
+
+        const unsubscribe = subscribeToSdkTeardown(() => {
+            contextWhenToldToClose = getAdRequestContext();
+        });
+
+        sdk.unmount();
+
+        unsubscribe();
+
+        // Releasing the context first turns every reportAdEvent into a no-op, so
+        // the impression_end and zone_unmounted of every mounted zone vanish. The
+        // order of these two steps is the whole fix.
+        expect(contextWhenToldToClose).toBeDefined();
+        expect(getAdRequestContext()).toBeUndefined();
+    });
+
     it("stops listening to app state changes on unmount", async () => {
         const remove = jest.fn();
 

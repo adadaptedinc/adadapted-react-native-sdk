@@ -88,7 +88,8 @@ Native gets from `AppState` directly.
 
 ## Commit Convention
 
-Follow Conventional Commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`. Pre-commit hooks enforce commit message format, linting, and tests.
+Follow Conventional Commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`. Pre-commit hooks enforce commit message format, prettier, linting, type-checking
+and the unit tests. CI runs the same validation on every push and pull request.
 
 ## Testing notes
 

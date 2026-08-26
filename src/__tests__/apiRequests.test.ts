@@ -172,6 +172,14 @@ describe("v1 routes", () => {
                 bundle_version: "1.0",
                 locale: "en-US",
                 allow_retargeting: 1,
+                device: "test-device",
+                os: "ios_react_native",
+                osv: "17.0",
+                timezone: "America/Detroit",
+                carrier: "test-carrier",
+                dw: 1170,
+                dh: 2532,
+                density: "3.0",
                 events: [
                     {
                         event_source: ListManagerEventSource.APP,
@@ -205,6 +213,14 @@ describe("v1 routes", () => {
                 bundle_version: "1.0",
                 locale: "en-US",
                 allow_retargeting: 0,
+                device: "test-device",
+                os: "ios_react_native",
+                osv: "17.0",
+                timezone: "America/Detroit",
+                carrier: "test-carrier",
+                dw: 1170,
+                dh: 2532,
+                density: "3.0",
                 events: [],
             },
             DeviceTypes.DeviceOS.ANDROID,
@@ -254,6 +270,34 @@ describe("v1 routes", () => {
         );
 
         expect(lastCall().url).toBe("https://payload.adadapted.com/v/1/pickup");
+    });
+});
+
+describe("request timeouts", () => {
+    it("bounds every request", async () => {
+        await adadaptedApiRequests.retrieveAd(
+            {
+                sdkId: "1.2.3",
+                bundleId: "com.test.app",
+                userId: "test-udid",
+                zoneId: "102110",
+                storeId: "",
+                contextId: "",
+                sessionId: SESSION_ID,
+                extra: "",
+            },
+            APP_ID,
+            EnvironmentTypes.ApiEnv.Dev,
+        );
+
+        const { config } = lastCall();
+
+        // A request that never settles leaves the requesting zone's in-flight
+        // latch set, and that zone then never serves another ad for the rest of
+        // the session. The bound must also stay under the 15s minimum refresh, so
+        // a response cannot outlive the cycle that asked for it.
+        expect(config.timeout).toBeGreaterThan(0);
+        expect(config.timeout).toBeLessThan(15000);
     });
 });
 

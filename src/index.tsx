@@ -29,6 +29,8 @@ import {
 } from "./api/adadaptedApiTypes";
 import {
     AdEventReport,
+    notifyAppActiveChanged,
+    notifySdkTeardown,
     PendingAtlContent,
     setAdRequestContext,
 } from "./adRequestContext";
@@ -144,11 +146,15 @@ export class AdadaptedReactNativeSdk {
      */
     private storeId: string = "";
     /**
-     * The most recently clicked "add to list" ad, held until the host app confirms
-     * its items reached the user's list. Only the latest is kept: a click rotates
-     * the zone, so an earlier ad's items are no longer on screen to be added.
+     * The most recently clicked "add to list" ad per zone, held until the host app
+     * confirms its items reached the user's list.
+     *
+     * Keyed by zone because several zones can be on screen at once, each with its
+     * own ATL ad. A single slot meant a click in one zone discarded another zone's
+     * pending content and lost its interaction. Android keeps them apart the same
+     * way, publishing an AdContent per zone.
      */
-    private pendingAtlContent: PendingAtlContent | undefined;
+    private pendingAtlContent = new Map<string, PendingAtlContent>();
     /**
      * The touch sensitivity of the Ad Zone in both the X and Y directions.
      * This is used to determine the click/press sensitivity when the
@@ -455,12 +461,13 @@ export class AdadaptedReactNativeSdk {
             bundleId: this.deviceInfo!.bundleId,
             sdkVersion: packageJson.version,
             storeId: this.storeId,
+            xyDragDistanceAllowed: this.xyAdZoneDragDistanceAllowed,
             getSessionId: () => this.sessionId ?? "",
             reportAdEvent: (event) => this.reportAdEvent(event),
             reportSdkEvent: (eventName, extraParams) =>
                 this.reportSdkEvent(eventName, extraParams),
             setPendingAtlContent: (content) => {
-                this.pendingAtlContent = content;
+                this.pendingAtlContent.set(content.zoneId, content);
             },
             forwardAddToList: (items) => {
                 safeInvoke(this.onAddToListTriggered, items);
@@ -583,7 +590,24 @@ export class AdadaptedReactNativeSdk {
             bundle_version: this.deviceInfo!.bundleVersion,
             locale: this.deviceInfo!.deviceLocale,
             allow_retargeting: this.deviceInfo!.isAdTrackingEnabled ? 1 : 0,
+            // The rest of what the native SDKs put on this same route. These used
+            // to travel on the session initialize body and were lost with it; the
+            // bridge has always gathered them. Field names match Android's
+            // EventRequest exactly, because that is the wire contract.
+            device: this.deviceInfo!.deviceName,
+            os: this.deviceInfo!.systemName,
+            osv: this.deviceInfo!.systemVersion,
+            timezone: this.deviceInfo!.deviceTimezone,
+            carrier: this.deviceInfo!.deviceCarrier,
+            // Reported as strings over the bridge but numbers on the wire.
+            dw: Number(this.deviceInfo!.deviceWidth) || 0,
+            dh: Number(this.deviceInfo!.deviceHeight) || 0,
+            density: this.deviceInfo!.deviceScreenDensity,
         };
+        // NOTE: Android also sends device_udid and an errors array. Neither has an
+        //       equivalent here: the bridge exposes only one device identifier, and
+        //       this SDK does not report SDK errors yet, so inventing values for
+        //       them would be worse than omitting them.
     }
 
     /**
@@ -640,12 +664,23 @@ export class AdadaptedReactNativeSdk {
             if (this.hasBeenBackgrounded) {
                 this.hasBeenBackgrounded = false;
 
+                // Before the zones are told, never after. A zone returning to an
+                // ad that outlived its refresh time refetches immediately and
+                // reads the session synchronously, so telling it first would send
+                // that request under the session about to be replaced and split
+                // the retrieve and its impression across two sessions.
                 this.createOrResumeSession();
+
+                this.getPayloadItemData();
             }
 
-            this.getPayloadItemData();
+            notifyAppActiveChanged(true);
         } else if (state === "background") {
             this.hasBeenBackgrounded = true;
+
+            // Zones first here, so each closes its impression while the session it
+            // belongs to is still the current one.
+            notifyAppActiveChanged(false);
 
             this.sessionBackgrounded();
         }
@@ -669,12 +704,17 @@ export class AdadaptedReactNativeSdk {
      * @param itemName - The product title of the item that was added.
      */
     public acknowledge(itemName: string): void {
-        const content = this.pendingAtlContent;
+        // Newest first: with several zones showing ATL ads, the most recent click
+        // is the one the host is most likely acknowledging. A flat itemName is all
+        // this API carries, so matching on it is the closest this can get to
+        // Android, where the host holds the AdContent object for a specific zone.
+        const content = [...this.pendingAtlContent.values()]
+            .reverse()
+            .find((candidate) =>
+                candidate.items.some((item) => item.product_title === itemName),
+            );
 
-        if (
-            !content ||
-            !content.items.some((item) => item.product_title === itemName)
-        ) {
+        if (!content) {
             return;
         }
 
@@ -834,6 +874,10 @@ export class AdadaptedReactNativeSdk {
                     // Make the initial call to the Payload data server to see if
                     // the user has any outstanding items to be added to list.
                     this.getPayloadItemData();
+
+                    // Any listeners from a previous initialize() go first, so a
+                    // second call replaces them instead of stacking on top.
+                    this.removeEventListeners();
 
                     // Intercept deep links while the app is running.
                     this.deepLinkOnEventListener = Linking.addEventListener(
@@ -1220,17 +1264,39 @@ export class AdadaptedReactNativeSdk {
      * can experience memory leaks.
      */
     public unmount(): void {
-        // Ad zones clear their own timers on unmount, so there is no shared timer
-        // left to cancel. Releasing the context stops any zone still mounted from
+        // Zones close out first, while the context is still in place. Releasing it
+        // beforehand makes reportAdEvent a no-op, which silently swallowed the
+        // impression_end and zone_unmounted of every zone still mounted. The web
+        // SDK closes its zones before teardown for the same reason.
+        notifySdkTeardown();
+
+        // Only then release the context, which stops any zone still mounted from
         // issuing further requests against a torn-down SDK.
         setAdRequestContext(undefined);
 
+        this.removeEventListeners();
+    }
+
+    /**
+     * Removes the app state and deep link listeners, if they are registered.
+     *
+     * Called before registering as well as on unmount, because only the most
+     * recent subscription is tracked: initializing twice without this leaves the
+     * earlier listeners attached forever, and every background then reports
+     * SESSION_BACKGROUNDED once per leaked listener. StrictMode and Fast Refresh
+     * both initialize twice.
+     */
+    private removeEventListeners(): void {
         if (this.deepLinkOnEventListener) {
             this.deepLinkOnEventListener.remove();
+
+            this.deepLinkOnEventListener = undefined;
         }
 
         if (this.AppStateOnEventListener) {
             this.AppStateOnEventListener.remove();
+
+            this.AppStateOnEventListener = undefined;
         }
     }
 }
