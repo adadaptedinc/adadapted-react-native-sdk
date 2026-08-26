@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
     AdadaptedReactNativeSdk,
-    AdZoneInfo,
+    AdZone,
     KeywordSearchResult,
 } from "../../src/index";
 import { RootStackParamList, SelectedItem } from "./App";
@@ -41,10 +41,6 @@ interface StandardAdZonePageProps {
      */
     sessionId: string | undefined;
     /**
-     * The ad zones' data.
-     */
-    adZoneInfoList: AdZoneInfo[] | undefined;
-    /**
      * The selected list items array.
      */
     selectedItemList: string[];
@@ -67,6 +63,10 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
 
     // - Define all useStates.
     const [searchValue, setSearchValue] = useState("");
+    const [adContextId, setAdContextId] = useState<string | undefined>(
+        undefined,
+    );
+    const [zoneHasAds, setZoneHasAds] = useState(false);
     const [
         standardProductSearchResultItemList,
         setStandardProductSearchResultItemList,
@@ -162,24 +162,36 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                     Session ID: {props.sessionId}
                 </Text>
                 <View style={styles.adZoneContainer}>
-                    {props.adZoneInfoList &&
-                        props.adZoneInfoList.find(
-                            (zone) => zone.zoneId === "102110",
-                        )?.adZone}
+                    {/* The app declares its own zone, the way an AaZoneView is
+                        placed in an Android layout. The zone owns its request and
+                        its refresh from here on. */}
+                    <AdZone
+                        zoneId="102110"
+                        contextId={adContextId}
+                        xyDragDistanceAllowed={30}
+                        onAddToListTriggered={(items) => {
+                            for (const item of items) {
+                                props.selectItem({
+                                    itemName: item.product_title,
+                                });
+                            }
+                        }}
+                        onZoneHasAds={setZoneHasAds}
+                    />
                 </View>
+                <Text style={styles.sessionIdContainer}>
+                    Zone 102110 filled: {zoneHasAds ? "yes" : "no"}
+                </Text>
                 <>
+                    {/* Ad context is per zone now, matching
+                        AaZoneView.setAdZoneContextId, so it is just a prop. */}
                     <Button
                         title="set ad context"
-                        onPress={() =>
-                            props.aaSdk.setAdContext({
-                                contextIds: ["organic"],
-                                zoneIds: ["102110"],
-                            })
-                        }
+                        onPress={() => setAdContextId("organic")}
                     ></Button>
                     <Button
                         title="clear ad context"
-                        onPress={() => props.aaSdk.clearAdContext()}
+                        onPress={() => setAdContextId(undefined)}
                     ></Button>
                 </>
                 <TextInput

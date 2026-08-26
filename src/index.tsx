@@ -1,9 +1,12 @@
 /**
  * The AdadaptedReactNativeSdk package/module definition.
  */
-import * as React from "react";
+// Installs crypto.getRandomValues as a side effect. React Native's runtime has no
+// Web Crypto of its own, and the session ID is generated from it.
+import "react-native-get-random-values";
 import {
-    DeviceEventEmitter,
+    AppState,
+    AppStateStatus,
     EmitterSubscription,
     Linking,
     NativeModules,
@@ -11,7 +14,6 @@ import {
 } from "react-native";
 import * as adadaptedApiRequests from "./api/adadaptedApiRequests";
 import {
-    AdSession,
     DetailedListItem,
     KeywordIntercepts,
     KeywordSearchTerm,
@@ -23,9 +25,13 @@ import {
     ReportedEventType,
     ReportedInterceptEvent,
     ReportListManagerDataRequest,
-    Zone,
+    SdkEventName,
 } from "./api/adadaptedApiTypes";
-import { AdZone } from "./components/AdZone";
+import {
+    AdEventReport,
+    PendingAtlContent,
+    setAdRequestContext,
+} from "./adRequestContext";
 import { safeInvoke } from "./util";
 import packageJson from "../package.json";
 import base64 from "react-native-base64";
@@ -59,10 +65,9 @@ export interface InitializeProps {
      */
     xyDragDistanceAllowed?: number;
     /**
-     * Callback that gets triggered when the session/zones/ads data
-     * gets refreshed and is now available for reference.
+     * The store to target ads for, if targeting ads by store.
      */
-    onAdZonesRefreshed?(): void;
+    storeId?: string;
     /**
      * Callback that gets triggered when an "add to list" item/items are clicked.
      * @param items - The array of items to "add to list".
@@ -74,24 +79,6 @@ export interface InitializeProps {
      * @param payloads - All payloads the client must go through.
      */
     onOutOfAppPayloadAvailable?(payloads: OutOfAppDataPayload[]): void;
-    /**
-     * Ad zone ids that contain off-screen ads.
-     */
-    offScreenAdZoneIds?: [number];
-}
-
-/**
- * Interface defining a wrapper for an {@link AdZone}.
- */
-export interface AdZoneInfo {
-    /**
-     * The ad zone ID.
-     */
-    zoneId: string;
-    /**
-     * The ad zone component.
-     */
-    adZone: React.JSX.Element;
 }
 
 /**
@@ -135,22 +122,33 @@ export class AdadaptedReactNativeSdk {
      */
     private deviceInfo: DeviceTypes.DeviceInfo | undefined;
     /**
-     * All current Session/Ad info.
-     * This info can be refreshed based on the set interval.
+     * The time at which the app was last sent to the background, in seconds.
+     * The session window is measured from this.
      */
-    private sessionInfo: AdSession | undefined;
+    private backgroundTime: number;
     /**
-     * The available ad zones.
+     * Whether the app has been backgrounded since the session was last resolved.
+     *
+     * Android guards its first onStart instead, because ProcessLifecycleOwner
+     * replays the current state to a newly registered observer and would otherwise
+     * report the session start() just resolved. AppState has no such replay, so
+     * copying that guard would swallow the first real return from the background,
+     * and with it the rotation of a session that had expired while away. Tracking
+     * the background instead also absorbs the inactive -> active transition iOS
+     * raises during the launch animation, which would otherwise report a resume
+     * for a session that never left.
      */
-    private adZones: AdZoneInfo[] | undefined;
+    private hasBeenBackgrounded: boolean = false;
     /**
-     * The available off-screen ad zones.
+     * The store to target ads for, or an empty string.
      */
-    private offScreenAdZones: AdZoneInfo[] = [];
+    private storeId: string = "";
     /**
-     * The zone ids of the availible off-screen ad zones.
+     * The most recently clicked "add to list" ad, held until the host app confirms
+     * its items reached the user's list. Only the latest is kept: a click rotates
+     * the zone, so an earlier ad's items are no longer on screen to be added.
      */
-    private offScreenAdZoneIds: number[] = [];
+    private pendingAtlContent: PendingAtlContent | undefined;
     /**
      * The touch sensitivity of the Ad Zone in both the X and Y directions.
      * This is used to determine the click/press sensitivity when the
@@ -160,17 +158,15 @@ export class AdadaptedReactNativeSdk {
      * a click/press on the Ad Zone.
      */
     private xyAdZoneDragDistanceAllowed: number | undefined;
+
     /**
-     * If provided, triggers when the overall session/zones/ads data is
-     * refreshed and available for reference.
+     * The touch drag sensitivity configured at initialize(), for a host that wants
+     * to apply the same value to the zones it renders.
+     * @returns the configured drag distance, if one was provided.
      */
-    private onAdZonesRefreshed: () => void | undefined;
-    /**
-     * The current active "setTimeout" reference. This is needed so we
-     * can reference this variable and clean up the timer when its no
-     * longer needed so memory leaks do not occur.
-     */
-    private refreshAdZonesTimer: ReturnType<typeof setTimeout> | undefined;
+    public getXyDragDistanceAllowed(): number | undefined {
+        return this.xyAdZoneDragDistanceAllowed;
+    }
     /**
      * The user input string provided by the client and used to return a
      * result of keyword intercept terms. This will always be the last
@@ -208,19 +204,6 @@ export class AdadaptedReactNativeSdk {
      * AppState event listener.
      */
     private AppStateOnEventListener: EmitterSubscription | undefined;
-    /**
-     * The current adzone visibility status.
-     */
-    private isAdZoneVisible: boolean = true;
-    /**
-     * The ad context object.
-     */
-    private adContext:
-        | {
-              contextIds: string[];
-              zoneIds: string[];
-          }
-        | undefined;
 
     /**
      * Gets the Session ID.
@@ -239,53 +222,13 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
-     * Gets the list of available Ad Zones.
-     * @returns all available ad zones.
-     */
-    public getAdZones(): AdZoneInfo[] | undefined {
-        return this.adZones;
-    }
-
-    /**
-     * Gets the list of available off-screen Ad Zones.
-     * @returns all available off-screen ad zones.
-     */
-    public getOffScreenAdZones(): AdZoneInfo[] | undefined {
-        return this.offScreenAdZones;
-    }
-
-    /**
-     * Sets an ad context to replace an ad zone's ads with contextual ads for recipes.
-     * @param adContext - Object containing the contextual term and the associted ad zone.
-     * @param adContext.contextIds - An array of contextual ad ids.
-     * @param adContext.zoneIds - An array of zone ids for applying contextual ads.
-     */
-    public setAdContext(adContext: {
-        contextIds: string[];
-        zoneIds: string[];
-    }): void {
-        this.adContext = adContext;
-        this.onRefreshAdZones(true);
-    }
-
-    /**
-     * Clear the contextual ads from ad zones to return standard ads to the ad zones.
-     */
-    public clearAdContext(): void {
-        this.adContext = undefined;
-        this.onRefreshAdZones(true);
-    }
-
-    /**
      * @inheritDoc
      */
     constructor() {
         this.apiEnv = EnvironmentTypes.ApiEnv.Prod;
         this.listManagerApiEnv = EnvironmentTypes.ListManagerApiEnv.Prod;
         this.payloadApiEnv = EnvironmentTypes.PayloadApiEnv.Prod;
-        this.onAdZonesRefreshed = () => {
-            // Defaulting to empty method.
-        };
+        this.backgroundTime = this.getCurrentUnixTimestamp();
         this.onAddToListTriggered = () => {
             // Defaulting to empty method.
         };
@@ -314,128 +257,215 @@ export class AdadaptedReactNativeSdk {
         });
     }
 
-    private adZoneTemplate(
-        adZones: { [key: number]: Zone },
-        zoneId: string,
-        offScreenAdZone: boolean,
-    ): AdZoneInfo {
-        return {
-            zoneId: adZones[Number(zoneId)].id,
-            adZone: (
-                <AdZone
-                    key={zoneId}
-                    appId={this.appId}
-                    sessionId={this.sessionId!}
-                    udid={this.deviceInfo!.udid}
-                    deviceOs={this.deviceOs!}
-                    apiEnv={this.apiEnv}
-                    xyDragDistanceAllowed={
-                        this.xyAdZoneDragDistanceAllowed || 25
-                    }
-                    adZoneData={adZones[Number(zoneId)]}
-                    onAddToListTriggered={(items) => {
-                        safeInvoke(this.onAddToListTriggered, items);
-                    }}
-                    isAdZoneVisible={this.isAdZoneVisible}
-                    offScreenAdZone={offScreenAdZone ? true : false}
-                    isContextualAd={this.adContext ? true : false}
-                />
-            ),
-        };
-    }
+    /**
+     * How long a session survives being backgrounded before a new one is minted.
+     * Matches THIRTY_MINUTES_IN_SECONDS in Android's SessionClient.
+     */
+    private static readonly SESSION_LIFETIME_SECONDS = 30 * 60;
 
     /**
-     * Creates all Ad Zone Info objects based on provided Ad Zones.
-     * @param adZones - The object of available zones.
-     * @param offScreenAdZone - True if an ad zone first renders out of view.
-     * @returns the array of Ad Zone Info objects.
+     * The prefix identifying a session as having come from this SDK. Reporting
+     * distinguishes platforms by this prefix, so it must not collide with the other
+     * SDKs ("JS" on web, "ANDROID" on Android, "IOS" on iOS).
      */
-    private generateAdZones(
-        adZones: { [key: number]: Zone },
-        offScreenAdZone: boolean = false,
-    ): AdZoneInfo[] {
-        const adZoneInfoList: AdZoneInfo[] = [];
-        const offScreenAdZoneList: AdZoneInfo[] = [];
+    private static readonly SESSION_ID_PREFIX = "RN";
 
-        if (offScreenAdZone) {
-            for (const adZoneId in adZones) {
-                if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                    if (this.offScreenAdZoneIds.includes(Number(adZoneId))) {
-                        offScreenAdZoneList.push(
-                            this.adZoneTemplate(adZones, adZoneId, true),
-                        );
-                    }
+    /**
+     * The number of random characters that follow the session ID prefix.
+     */
+    private static readonly SESSION_ID_LENGTH = 32;
+
+    /**
+     * The alphabet a session ID's random characters are drawn from.
+     */
+    private static readonly SESSION_ID_CHARACTERS =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+    /**
+     * The shortest search term that will be matched against keyword intercepts.
+     * The API no longer serves a minimum, so the SDK applies its own, matching
+     * MIN_MATCH_LENGTH in Android's KeywordInterceptMatcher.
+     */
+    private static readonly MIN_KEYWORD_MATCH_LENGTH = 3;
+
+    /**
+     * Generates a new session ID.
+     * Format: "RN" followed by 32 characters from [A-Z0-9], mirroring
+     * SessionClient.generateId on Android.
+     * @returns the generated session ID.
+     */
+    private generateSessionId(): string {
+        const characters = AdadaptedReactNativeSdk.SESSION_ID_CHARACTERS;
+        const length = AdadaptedReactNativeSdk.SESSION_ID_LENGTH;
+
+        // The largest multiple of the alphabet length that fits in a byte.
+        // Rejecting anything at or above it keeps every character equally likely,
+        // rather than biasing towards the start of the alphabet.
+        const rejectAtOrAbove = 256 - (256 % characters.length);
+
+        let sessionId = "";
+
+        while (sessionId.length < length) {
+            const randomBytes = crypto.getRandomValues(new Uint8Array(length));
+
+            for (const randomByte of randomBytes) {
+                if (sessionId.length >= length) {
+                    break;
                 }
-            }
-        } else {
-            for (const adZoneId in adZones) {
-                if (Object.prototype.hasOwnProperty.call(adZones, adZoneId)) {
-                    adZoneInfoList.push(
-                        this.adZoneTemplate(adZones, adZoneId, false),
+
+                if (randomByte < rejectAtOrAbove) {
+                    sessionId += characters.charAt(
+                        randomByte % characters.length,
                     );
                 }
             }
         }
 
-        return offScreenAdZone ? offScreenAdZoneList : adZoneInfoList;
+        return `${AdadaptedReactNativeSdk.SESSION_ID_PREFIX}${sessionId}`;
     }
 
     /**
-     * Triggered when session data is initialized or refreshed. Creates
-     * a timer based on the session data refresh value.
-     * @param immediateRefresh - If true the ad zones are refreshed bypassing the timer.
+     * Mints a new session, or resumes the current one if the app has not been
+     * backgrounded for longer than the session window, and reports the matching
+     * event. A direct port of SessionClient.createOrResumeSession.
+     *
+     * NOTE: The session is held in memory only and is never persisted, so a cold
+     *       start always mints a new one. SESSION_RESUMED therefore only ever
+     *       occurs when the app is foregrounded within the same process. This is
+     *       deliberate parity with Android; the web SDK persists instead, because
+     *       reloading a browser tab is normal where relaunching an app is not.
      */
-    private onRefreshAdZones(immediateRefresh: boolean = false): void {
-        // Get the amount of time we will wait until a refresh occurs.
-        // We are setting a minimum refresh time of 5 minutes, so if a
-        // value provided by the API is lower, we don't refresh too often.
-        // If there are contextual ads, we refresh immediately to reload the ad zone.
-        const timerMs = immediateRefresh
-            ? 0
-            : this.sessionInfo!.polling_interval_ms >= 300000
-              ? this.sessionInfo!.polling_interval_ms
-              : 300000;
+    private createOrResumeSession(): void {
+        const currentTime = this.getCurrentUnixTimestamp();
+        const isNewSession =
+            !this.sessionId ||
+            currentTime - this.backgroundTime >=
+                AdadaptedReactNativeSdk.SESSION_LIFETIME_SECONDS;
 
-        this.refreshAdZonesTimer = setTimeout(() => {
-            adadaptedApiRequests
-                .refreshSessionData(
-                    {
-                        aid: this.appId,
-                        sid: this.sessionId!,
-                        uid: this.deviceInfo!.udid,
-                        sdkVersion: packageJson.version,
-                        adContext: this.adContext,
-                    },
-                    this.deviceOs!,
-                    this.apiEnv,
-                )
-                .then((response) => {
-                    this.sessionInfo = response.data;
+        if (isNewSession) {
+            this.sessionId = this.generateSessionId();
+        } else {
+            this.backgroundTime = currentTime;
+        }
 
-                    if (this.offScreenAdZones.length > 0) {
-                        this.offScreenAdZones = this.generateAdZones(
-                            response.data.zones,
-                            true,
-                        );
-                    }
+        this.reportSdkEvent(
+            isNewSession
+                ? SdkEventName.SESSION_CREATED
+                : SdkEventName.SESSION_RESUMED,
+        );
+    }
 
-                    this.adZones = this.generateAdZones(response.data.zones);
+    /**
+     * Stamps the time the app was backgrounded and reports the event.
+     * A port of SessionClient.sessionBackgrounded.
+     */
+    private sessionBackgrounded(): void {
+        this.backgroundTime = this.getCurrentUnixTimestamp();
 
-                    // Call the user defined callback indicating
-                    // the session data has been refreshed.
-                    this.onAdZonesRefreshed();
+        this.reportSdkEvent(SdkEventName.SESSION_BACKGROUNDED);
+    }
 
-                    // Start the timer again based on the new session data.
-                    this.onRefreshAdZones();
-                })
-                .catch((err) => {
-                    console.error(err);
+    /**
+     * Reports an SDK level event, carrying the session it describes.
+     * @param eventName - The event to report.
+     * @param extraParams - Any additional params the event carries.
+     */
+    private reportSdkEvent(
+        eventName: SdkEventName,
+        extraParams?: { [key: string]: string },
+    ): void {
+        if (!this.sessionId || !this.deviceInfo || !this.deviceOs) {
+            return;
+        }
 
-                    // Start the timer again so we can make another
-                    // attempt to refresh the session data.
-                    this.onRefreshAdZones();
-                });
-        }, timerMs);
+        adadaptedApiRequests
+            .reportListManagerEvents(
+                {
+                    ...this.getSdkEventRequestBase(),
+                    events: [
+                        {
+                            // "sdk" rather than "app": these describe the SDK's own
+                            // lifecycle, not a user action. Matches SDK_EVENT_TYPE
+                            // in Android's EventStrings.
+                            event_source: ListManagerEventSource.SDK,
+                            event_name: eventName,
+                            event_timestamp: this.getCurrentUnixTimestamp(),
+                            event_params: {
+                                sessionId: this.sessionId,
+                                ...extraParams,
+                            },
+                        },
+                    ],
+                },
+                this.deviceOs,
+                this.listManagerApiEnv,
+            )
+            .catch(() => {
+                // Reporting failures must not interrupt ad serving.
+            });
+    }
+
+    /**
+     * Reports an ad or zone level event. Exposed to ad zones through the request
+     * context rather than being called directly.
+     * @param event - What the event describes and what happened.
+     */
+    private reportAdEvent(event: AdEventReport): void {
+        if (!this.sessionId || !this.deviceInfo) {
+            return;
+        }
+
+        adadaptedApiRequests
+            .reportAdEvent(
+                {
+                    app_id: this.appId,
+                    session_id: this.sessionId,
+                    udid: this.deviceInfo.udid,
+                    events: [
+                        {
+                            ad_id: event.adId,
+                            zone_id: event.zoneId,
+                            impression_id: event.impressionId,
+                            event_type: event.eventType,
+                            // Left off the payload entirely rather than sent as
+                            // null when there is no name for this event type.
+                            ...(event.eventName
+                                ? { event_name: event.eventName }
+                                : {}),
+                            created_at: this.getCurrentUnixTimestamp(),
+                        },
+                    ],
+                },
+                this.appId,
+                this.apiEnv,
+            )
+            .catch(() => {
+                // Reporting failures must not interrupt ad serving.
+            });
+    }
+
+    /**
+     * Registers the context ad zones read their session and device info from.
+     */
+    private registerAdRequestContext(): void {
+        setAdRequestContext({
+            appId: this.appId,
+            apiEnv: this.apiEnv,
+            udid: this.deviceInfo!.udid,
+            bundleId: this.deviceInfo!.bundleId,
+            sdkVersion: packageJson.version,
+            storeId: this.storeId,
+            getSessionId: () => this.sessionId ?? "",
+            reportAdEvent: (event) => this.reportAdEvent(event),
+            reportSdkEvent: (eventName, extraParams) =>
+                this.reportSdkEvent(eventName, extraParams),
+            setPendingAtlContent: (content) => {
+                this.pendingAtlContent = content;
+            },
+            forwardAddToList: (items) => {
+                safeInvoke(this.onAddToListTriggered, items);
+            },
+        });
     }
 
     /**
@@ -446,15 +476,25 @@ export class AdadaptedReactNativeSdk {
         adadaptedApiRequests
             .getKeywordIntercepts(
                 {
-                    aid: this.appId,
-                    sid: this.sessionId!,
-                    uid: this.deviceInfo!.udid,
+                    sdkId: packageJson.version,
+                    bundleId: this.deviceInfo!.bundleId,
+                    userId: this.deviceInfo!.udid,
+                    zoneId: "",
+                    sessionId: this.sessionId!,
+                    extra: "",
                 },
-                this.deviceOs!,
+                this.appId,
                 this.apiEnv,
             )
             .then((response) => {
-                this.keywordIntercepts = response.data;
+                this.keywordIntercepts =
+                    response.data && response.data.success
+                        ? response.data.data
+                        : undefined;
+            })
+            .catch(() => {
+                // Keyword intercepts are optional; a failure here must not stop
+                // the rest of the SDK from working.
             });
     }
 
@@ -516,10 +556,33 @@ export class AdadaptedReactNativeSdk {
         }
 
         return {
+            ...this.getSdkEventRequestBase(),
+            events: eventList,
+        };
+    }
+
+    /**
+     * The fields every SDK level event request carries.
+     *
+     * NOTE: locale and allow_retargeting used to travel on the session initialize
+     *       body. With that request gone this is the only channel left for them,
+     *       and it is the one the native SDKs already use, so a user's retargeting
+     *       decision is still honored rather than silently dropped.
+     * @returns the base request fields.
+     */
+    private getSdkEventRequestBase(): Omit<
+        ReportListManagerDataRequest,
+        "events"
+    > {
+        return {
             session_id: this.sessionId!,
             app_id: this.appId,
             udid: this.deviceInfo!.udid,
-            events: eventList,
+            sdk_version: packageJson.version,
+            bundle_id: this.deviceInfo!.bundleId,
+            bundle_version: this.deviceInfo!.bundleVersion,
+            locale: this.deviceInfo!.deviceLocale,
+            allow_retargeting: this.deviceInfo!.isAdTrackingEnabled ? 1 : 0,
         };
     }
 
@@ -570,10 +633,66 @@ export class AdadaptedReactNativeSdk {
      * Triggered when the state of the app changes.
      * @param state - The current state of the app.
      */
-    private handleAppStateChange(state: string): void {
+    private handleAppStateChange(state: AppStateStatus): void {
         if (state === "active") {
+            // Only a genuine return from the background resolves the session
+            // again. See hasBeenBackgrounded for why this differs from Android.
+            if (this.hasBeenBackgrounded) {
+                this.hasBeenBackgrounded = false;
+
+                this.createOrResumeSession();
+            }
+
             this.getPayloadItemData();
+        } else if (state === "background") {
+            this.hasBeenBackgrounded = true;
+
+            this.sessionBackgrounded();
         }
+
+        // "inactive" is an iOS-only transient state raised for the app switcher,
+        // control centre and incoming calls. Android has no analogue, so acting on
+        // it would report churn the native SDKs never report.
+    }
+
+    /**
+     * Call to acknowledge that an "add to list" item reached the user's list.
+     *
+     * This is what earns an ATL ad its interaction. Clicking the ad only offers the
+     * items; the host app is the only party that knows whether they were actually
+     * added, so the interaction is reported here rather than on the click. Ported
+     * from AdContent.itemAcknowledge in the Android SDK, including its guard
+     * against a second item reporting a second interaction for one click.
+     *
+     * Item names that belong to no recently clicked ad are ignored, so a host can
+     * safely call this for every item a user adds, ad-sourced or not.
+     * @param itemName - The product title of the item that was added.
+     */
+    public acknowledge(itemName: string): void {
+        const content = this.pendingAtlContent;
+
+        if (
+            !content ||
+            !content.items.some((item) => item.product_title === itemName)
+        ) {
+            return;
+        }
+
+        if (!content.isHandled) {
+            content.isHandled = true;
+
+            this.reportAdEvent({
+                adId: content.adId,
+                zoneId: content.zoneId,
+                impressionId: content.impressionId,
+                eventType: ReportedEventType.INTERACTION,
+            });
+        }
+
+        this.reportSdkEvent(SdkEventName.ATL_ITEM_ADDED_TO_LIST, {
+            ad_id: content.adId,
+            item_name: itemName,
+        });
     }
 
     /**
@@ -620,22 +739,6 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
-     * Notify the ad zone of visibility status change for off-screen ads.
-     * @param isVisible - Ad Zone visibility tracking.
-     */
-    public onAdZoneVisibilityChanged(isVisible: boolean): void {
-        DeviceEventEmitter.emit("visibility-event", isVisible);
-    }
-
-    /**
-     * Notify the adZone to send ad interaction report.
-     * @param itemName - Detailed list item title from ad that was clicked.
-     */
-    public acknowledge(itemName: string): void {
-        DeviceEventEmitter.emit("acknowledge", itemName);
-    }
-
-    /**
      * Initializes the session for the AdAdapted API and sets up the SDK.
      * @param props - The props used to initialize the SDK.
      * @returns a Promise of void.
@@ -670,12 +773,6 @@ export class AdadaptedReactNativeSdk {
             this.xyAdZoneDragDistanceAllowed = props.xyDragDistanceAllowed;
         }
 
-        // If the callback for onAdZonesRefreshed was provided, set it
-        // globally for use when the method needs to be triggered.
-        if (props.onAdZonesRefreshed) {
-            this.onAdZonesRefreshed = props.onAdZonesRefreshed;
-        }
-
         // If the callback for onAddToListTriggered was provided, set it
         // globally for use when the method needs to be triggered.
         if (props.onAddToListTriggered) {
@@ -688,9 +785,9 @@ export class AdadaptedReactNativeSdk {
             this.onOutOfAppPayloadAvailable = props.onOutOfAppPayloadAvailable;
         }
 
-        // If provided set any off-screen ad zones.
-        if ((props.offScreenAdZoneIds ?? []).length > 0) {
-            this.offScreenAdZoneIds = props.offScreenAdZoneIds ?? [];
+        // The store to target ads for, if any.
+        if (props.storeId) {
+            this.storeId = props.storeId;
         }
 
         return new Promise<void>((resolve, reject) => {
@@ -699,107 +796,59 @@ export class AdadaptedReactNativeSdk {
                     const deviceInfo = JSON.parse(
                         deviceInfoObj,
                     ) as DeviceTypes.DeviceInfo;
+
                     this.deviceInfo = deviceInfo;
                     this.deviceOs = deviceInfo.systemName.includes("ios")
                         ? DeviceTypes.DeviceOS.IOS
                         : DeviceTypes.DeviceOS.ANDROID;
+
                     // Pass custom advertiserId - ios only
                     if (Platform.OS.includes("ios")) {
                         if (!(props.advertiserId === undefined)) {
                             deviceInfo.udid = props.advertiserId;
                         }
                     }
-                    // Pass device info along with API call
-                    adadaptedApiRequests
-                        .initializeSession(
-                            {
-                                app_id: this.appId,
-                                udid: deviceInfo.udid,
-                                device_udid: deviceInfo.udid,
-                                sdk_version: packageJson.version,
-                                device_width: parseInt(
-                                    deviceInfo.deviceWidth,
-                                    10,
-                                ),
-                                device_height: parseInt(
-                                    deviceInfo.deviceHeight,
-                                    10,
-                                ),
-                                device_density: deviceInfo.deviceScreenDensity,
-                                device_carrier: deviceInfo.deviceCarrier,
-                                device_name: deviceInfo.deviceName,
-                                device_os: deviceInfo.systemName,
-                                device_osv: deviceInfo.systemVersion,
-                                device_locale: deviceInfo.deviceLocale,
-                                device_timezone: deviceInfo.deviceTimezone,
-                                bundle_id: deviceInfo.bundleId,
-                                bundle_version: deviceInfo.bundleVersion,
-                                allow_retargeting:
-                                    deviceInfo.isAdTrackingEnabled,
-                            },
-                            this.deviceOs,
-                            this.apiEnv,
-                        )
-                        .then((response) => {
-                            NativeModules.AdadaptedReactNativeSdk.storeCurrentSessionId(
-                                response.data.session_id,
-                            );
-                            this.sessionId = response.data.session_id;
-                            this.sessionInfo = response.data;
 
-                            this.adZones = this.generateAdZones(
-                                response.data.zones,
-                            );
+                    // There is no session request any more. The session is minted
+                    // here and lives only for as long as this JS runtime does,
+                    // exactly as Android's SessionClient does, so relaunching the
+                    // app always starts a new session.
+                    this.createOrResumeSession();
 
-                            if ((props.offScreenAdZoneIds ?? []).length > 0) {
-                                this.offScreenAdZones = this.generateAdZones(
-                                    response.data.zones,
-                                    true,
-                                );
-                            }
+                    // Ad zones read their session and device info from here.
+                    this.registerAdRequestContext();
 
-                            // Start the session data refresh timer.
-                            this.onRefreshAdZones();
+                    // Get all possible keyword intercept values. We don't need to
+                    // wait for this to complete prior to resolving initialization.
+                    this.getKeywordIntercepts();
 
-                            // Get all possible keyword intercept values.
-                            // We don't need to wait for this to complete
-                            // prior to resolving initialization of the SDK.
-                            this.getKeywordIntercepts();
+                    // Intercept an initial deep link here, if needed.
+                    Linking.getInitialURL().then((url) => {
+                        if (url) {
+                            // Pass in as an object so it mimics the "url"
+                            // property of Linking.addEventListener("url").
+                            this.handleDeepLink({ url });
+                        }
+                    });
 
-                            // Intercept an initial deep link here, if needed.
-                            Linking.getInitialURL().then((url) => {
-                                if (url) {
-                                    // Pass in as an object so it mimics the "url"
-                                    // property of the Linking.addEventListener("url") method.
-                                    this.handleDeepLink({
-                                        url,
-                                    });
-                                }
-                            });
+                    // Make the initial call to the Payload data server to see if
+                    // the user has any outstanding items to be added to list.
+                    this.getPayloadItemData();
 
-                            // Make the initial call to the Payload data server to see if
-                            // the user has any outstanding items to be added to list.
-                            this.getPayloadItemData();
+                    // Intercept deep links while the app is running.
+                    this.deepLinkOnEventListener = Linking.addEventListener(
+                        "url",
+                        this.handleDeepLink,
+                    );
 
-                            // Initialize an event listener to intercept deep links while the app is running.
-                            this.deepLinkOnEventListener =
-                                Linking.addEventListener(
-                                    "url",
-                                    this.handleDeepLink,
-                                );
+                    // Track app foreground and background transitions, which drive
+                    // the session lifecycle events.
+                    this.AppStateOnEventListener = AppState.addEventListener(
+                        "change",
+                        this.handleAppStateChange,
+                    );
 
-                            // // Initialize an event listener to intercept App state changes.
-                            // this.AppStateOnEventListener =
-                            //     AppState.addEventListener(
-                            //         "change",
-                            //         this.handleAppStateChange
-                            //     );
-
-                            resolve();
-                        })
-                        .catch((err) => {
-                            reject(err);
-                        });
+                    resolve();
                 })
                 .catch((err) => {
                     reject(err);
@@ -832,7 +881,8 @@ export class AdadaptedReactNativeSdk {
         } else if (
             searchTerm &&
             searchTerm.trim() &&
-            searchTerm.trim().length >= this.keywordIntercepts.min_match_length
+            searchTerm.trim().length >=
+                AdadaptedReactNativeSdk.MIN_KEYWORD_MATCH_LENGTH
         ) {
             searchTerm = searchTerm.trim();
 
@@ -1170,9 +1220,10 @@ export class AdadaptedReactNativeSdk {
      * can experience memory leaks.
      */
     public unmount(): void {
-        if (this.refreshAdZonesTimer) {
-            clearTimeout(this.refreshAdZonesTimer);
-        }
+        // Ad zones clear their own timers on unmount, so there is no shared timer
+        // left to cancel. Releasing the context stops any zone still mounted from
+        // issuing further requests against a torn-down SDK.
+        setAdRequestContext(undefined);
 
         if (this.deepLinkOnEventListener) {
             this.deepLinkOnEventListener.remove();
@@ -1183,3 +1234,10 @@ export class AdadaptedReactNativeSdk {
         }
     }
 }
+
+// The ad zone component is now part of the public surface: the host app renders
+// one per zone it has been allocated, the way AaZoneView is placed in an Android
+// layout. It replaces the retired getAdZones() / AdZoneInfo model, which only
+// existed because the removed session response happened to carry the zone list.
+export { AdZone } from "./components/AdZone";
+export type { AdZoneTypes } from "./componentTypes/AdZone";

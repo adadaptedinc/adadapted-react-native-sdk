@@ -4,11 +4,7 @@
  */
 import React, { useMemo } from "react";
 import { useState, useEffect } from "react";
-import {
-    AdadaptedReactNativeSdk,
-    AdZoneInfo,
-    KeywordSearchResult,
-} from "../../src/index";
+import { AdadaptedReactNativeSdk, KeywordSearchResult } from "../../src/index";
 import { EnvironmentTypes } from "../../src/componentTypes/Environment";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -43,11 +39,6 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export const App = () => {
     // - Define all useStates.
     const [sessionId, setSessionId] = useState<string | undefined>(undefined);
-    const [adZoneInfoList, setAdZoneInfoList] = useState<
-        AdZoneInfo[] | undefined
-    >(undefined);
-    const [offScreenAdZoneInfoList, setOffScreenAdZoneInfoList] =
-        useState<AdZoneInfo[]>();
     const [selectedItemList, setSelectedItemList] = useState<string[]>([]);
 
     /**
@@ -66,11 +57,6 @@ export const App = () => {
                 // Optional custom advertiserID - Delete next line to use IDFA instead.
                 advertiserId: "REACT-NATIVE-TEST-ADVERTISER-ID",
                 xyDragDistanceAllowed: 30,
-                onAdZonesRefreshed: () => {
-                    setSessionId(aaSdk!.getSessionId());
-                    setAdZoneInfoList(aaSdk!.getAdZones());
-                    setOffScreenAdZoneInfoList(aaSdk.getOffScreenAdZones());
-                },
                 onAddToListTriggered: (items) => {
                     // Demonstrate adding all provided items to the
                     // client side list.
@@ -96,13 +82,12 @@ export const App = () => {
                         );
                     }
                 },
-                // List an array of ad zones that contain off-screen ads here if applicable.
-                offScreenAdZoneIds: [110003],
             })
             .then(() => {
+                // The session is generated locally now, so it is available as soon
+                // as initialize() resolves. Ad zones are rendered by this app, so
+                // there is no zone list to read back.
                 setSessionId(aaSdk.getSessionId());
-                setAdZoneInfoList(aaSdk.getAdZones());
-                setOffScreenAdZoneInfoList(aaSdk.getOffScreenAdZones());
             })
             .catch((err) => {
                 console.error(err);
@@ -157,7 +142,6 @@ export const App = () => {
                         <StandardAdZonePage
                             aaSdk={aaSdk}
                             sessionId={sessionId}
-                            adZoneInfoList={adZoneInfoList}
                             selectedItemList={selectedItemList}
                             selectItem={selectItem}
                         />
@@ -168,7 +152,6 @@ export const App = () => {
                         <OffScreenAdZonePage
                             aaSdk={aaSdk}
                             sessionId={sessionId}
-                            adZoneInfoList={offScreenAdZoneInfoList}
                             selectedItemList={selectedItemList}
                             selectItem={selectItem}
                         />

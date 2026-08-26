@@ -2,6 +2,7 @@
 #import "AdadaptedReactNativeSdk.h"
 #import <CoreTelephony/CTTelephonyNetworkInfo.h>
 #import <CoreTelephony/CTCarrier.h>
+#import <UIKit/UIKit.h>
 
 @implementation AdadaptedReactNativeSdk
 
@@ -80,19 +81,23 @@ RCT_REMAP_METHOD(
     if([self isAdTrackingEnabled]) {
         NSUUID *identifier = [[ASIdentifierManager sharedManager] advertisingIdentifier];
         return [identifier UUIDString];
-    } else {
-        NSString *sessionId = [[NSUserDefaults standardUserDefaults]
-            stringForKey:@"aasdkSessionIdKey"];
-        if (sessionId) {
-            return sessionId;
-        } 
     }
-    return @"0000000-0000-0000-0000-000000000000";
-}
 
-RCT_EXPORT_METHOD(storeCurrentSessionId:(NSString *) sessionId) {
-    [[NSUserDefaults standardUserDefaults] setObject:sessionId forKey:@"aasdkSessionIdKey"];
-    [[NSUserDefaults standardUserDefaults] synchronize];
+    // With tracking denied there is no advertising identifier to report, so fall
+    // back to the vendor identifier: stable for this vendor's apps on this device
+    // and available without a tracking prompt.
+    //
+    // This used to read the session ID that storeCurrentSessionId wrote to
+    // NSUserDefaults, which meant the device ID changed on every session and each
+    // session looked like a brand new device. Sessions are now generated in JS and
+    // never persisted, so that method is gone along with the key it wrote.
+    NSUUID *vendorIdentifier = [[UIDevice currentDevice] identifierForVendor];
+
+    if (vendorIdentifier) {
+        return [vendorIdentifier UUIDString];
+    }
+
+    return @"0000000-0000-0000-0000-000000000000";
 }
 
 @end

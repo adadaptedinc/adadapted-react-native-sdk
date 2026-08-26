@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
     AdadaptedReactNativeSdk,
-    AdZoneInfo,
+    AdZone,
     KeywordSearchResult,
 } from "../../src/index";
 import { useNavigation } from "@react-navigation/native";
@@ -40,10 +40,6 @@ interface OffScreenAdZonePageProps {
      * The current session's id.
      */
     sessionId: string | undefined;
-    /**
-     * The ad zones' data.
-     */
-    adZoneInfoList: AdZoneInfo[] | undefined;
     /**
      * The selected list items array.
      */
@@ -84,12 +80,6 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
             handleOnSearchValueChanged(searchValue);
         }
     }, [searchValue]);
-
-    useEffect(() => {
-        if (props.adZoneInfoList) {
-            props.aaSdk.onAdZoneVisibilityChanged(isVisible);
-        }
-    }, [isVisible]);
 
     /**
      * Triggered when the search text field's value has changed.
@@ -254,10 +244,21 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                     style={styles.adZoneContainer}
                 >
                     <View style={styles.adZoneContainer}>
-                        {props.adZoneInfoList &&
-                            props.adZoneInfoList.find(
-                                (zone) => zone.zoneId === "110003",
-                            )?.adZone}
+                        {/* Visibility is reported straight to the zone that owns
+                            it, so scrolling this one away no longer affects any
+                            other zone on screen. */}
+                        <AdZone
+                            zoneId="110003"
+                            isVisible={isVisible}
+                            xyDragDistanceAllowed={30}
+                            onAddToListTriggered={(items) => {
+                                for (const item of items) {
+                                    props.selectItem({
+                                        itemName: item.product_title,
+                                    });
+                                }
+                            }}
+                        />
                     </View>
                 </InView>
             </IOScrollView>

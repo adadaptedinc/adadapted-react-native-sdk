@@ -4,47 +4,23 @@
 import { AxiosHeaders, AxiosResponse } from "axios";
 import {
     AdActionType,
-    AdSession,
-    InitializeSessionResponse,
+    AdRetrieveResponse,
+    InterceptRetrieveResponse,
     KeywordIntercepts,
-    KeywordInterceptsResponse,
-    RefreshSessionDataResponse,
     ReportAdEventResponse,
     ReportInterceptEventResponse,
     RetrievePayloadItemDataResponse,
+    Zone,
 } from "./adadaptedApiTypes";
 
 /**
- * Mocks the API call for initializing a session.
+ * Mocks the API call for retrieving a single ad for one zone.
  * @returns a promise of an {@link AxiosResponse} of the mocked data.
  */
-export function initializeSession(): Promise<
-    AxiosResponse<InitializeSessionResponse>
-> {
-    return new Promise<AxiosResponse<InitializeSessionResponse>>((resolve) => {
+export function retrieveAd(): Promise<AxiosResponse<AdRetrieveResponse>> {
+    return new Promise<AxiosResponse<AdRetrieveResponse>>((resolve) => {
         resolve({
-            data: AD_SESSION_DATA,
-            then: undefined,
-            config: {
-                headers: new AxiosHeaders(),
-            },
-            headers: {},
-            status: 200,
-            statusText: "200",
-        });
-    });
-}
-
-/**
- * Mocks the API call for refreshing session data.
- * @returns a promise of an {@link AxiosResponse} of the mocked data.
- */
-export function refreshSessionData(): Promise<
-    AxiosResponse<RefreshSessionDataResponse>
-> {
-    return new Promise<AxiosResponse<RefreshSessionDataResponse>>((resolve) => {
-        resolve({
-            data: REFRESHED_AD_SESSION_DATA,
+            data: { data: AD_ZONE_DATA, success: true },
             then: undefined,
             config: {
                 headers: new AxiosHeaders(),
@@ -82,11 +58,11 @@ export function reportAdEvent(): Promise<AxiosResponse<ReportAdEventResponse>> {
  * @returns a promise of an {@link AxiosResponse} of the mocked data.
  */
 export function getKeywordIntercepts(): Promise<
-    AxiosResponse<KeywordInterceptsResponse>
+    AxiosResponse<InterceptRetrieveResponse>
 > {
-    return new Promise<AxiosResponse<KeywordInterceptsResponse>>((resolve) => {
+    return new Promise<AxiosResponse<InterceptRetrieveResponse>>((resolve) => {
         resolve({
-            data: KEYWORD_INTERCEPT_DATA,
+            data: { data: KEYWORD_INTERCEPT_DATA, success: true },
             then: undefined,
             config: {
                 headers: new AxiosHeaders(),
@@ -202,46 +178,29 @@ export function retrievePayloadContent(): Promise<
 }
 
 /**
- * Mock data for an {@link AdSession} object.
+ * Mock data for a v1.0.0 {@link Zone} response, which carries exactly one ad.
  */
-const AD_SESSION_DATA: AdSession = {
-    session_id: "TEST_SESSION_ID",
-    will_serve_ads: true,
-    active_campaigns: true,
-    session_expires_at: 1587684561,
-    polling_interval_ms: 1000,
-    zones: {
-        100838: {
-            id: "100838",
-            port_height: 250,
-            port_width: 320,
-            land_height: 250,
-            land_width: 320,
-            ads: [
+const AD_ZONE_DATA: Zone = {
+    port_height: 250,
+    port_width: 320,
+    ad: {
+        id: "1815",
+        impression_id: "100838::C4D792785EA1EC91",
+        refresh_time: 60,
+        creative_url:
+            "https://testurl.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
+        action_type: AdActionType.CONTENT,
+        action_path: "",
+        payload: {
+            detailed_list_items: [
                 {
-                    ad_id: "1815",
-                    impression_id: "100838::C4D792785EA1EC91",
-                    refresh_time: 60,
-                    hide_after_interaction: false,
-                    type: "html",
-                    creative_url:
-                        "https://testurl.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
-                    tracking_html: "<html></html>",
-                    action_type: AdActionType.CONTENT,
-                    action_path: "",
-                    payload: {
-                        detailed_list_items: [
-                            {
-                                product_barcode: "0",
-                                product_brand: "Brand",
-                                product_category: "",
-                                product_discount: "",
-                                product_image: "",
-                                product_sku: "",
-                                product_title: "Sample Product",
-                            },
-                        ],
-                    },
+                    product_barcode: "0",
+                    product_brand: "Brand",
+                    product_category: "",
+                    product_discount: "",
+                    product_image: "",
+                    product_sku: "",
+                    product_title: "Sample Product",
                 },
             ],
         },
@@ -249,58 +208,10 @@ const AD_SESSION_DATA: AdSession = {
 };
 
 /**
- * Mock data for an {@link AdSession} object.
- */
-const REFRESHED_AD_SESSION_DATA: AdSession = {
-    session_id: "TEST_SESSION_ID",
-    will_serve_ads: true,
-    active_campaigns: true,
-    session_expires_at: 1587684561,
-    polling_interval_ms: 1000,
-    zones: {
-        100838: {
-            id: "100838",
-            port_height: 250,
-            port_width: 320,
-            land_height: 250,
-            land_width: 320,
-            ads: [
-                {
-                    ad_id: "1816",
-                    impression_id: "100838::C4D792785EA1EC91",
-                    refresh_time: 30,
-                    hide_after_interaction: false,
-                    type: "html",
-                    creative_url:
-                        "https://testurl.com/a/NTLKNZKYMMI2NTM1;100838;1815?session_id=TEST_SESSION_ID&amp;udid=00000000-0000-0000-0000-000000000000",
-                    tracking_html: "<html></html>",
-                    action_type: AdActionType.CONTENT,
-                    action_path: "",
-                    payload: {
-                        detailed_list_items: [
-                            {
-                                product_barcode: "0",
-                                product_brand: "Brand",
-                                product_category: "",
-                                product_discount: "",
-                                product_image: "",
-                                product_sku: "",
-                                product_title: "Sample Product",
-                            },
-                        ],
-                    },
-                },
-            ],
-        },
-    },
-};
-
-/**
- * Mock data for an {@link AdSession} object.
+ * Mock data for a {@link KeywordIntercepts} object.
  */
 const KEYWORD_INTERCEPT_DATA: KeywordIntercepts = {
     search_id: "test-search-id",
-    min_match_length: 3,
     terms: [
         {
             term_id: "test-term-id-1",

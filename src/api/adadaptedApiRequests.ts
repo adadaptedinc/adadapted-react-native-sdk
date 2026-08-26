@@ -2,12 +2,10 @@
  * API requests focused around Settings.
  */
 import {
-    InitializeSessionRequest,
-    InitializeSessionResponse,
-    KeywordInterceptsRequest,
-    KeywordInterceptsResponse,
-    RefreshSessionDataRequest,
-    RefreshSessionDataResponse,
+    AdRetrieveRequest,
+    AdRetrieveResponse,
+    InterceptRetrieveRequest,
+    InterceptRetrieveResponse,
     ReportAdEventRequest,
     ReportAdEventResponse,
     ReportInterceptEventRequest,
@@ -23,74 +21,56 @@ import { DeviceTypes } from "../componentTypes/Device";
 import { EnvironmentTypes } from "../componentTypes/Environment";
 
 /**
- * Makes an API request to initialize the session for the AdAdapted API.
+ * Makes an API request to retrieve a single ad for one zone.
+ *
+ * NOTE: The v1.0.0 routes carry no {os} path segment and take the app ID in the
+ *       x-api-key header rather than the body. Platform attribution comes from the
+ *       session ID prefix instead ("RN" here, "JS" on web, "ANDROID" on Android).
  * @param requestData - The data to be sent with the request.
- * @param deviceOS - The operating system being ran on the device.
+ * @param appId - The app ID, sent as the API key header.
  * @param apiEnv - The API environment to use when making the API request.
  * @returns a promise containing the response data.
  */
-export function initializeSession(
-    requestData: InitializeSessionRequest,
-    deviceOS: DeviceTypes.DeviceOS,
+export function retrieveAd(
+    requestData: AdRetrieveRequest,
+    appId: string,
     apiEnv: EnvironmentTypes.ApiEnv,
-): Promise<AxiosResponse<InitializeSessionResponse>> {
+): Promise<AxiosResponse<AdRetrieveResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
-        ? adadaptedApiRequestMocks.initializeSession()
-        : axios(`${apiEnv}/v/0.9.5/${deviceOS}/sessions/initialize`, {
+        ? adadaptedApiRequestMocks.retrieveAd()
+        : axios(`${apiEnv}/v/1.0.0/ad/retrieve`, {
               method: "POST",
               data: requestData,
               headers: {
                   accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-api-key": appId,
               },
           });
-}
-
-/**
- * Makes an API request to refresh the session data.
- * A valid session is required for this API endpoint to respond successfully.
- * @param requestData - The data to be sent with the request.
- * @param deviceOS - The operating system being ran on the device.
- * @param apiEnv - The API environment to use when making the API request.
- * @returns a promise containing the response data.
- */
-export function refreshSessionData(
-    requestData: RefreshSessionDataRequest,
-    deviceOS: DeviceTypes.DeviceOS,
-    apiEnv: EnvironmentTypes.ApiEnv,
-): Promise<AxiosResponse<RefreshSessionDataResponse>> {
-    return apiEnv === EnvironmentTypes.ApiEnv.Mock
-        ? adadaptedApiRequestMocks.refreshSessionData()
-        : axios(
-              `${apiEnv}/v/0.9.5/${deviceOS}/ads/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}&sdk=${requestData.sdkVersion}&contextID=${requestData.adContext?.contextIds}&zoneID=${requestData.adContext?.zoneIds}`,
-              {
-                  method: "GET",
-                  headers: {
-                      accept: "application/json",
-                  },
-              },
-          );
 }
 
 /**
  * Makes an API request to report an ad event that has occurred.
  * A valid session is required for this API endpoint to respond successfully.
  * @param requestData - The data to be sent with the request.
- * @param deviceOS - The operating system being ran on the device.
+ * @param appId - The client's app ID, sent as the API key.
  * @param apiEnv - The API environment to use when making the API request.
  * @returns a promise containing the response data.
  */
 export function reportAdEvent(
     requestData: ReportAdEventRequest,
-    deviceOS: DeviceTypes.DeviceOS,
+    appId: string,
     apiEnv: EnvironmentTypes.ApiEnv,
 ): Promise<AxiosResponse<ReportAdEventResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportAdEvent()
-        : axios(`${apiEnv}/v/0.9.5/${deviceOS}/ads/events`, {
+        : axios(`${apiEnv}/v/1.0.0/ad/events`, {
               method: "POST",
               data: requestData,
               headers: {
                   accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-api-key": appId,
               },
           });
 }
@@ -99,48 +79,50 @@ export function reportAdEvent(
  * Makes an API request to get all possible keyword intercepts for the session.
  * A valid session is required for this API endpoint to respond successfully.
  * @param requestData - The data to be sent with the request.
- * @param deviceOS - The operating system being ran on the device.
+ * @param appId - The client's app ID, sent as the API key.
  * @param apiEnv - The API environment to use when making the API request.
  * @returns a promise containing the response data.
  */
 export function getKeywordIntercepts(
-    requestData: KeywordInterceptsRequest,
-    deviceOS: DeviceTypes.DeviceOS,
+    requestData: InterceptRetrieveRequest,
+    appId: string,
     apiEnv: EnvironmentTypes.ApiEnv,
-): Promise<AxiosResponse<KeywordInterceptsResponse>> {
+): Promise<AxiosResponse<InterceptRetrieveResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.getKeywordIntercepts()
-        : axios(
-              `${apiEnv}/v/0.9.5/${deviceOS}/intercepts/retrieve?aid=${requestData.aid}&sid=${requestData.sid}&uid=${requestData.uid}`,
-              {
-                  method: "GET",
-                  headers: {
-                      accept: "application/json",
-                  },
+        : axios(`${apiEnv}/v/1.0.0/intercept/retrieve`, {
+              method: "POST",
+              data: requestData,
+              headers: {
+                  accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-api-key": appId,
               },
-          );
+          });
 }
 
 /**
  * Makes an API request to report an intercept event that has occurred.
  * A valid session is required for this API endpoint to respond successfully.
  * @param requestData - The data to be sent with the request.
- * @param deviceOS - The operating system being ran on the device.
+ * @param appId - The client's app ID, sent as the API key.
  * @param apiEnv - The API environment to use when making the API request.
  * @returns a promise containing the response data.
  */
 export function reportInterceptEvent(
     requestData: ReportInterceptEventRequest,
-    deviceOS: DeviceTypes.DeviceOS,
+    appId: string,
     apiEnv: EnvironmentTypes.ApiEnv,
 ): Promise<AxiosResponse<ReportInterceptEventResponse>> {
     return apiEnv === EnvironmentTypes.ApiEnv.Mock
         ? adadaptedApiRequestMocks.reportInterceptEvent()
-        : axios(`${apiEnv}/v/0.9.5/${deviceOS}/intercepts/events`, {
+        : axios(`${apiEnv}/v/1.0.0/intercept/events`, {
               method: "POST",
               data: requestData,
               headers: {
                   accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-api-key": appId,
               },
           });
 }

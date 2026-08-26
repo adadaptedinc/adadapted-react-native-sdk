@@ -1,10 +1,16 @@
 /**
  * Component for creating an {@link AdZone}.
+ *
+ * This is a port of the Android SDK's AdZonePresenter. Each instance owns one
+ * zone: its own ad request, its own refresh countdown and its own impression
+ * pairing, all independent of every other zone on screen. Nothing here is shared
+ * at module scope, which is what allows several zones to coexist.
  * @module
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    DeviceEventEmitter,
+    AppState,
+    AppStateStatus,
     Linking,
     StyleProp,
     StyleSheet,
@@ -12,17 +18,47 @@ import {
     ViewStyle,
 } from "react-native";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
-import { Ad, AdActionType, ReportedEventType } from "../api/adadaptedApiTypes";
+import {
+    Ad,
+    AdActionType,
+    ReportedEventType,
+    SdkEventName,
+    ZoneUnfilledReason,
+} from "../api/adadaptedApiTypes";
 import { WebView } from "react-native-webview";
 import { safeInvoke } from "../util";
 import { ReportAdButton } from "./ReportAdButton";
 import { AdZoneTypes } from "src/componentTypes/AdZone";
+import { getAdRequestContext } from "../adRequestContext";
 
 /**
- * Timer used for cycling through ads in the zone
- * based on the ad "refresh time" for each ad.
+ * How long an ad is displayed for when the API supplies no usable refresh time.
+ * Matches Config.DEFAULT_AD_REFRESH_SECONDS on Android.
  */
-let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
+const DEFAULT_AD_REFRESH_SECONDS = 60;
+
+/**
+ * The shortest refresh time that will be honored, so an unexpectedly small value
+ * cannot put the zone into a tight request loop.
+ * Matches Ad.MINIMUM_REFRESH_TIME_SECONDS on Android.
+ */
+const MINIMUM_AD_REFRESH_SECONDS = 15;
+
+/**
+ * Resolves how long an ad should be displayed for.
+ * Mirrors Ad.refreshTimeOrDefault on Android.
+ * @param refreshTime - The refresh_time served for the ad.
+ * @returns the refresh time in seconds.
+ */
+function resolveRefreshSeconds(refreshTime: number | undefined): number {
+    const value = Number(refreshTime);
+
+    if (!Number.isFinite(value) || value <= 0) {
+        return DEFAULT_AD_REFRESH_SECONDS;
+    }
+
+    return Math.max(value, MINIMUM_AD_REFRESH_SECONDS);
+}
 
 /**
  * Creates the AdZone component.
@@ -30,73 +66,517 @@ let cycleAdTimer: ReturnType<typeof setTimeout> | undefined;
  * @returns an AdZone JSX Element.
  */
 export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
+    const { zoneId } = props;
+    const isVisible = props.isVisible ?? true;
+    const dragDistanceAllowed = props.xyDragDistanceAllowed ?? 25;
+
     /**
-     * Tracks the current ad index being shown.
+     * The ad currently displayed, or undefined when the zone is unfilled.
      */
-    const [adIndexShown, setAdIndexShown] = useState(
-        Math.floor(Math.random() * props.adZoneData.ads.length),
+    const [currentAd, setCurrentAd] = useState<Ad | undefined>(undefined);
+
+    /**
+     * Where the user started touching the ad, used to tell a tap from a scroll.
+     *
+     * A ref rather than state: the touch end handler has to read the value the
+     * touch start handler wrote, and a state update only reaches the handler after
+     * a re-render. If the two events land in one batch, the comparison runs against
+     * the previous touch's coordinates and a genuine tap is discarded as a drag.
+     */
+    const touchStartCoords = useRef<AdZoneTypes.TouchCoordinates>({
+        x: 0,
+        y: 0,
+    });
+
+    /**
+     * All of the zone's own bookkeeping. Held in a ref rather than state because
+     * the timer callbacks read and write it outside of React's render cycle, and a
+     * stale closure over state would silently freeze the countdown.
+     */
+    const zone = useRef({
+        currentAd: undefined as Ad | undefined,
+        refreshSeconds: DEFAULT_AD_REFRESH_SECONDS,
+        /**
+         * True once a response, filled or not, has come back for this zone.
+         */
+        loaded: false,
+        /**
+         * Guards against overlapping ad requests.
+         */
+        inFlight: false,
+        /**
+         * Set when a targeting change arrives mid-request, so it is not lost.
+         */
+        refetchWhenSettled: false,
+        adFetchedAt: 0,
+        msLeftOnRefresh: 0,
+        countdownResumedAt: 0,
+        timerId: undefined as ReturnType<typeof setTimeout> | undefined,
+        timerRunning: false,
+        isVisible: true,
+        isAppActive: true,
+        mounted: true,
+        impressionTracked: false,
+        impressionEndTracked: false,
+        clickHandled: false,
+        unfilledReported: false,
+        pendingUnfilledReason: undefined as ZoneUnfilledReason | undefined,
+    });
+
+    /**
+     * Reports an ad or zone level event through the SDK.
+     */
+    const reportEvent = useCallback(
+        (
+            eventType: ReportedEventType,
+            ad?: Ad,
+            eventName?: ZoneUnfilledReason,
+        ): void => {
+            getAdRequestContext()?.reportAdEvent({
+                adId: ad?.id ?? "",
+                zoneId,
+                impressionId: ad?.impression_id ?? "",
+                eventType,
+                eventName,
+            });
+        },
+        [zoneId],
     );
-    /**
-     * Tracks the coordinates when the user started touching the Ad View.
-     */
-    const [touchStartCoords, setTouchStartCoords] =
-        useState<AdZoneTypes.TouchCoordinates>({
-            x: 0,
-            y: 0,
-        });
 
     /**
-     * Track ad visibility (for off-screen ads).
+     * Whether the zone is actually in front of the user right now. The countdown,
+     * the impression events and the unfilled report all hang off this.
+     * Mirrors AdZonePresenter.zoneIsOnScreen.
      */
-    const [isAdZoneVisible, setIsAdVisibile] = useState(props.isAdZoneVisible);
+    const isOnScreen = useCallback((): boolean => {
+        const state = zone.current;
 
-    // Setup device listeners.
+        return state.mounted && state.isVisible && state.isAppActive;
+    }, []);
+
+    /**
+     * Reports the impression for the current ad, at most once per ad.
+     */
+    const trackImpression = useCallback((): void => {
+        const state = zone.current;
+
+        if (!state.currentAd || state.impressionTracked || !isOnScreen()) {
+            return;
+        }
+
+        state.impressionTracked = true;
+
+        reportEvent(ReportedEventType.IMPRESSION, state.currentAd);
+    }, [isOnScreen, reportEvent]);
+
+    /**
+     * Reports the impression end for the current ad. Only fires once, and only if
+     * a real impression was recorded for that ad first.
+     * Mirrors EventClient.trackImpressionEnd.
+     */
+    const endImpression = useCallback((): void => {
+        const state = zone.current;
+
+        if (!state.impressionTracked || state.impressionEndTracked) {
+            return;
+        }
+
+        state.impressionEndTracked = true;
+
+        reportEvent(ReportedEventType.IMPRESSION_END, state.currentAd);
+    }, [reportEvent]);
+
+    /**
+     * Reports a queued unfilled event once the zone is on screen.
+     */
+    const flushUnfilled = useCallback((): void => {
+        const state = zone.current;
+
+        if (
+            !state.pendingUnfilledReason ||
+            state.unfilledReported ||
+            !isOnScreen()
+        ) {
+            return;
+        }
+
+        const reason = state.pendingUnfilledReason;
+
+        state.unfilledReported = true;
+        state.pendingUnfilledReason = undefined;
+
+        reportEvent(ReportedEventType.ZONE_UNFILLED, undefined, reason);
+    }, [isOnScreen, reportEvent]);
+
+    /**
+     * Queues the unfilled report, and sends it if the zone is already on screen.
+     *
+     * Held rather than dropped when off screen, because a request can settle
+     * before the host has reported the zone's visibility, and dropping it there
+     * would lose the report for any zone that loses that race.
+     */
+    const reportUnfilled = useCallback(
+        (reason: ZoneUnfilledReason): void => {
+            const state = zone.current;
+
+            if (state.unfilledReported) {
+                return;
+            }
+
+            state.pendingUnfilledReason = reason;
+
+            flushUnfilled();
+        },
+        [flushUnfilled],
+    );
+
+    const cancelTimer = useCallback((): void => {
+        const state = zone.current;
+
+        if (state.timerId) {
+            clearTimeout(state.timerId);
+
+            state.timerId = undefined;
+        }
+
+        state.timerRunning = false;
+    }, []);
+
+    // The timer callbacks need to reach loadNextAd, which is defined further down
+    // and closes over these same helpers. A ref breaks that cycle. It is populated
+    // by an effect rather than during render, and read only from callbacks that
+    // cannot run before the first effect has flushed.
+    const loadNextAdRef = useRef<(() => void) | undefined>(undefined);
+
+    /**
+     * Starts the countdown with whatever time it has left.
+     */
+    const startTimer = useCallback((): void => {
+        const state = zone.current;
+
+        if (!state.loaded || state.timerRunning || !isOnScreen()) {
+            return;
+        }
+
+        state.timerRunning = true;
+        state.countdownResumedAt = Date.now();
+        state.timerId = setTimeout(() => {
+            state.timerRunning = false;
+
+            loadNextAdRef.current?.();
+        }, state.msLeftOnRefresh);
+    }, [isOnScreen]);
+
+    /**
+     * Arms the countdown fresh from the current ad's refresh time.
+     */
+    const restartTimer = useCallback((): void => {
+        const state = zone.current;
+
+        cancelTimer();
+
+        state.adFetchedAt = Date.now();
+        state.msLeftOnRefresh = state.refreshSeconds * 1000;
+
+        startTimer();
+    }, [cancelTimer, startTimer]);
+
+    /**
+     * Freezes what is left of the countdown, so a zone that is off screen or in a
+     * backgrounded app neither refreshes nor fetches.
+     */
+    const pauseTimer = useCallback((): void => {
+        const state = zone.current;
+
+        if (!state.timerRunning) {
+            return;
+        }
+
+        state.msLeftOnRefresh = Math.max(
+            0,
+            state.msLeftOnRefresh - (Date.now() - state.countdownResumedAt),
+        );
+
+        cancelTimer();
+    }, [cancelTimer]);
+
+    /**
+     * Resumes the countdown. An ad that outlived its own refresh time while the
+     * countdown was frozen is replaced immediately, rather than being shown for
+     * time it never spent in front of anyone.
+     */
+    const resumeTimer = useCallback((): void => {
+        const state = zone.current;
+
+        if (state.timerRunning || !isOnScreen()) {
+            return;
+        }
+
+        if (
+            state.loaded &&
+            Date.now() - state.adFetchedAt >= state.refreshSeconds * 1000
+        ) {
+            loadNextAdRef.current?.();
+        } else {
+            startTimer();
+        }
+    }, [isOnScreen, startTimer]);
+
+    /**
+     * Places an ad in the zone, or clears it when there is none, and arms the
+     * countdown.
+     * @param ad - The ad to display, or undefined when there is no ad.
+     * @param refreshSecondsOverride - The refresh time to use when there is no ad.
+     */
+    const displayAd = useCallback(
+        (ad: Ad | undefined, refreshSecondsOverride?: number): void => {
+            const state = zone.current;
+
+            if (!state.mounted) {
+                // The zone was unmounted while its request was in flight. Dropping
+                // the response here keeps unmount final: no render, no impression
+                // and no timer for a zone that is gone.
+                return;
+            }
+
+            // Each ad gets its own impression pair, so the outgoing ad is closed
+            // out before the tracking flags reset.
+            endImpression();
+
+            state.currentAd = ad;
+            state.refreshSeconds = resolveRefreshSeconds(
+                ad ? ad.refresh_time : refreshSecondsOverride,
+            );
+            state.impressionTracked = false;
+            state.impressionEndTracked = false;
+            state.clickHandled = false;
+
+            // Armed before anything else, so a later failure cannot leave the zone
+            // without a refresh timer.
+            restartTimer();
+
+            setCurrentAd(ad);
+            trackImpression();
+
+            safeInvoke(props.onZoneHasAds, ad !== undefined);
+
+            if (ad) {
+                safeInvoke(props.onAdLoaded);
+            } else {
+                safeInvoke(props.onAdLoadFailed);
+            }
+        },
+        [
+            endImpression,
+            restartTimer,
+            trackImpression,
+            props.onZoneHasAds,
+            props.onAdLoaded,
+            props.onAdLoadFailed,
+        ],
+    );
+
+    /**
+     * Requests a single ad for this zone.
+     */
+    const fetchAd = useCallback((): void => {
+        const state = zone.current;
+        const context = getAdRequestContext();
+
+        if (!state.mounted || !context) {
+            return;
+        }
+
+        if (state.inFlight) {
+            // A targeting change arrived while a request was outstanding. Recording
+            // it means the zone picks up the new value as soon as that settles,
+            // instead of showing the previous one's ad until the next refresh.
+            state.refetchWhenSettled = true;
+
+            return;
+        }
+
+        state.inFlight = true;
+        state.unfilledReported = false;
+        state.pendingUnfilledReason = undefined;
+
+        adadaptedApiRequests
+            .retrieveAd(
+                {
+                    sdkId: context.sdkVersion,
+                    bundleId: context.bundleId,
+                    userId: context.udid,
+                    zoneId,
+                    storeId: context.storeId,
+                    contextId: props.contextId ?? "",
+                    sessionId: context.getSessionId(),
+                    extra: "",
+                },
+                context.appId,
+                context.apiEnv,
+            )
+            .then((response) => {
+                state.inFlight = false;
+                state.loaded = true;
+
+                const body = response.data;
+
+                // The API returns success:false on a 200 for business rejections,
+                // so the status code alone is not enough.
+                if (!body || body.success === false || !body.data) {
+                    reportUnfilled(ZoneUnfilledReason.REQUEST_FAILED);
+                    displayAd(undefined, state.refreshSeconds);
+                } else if (!body.data.ad || !body.data.ad.id) {
+                    // An ad object with no ID is how the API reports that it had
+                    // nothing to serve. Its refresh_time is the backoff.
+                    reportUnfilled(ZoneUnfilledReason.NO_AD);
+                    displayAd(
+                        undefined,
+                        body.data.ad ? body.data.ad.refresh_time : undefined,
+                    );
+                } else {
+                    displayAd({ ...body.data.ad, zone_id: zoneId });
+                }
+
+                if (state.refetchWhenSettled) {
+                    state.refetchWhenSettled = false;
+
+                    loadNextAdRef.current?.();
+                }
+            })
+            .catch(() => {
+                state.inFlight = false;
+                state.loaded = true;
+
+                reportUnfilled(ZoneUnfilledReason.REQUEST_FAILED);
+
+                // The current refresh time is carried forward, so a failing zone
+                // still paces its retries instead of dropping back to the default.
+                displayAd(undefined, state.refreshSeconds);
+
+                if (state.refetchWhenSettled) {
+                    state.refetchWhenSettled = false;
+
+                    loadNextAdRef.current?.();
+                }
+            });
+    }, [displayAd, props.contextId, reportUnfilled, zoneId]);
+
+    /**
+     * Requests the next ad, replacing whatever the zone is showing.
+     */
+    const loadNextAd = useCallback((): void => {
+        const state = zone.current;
+
+        // Armed before the request goes out, so a slow or failing response cannot
+        // leave the zone without a timer.
+        restartTimer();
+
+        if (state.inFlight) {
+            state.refetchWhenSettled = true;
+
+            return;
+        }
+
+        if (!state.loaded) {
+            return;
+        }
+
+        // Rotated out, so the ad the zone was showing is done.
+        endImpression();
+
+        fetchAd();
+    }, [endImpression, fetchAd, restartTimer]);
+
+    // Declared before the effects below so it flushes first on mount, which
+    // guarantees the ref is populated before any timer or response can read it.
     useEffect(() => {
-        DeviceEventEmitter.addListener("visibility-event", (event: boolean) => {
-            setIsAdVisibile(event);
-        });
+        loadNextAdRef.current = loadNextAd;
+    }, [loadNextAd]);
 
-        DeviceEventEmitter.addListener("acknowledge", (itemName: string) => {
-            acknowledge(itemName);
-        });
+    // Mount and unmount. Mirrors AdZonePresenter.onStart / onStop.
+    useEffect(() => {
+        const state = zone.current;
+
+        state.mounted = true;
+
+        // Reported for every zone, whether it ever receives an ad or not.
+        reportEvent(ReportedEventType.ZONE_MOUNTED);
+
+        fetchAd();
 
         return () => {
-            clearTimeout(cycleAdTimer);
-            DeviceEventEmitter.removeAllListeners("acknowledge");
-            DeviceEventEmitter.removeAllListeners("visibility-event");
+            endImpression();
+            cancelTimer();
+
+            state.mounted = false;
+
+            reportEvent(ReportedEventType.ZONE_UNMOUNTED);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Send impression on ad cycle.
+    // The host app reports visibility, since the SDK cannot determine it here.
     useEffect(() => {
-        startAdTimer();
-        if (isAdZoneVisible) {
-            sendAdImpression();
+        const state = zone.current;
+
+        state.isVisible = isVisible;
+
+        if (isOnScreen()) {
+            flushUnfilled();
+            trackImpression();
+            resumeTimer();
+        } else {
+            endImpression();
+            pauseTimer();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [adIndexShown]);
+    }, [isVisible]);
+
+    // A backgrounded app is not showing its ads to anyone.
+    useEffect(() => {
+        const onAppStateChange = (status: AppStateStatus): void => {
+            const state = zone.current;
+
+            // "inactive" is an iOS-only transient state with no Android analogue,
+            // so it is ignored rather than treated as backgrounded.
+            if (status === "active") {
+                state.isAppActive = true;
+
+                flushUnfilled();
+                trackImpression();
+                resumeTimer();
+            } else if (status === "background") {
+                state.isAppActive = false;
+
+                endImpression();
+                pauseTimer();
+            }
+        };
+
+        const subscription = AppState.addEventListener(
+            "change",
+            onAppStateChange,
+        );
+
+        return () => subscription.remove();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // A changed recipe context means the ad on screen was chosen for the wrong one.
+    const previousContextId = useRef(props.contextId);
 
     useEffect(() => {
-        if (
-            props.offScreenAdZone &&
-            isAdZoneVisible &&
-            props.adZoneData &&
-            props.adZoneData.ads &&
-            props.adZoneData.ads.length > adIndexShown &&
-            !props.adZoneData.ads[adIndexShown].impression_tracked
-        ) {
-            sendAdImpression();
+        if (previousContextId.current === props.contextId) {
+            return;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAdZoneVisible]);
 
-    useEffect(() => {
-        if (props.adZoneData.ads.length > 0) {
-            cycleDisplayedAd();
+        previousContextId.current = props.contextId;
+
+        if (zone.current.loaded) {
+            loadNextAdRef.current?.();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.isContextualAd]);
+    }, [props.contextId]);
 
     /**
      * Generates all component related styles.
@@ -120,219 +600,129 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         });
     }
 
-    // Generate the styles each render in case the ad is updated with
-    // new settings that need to be reflected in the styles of the view.
     const styles = generateStyles();
 
-    // If there is no ad to display, make the view take up no space.
+    // With no ad to display the view takes up no space.
     //
     // Composed rather than mutated: StyleSheet.create returns Readonly styles
     // under React Native's Strict TypeScript API, and mutating the object it
     // returns was never safe even when the types allowed it.
     const finalMainViewStyle: StyleProp<ViewStyle> =
-        !props.adZoneData.ads[adIndexShown] ||
-        !props.adZoneData.ads[adIndexShown].creative_url
+        !currentAd || !currentAd.creative_url
             ? [styles.mainView, { width: 0, height: 0 }]
-            : styles.mainView;
+            : [styles.mainView, props.style];
 
     /**
      * Triggers when the user selects the ad zone.
-     * @param currentlyDisplayedAd - The ad currently displayed.
+     * @param selectedAd - The ad that was selected.
      */
-    function onAdZoneSelected(currentlyDisplayedAd: Ad): void {
-        // Determine the "action type" and perform that specific action.
+    function onAdZoneSelected(selectedAd: Ad): void {
+        const state = zone.current;
+
+        // The zone keeps showing this ad until its replacement arrives, so the
+        // touch target stays live and a second tap would report a second click
+        // against the same impression.
+        if (state.clickHandled) {
+            return;
+        }
+
+        let wasHandled = false;
+
         if (
-            currentlyDisplayedAd.action_type === AdActionType.EXTERNAL &&
-            currentlyDisplayedAd.action_path
+            selectedAd.action_type === AdActionType.EXTERNAL &&
+            selectedAd.action_path
         ) {
-            // Action Type: EXTERNAL
-            Linking.openURL(currentlyDisplayedAd.action_path).then();
+            wasHandled = true;
+
+            reportEvent(ReportedEventType.INTERACTION, selectedAd);
+
+            Linking.openURL(selectedAd.action_path).then();
         } else if (
-            currentlyDisplayedAd.action_type === AdActionType.CONTENT &&
-            currentlyDisplayedAd.payload &&
-            currentlyDisplayedAd.payload.detailed_list_items
+            selectedAd.action_type === AdActionType.CONTENT &&
+            selectedAd.payload &&
+            selectedAd.payload.detailed_list_items
         ) {
-            safeInvoke(
-                props.onAddToListTriggered,
-                currentlyDisplayedAd.payload.detailed_list_items,
-            );
-        }
+            wasHandled = true;
 
-        cycleDisplayedAd();
-    }
-
-    /**
-     * Call to acknowledge ATL item(s) added to user list.
-     * @param itemName - Detailed list item title from ad that was clicked.
-     */
-    function acknowledge(itemName: string): void {
-        if (props.adZoneData.ads) {
-            props.adZoneData.ads.forEach((ad) => {
-                if (ad.action_type === "c") {
-                    ad.payload.detailed_list_items.forEach((item) => {
-                        if (item.product_title === itemName) {
-                            triggerReportAdEvent(
-                                ad,
-                                ReportedEventType.INTERACTION,
-                            );
-                        }
-                    });
-                }
+            // An "add to list" click reports no interaction yet. The items have
+            // only been offered at this point, and the interaction is earned when
+            // the host app confirms they reached the list, through
+            // AdadaptedReactNativeSdk.acknowledge. Android splits it the same way:
+            // atl_ad_clicked here, trackInteraction in AdContent.acknowledge.
+            getAdRequestContext()?.reportSdkEvent(SdkEventName.ATL_AD_CLICKED, {
+                id: selectedAd.id,
             });
-        }
-    }
 
-    /**
-     * Triggered when we need to report an ad event to the API.
-     * @param ad - The ad to send an event for.
-     * @param eventType - The event type for the reported event.
-     */
-    function triggerReportAdEvent(ad: Ad, eventType: ReportedEventType): void {
-        // The event timestamp has to be sent as a unix timestamp.
-        const currentTs = Math.round(new Date().getTime() / 1000);
-
-        // Log the taken action/event with the API.
-        adadaptedApiRequests
-            .reportAdEvent(
-                {
-                    app_id: props.appId,
-                    session_id: props.sessionId,
-                    udid: props.udid,
-                    events: [
-                        {
-                            ad_id: ad.ad_id,
-                            impression_id: ad.impression_id,
-                            event_type: eventType,
-                            created_at: currentTs,
-                        },
-                    ],
-                },
-                props.deviceOs,
-                props.apiEnv,
-            )
-            .then(() => {
-                // Do nothing with the response for now...
+            getAdRequestContext()?.setPendingAtlContent({
+                adId: selectedAd.id,
+                zoneId: props.zoneId,
+                impressionId: selectedAd.impression_id,
+                items: selectedAd.payload.detailed_list_items,
+                isHandled: false,
             });
-    }
 
-    /**
-     * Generates a new timer for cycling to the next ad.
-     */
-    function startAdTimer(): void {
-        clearTimeout(cycleAdTimer);
+            const items = selectedAd.payload.detailed_list_items;
 
-        if (
-            props.adZoneData.ads.length > 0 &&
-            props.adZoneData.ads[adIndexShown]
-        ) {
-            const refreshTime: number =
-                props.adZoneData.ads[adIndexShown].refresh_time * 1000;
-            cycleAdTimer = setTimeout(cycleDisplayedAd, refreshTime);
-        } else {
-            cycleAdTimer = setTimeout(cycleDisplayedAd, 30000);
-        }
-    }
-
-    /**
-     * Cycles to the next ad to display in the current available sequence of ads.
-     */
-    function cycleDisplayedAd(): void {
-        let nextAdIndex = 0;
-
-        // Start by determining the next ad index to display.
-        const lastAd = props.adZoneData.ads[adIndexShown];
-
-        if (adIndexShown < props.adZoneData.ads.length - 1) {
-            nextAdIndex = adIndexShown + 1;
-        } else {
-            nextAdIndex = 0;
+            if (props.onAddToListTriggered) {
+                props.onAddToListTriggered(items);
+            } else {
+                // No handler on this zone, so fall back to the one the host gave
+                // initialize(). Before zones became components that was the only
+                // place to set it.
+                getAdRequestContext()?.forwardAddToList(items);
+            }
         }
 
-        if (lastAd && !lastAd.impression_tracked && !isAdZoneVisible) {
-            // Send invisible ad impression if ad was not visible before end of timer cycle.
-            triggerReportAdEvent(
-                lastAd,
-                ReportedEventType.INVISIBLE_IMPRESSION,
-            );
+        if (!wasHandled) {
+            // An action type this SDK cannot handle must not cost the zone its ad.
+            return;
         }
 
-        if (lastAd && lastAd.impression_tracked) {
-            // Reset ad impression tracking status.
-            lastAd.impression_tracked = false;
-        }
+        state.clickHandled = true;
 
-        setAdIndexShown(nextAdIndex);
-    }
-
-    /**
-     * Send ad tracking impression.
-     */
-    function sendAdImpression(): void {
-        const ad = props.adZoneData.ads[adIndexShown];
-
-        if (
-            ad &&
-            (ad.impression_tracked === undefined || !ad.impression_tracked)
-        ) {
-            triggerReportAdEvent(ad, ReportedEventType.IMPRESSION);
-            ad.impression_tracked = true;
-        }
+        loadNextAd();
     }
 
     // Returned JSX.
     return (
         <View style={finalMainViewStyle}>
-            {props.adZoneData.ads[adIndexShown] &&
-            props.adZoneData.ads[adIndexShown].creative_url ? (
+            {currentAd && currentAd.creative_url ? (
                 <WebView
-                    source={{
-                        uri: props.adZoneData.ads[adIndexShown].creative_url,
-                    }}
+                    source={{ uri: currentAd.creative_url }}
                     androidLayerType="hardware"
                     automaticallyAdjustContentInsets={false}
                     style={styles.webView}
                     onTouchStart={(e) => {
-                        triggerReportAdEvent(
-                            props.adZoneData.ads[adIndexShown],
-                            ReportedEventType.INTERACTION,
-                        );
-                        setTouchStartCoords({
+                        touchStartCoords.current = {
                             x: e.nativeEvent.pageX,
                             y: e.nativeEvent.pageY,
-                        });
+                        };
                     }}
                     onTouchEnd={(e) => {
-                        if (touchStartCoords) {
-                            const touchEndCoords: AdZoneTypes.TouchCoordinates =
-                                {
-                                    x: e.nativeEvent.pageX,
-                                    y: e.nativeEvent.pageY,
-                                };
+                        const touchStart = touchStartCoords.current;
+                        const touchEndCoords: AdZoneTypes.TouchCoordinates = {
+                            x: e.nativeEvent.pageX,
+                            y: e.nativeEvent.pageY,
+                        };
 
-                            if (
-                                Math.abs(
-                                    touchStartCoords.x - touchEndCoords.x,
-                                ) < props.xyDragDistanceAllowed &&
-                                Math.abs(
-                                    touchStartCoords.y - touchEndCoords.y,
-                                ) < props.xyDragDistanceAllowed
-                            ) {
-                                onAdZoneSelected(
-                                    props.adZoneData.ads[adIndexShown],
-                                );
-                            }
-
-                            // Make sure to reset the start coords
-                            setTouchStartCoords({ x: 0, y: 0 });
+                        if (
+                            Math.abs(touchStart.x - touchEndCoords.x) <
+                                dragDistanceAllowed &&
+                            Math.abs(touchStart.y - touchEndCoords.y) <
+                                dragDistanceAllowed
+                        ) {
+                            onAdZoneSelected(currentAd);
                         }
+
+                        touchStartCoords.current = { x: 0, y: 0 };
                     }}
                 />
             ) : undefined}
             <View style={styles.reportAd}>
-                {props.adZoneData && props.adZoneData.ads[adIndexShown] ? (
+                {currentAd ? (
                     <ReportAdButton
-                        adId={props.adZoneData.ads[adIndexShown].ad_id}
-                        udid={props.udid}
+                        adId={currentAd.id}
+                        udid={getAdRequestContext()?.udid ?? ""}
                     />
                 ) : (
                     <></>

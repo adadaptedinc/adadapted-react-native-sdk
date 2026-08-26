@@ -1,0 +1,21 @@
+{
+    "extends": "@react-native/typescript-config",
+    "compilerOptions": {
+        "paths": {
+            "src/*": ["../src/*"]
+        },
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "jsx": "react-native",
+        "lib": ["esnext", "dom"],
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "target": "esnext",
+        "noEmit": true
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx", "index.tsx"],
+    "exclude": ["node_modules"]
+}
