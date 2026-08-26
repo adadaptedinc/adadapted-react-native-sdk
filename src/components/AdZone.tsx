@@ -28,7 +28,7 @@ import {
 import { WebView } from "react-native-webview";
 import { safeInvoke } from "../util";
 import { ReportAdButton } from "./ReportAdButton";
-import { AdZoneTypes } from "src/componentTypes/AdZone";
+import { AdZoneTypes } from "../componentTypes/AdZone";
 import {
     getAdRequestContext,
     onAdRequestContextReady,
@@ -70,7 +70,7 @@ function resolveRefreshSeconds(refreshTime: number | undefined): number {
  */
 export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const { zoneId } = props;
-    const isVisible = props.isVisible ?? true;
+    const isVisible = props.isVisible;
     const dragDistanceAllowed = props.xyDragDistanceAllowed ?? 25;
 
     /**

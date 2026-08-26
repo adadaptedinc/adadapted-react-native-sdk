@@ -1,5 +1,5 @@
 import { StyleProp, ViewStyle } from "react-native";
-import { DetailedListItem } from "src/api/adadaptedApiTypes";
+import { DetailedListItem } from "../api/adadaptedApiTypes";
 
 /**
  * Namespace for AdZone types.
@@ -19,13 +19,23 @@ export namespace AdZoneTypes {
          */
         zoneId: string;
         /**
-         * Whether the zone is currently on screen. Defaults to true.
+         * Whether the zone is currently on screen.
          *
          * The SDK cannot determine this in React Native, so the host app reports
          * it, exactly as AaZoneView.setAdZoneVisibility requires on Android. While
          * false the zone neither refreshes nor records impressions.
+         *
+         * Required rather than defaulted, because both defaults fail silently.
+         * Defaulting to true over-reports impressions for any zone left mounted on
+         * a screen the user has navigated away from, which React Native gives the
+         * SDK no way to detect. Defaulting to false is worse: the ad is still
+         * fetched and still rendered to the user, but no impression is ever
+         * reported and the zone never refreshes, so a host that overlooked the prop
+         * would show ads and report nothing, indefinitely and without error.
+         *
+         * A zone that really is always on screen should pass true explicitly.
          */
-        isVisible?: boolean;
+        isVisible: boolean;
         /**
          * The recipe context this zone is currently showing, if any. Equivalent to
          * AaZoneView.setAdZoneContextId.

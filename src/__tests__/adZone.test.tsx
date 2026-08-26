@@ -204,7 +204,7 @@ afterEach(() => {
 
 describe("requesting an ad", () => {
     it("requests a single ad for its own zone on mount", async () => {
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -221,8 +221,8 @@ describe("requesting an ad", () => {
     it("gives each zone its own request, rather than one shared list", async () => {
         render(
             <>
-                <AdZone zoneId="zone-a" />
-                <AdZone zoneId="zone-b" />
+                <AdZone zoneId="zone-a" isVisible={true} />
+                <AdZone zoneId="zone-b" isVisible={true} />
             </>,
         );
 
@@ -234,7 +234,7 @@ describe("requesting an ad", () => {
     });
 
     it("reports the zone as mounted, and as unmounted when it goes away", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} />);
+        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -246,7 +246,9 @@ describe("requesting an ad", () => {
     });
 
     it("sends the recipe context the zone was given", async () => {
-        render(<AdZone zoneId={ZONE_ID} contextId="recipe-7" />);
+        render(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-7" />,
+        );
 
         await settle();
 
@@ -262,7 +264,7 @@ describe("mounting before the SDK is ready", () => {
         // run was what caught this: the zone sat empty for the whole session.
         setAdRequestContext(undefined);
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -285,7 +287,7 @@ describe("mounting before the SDK is ready", () => {
     it("reports no unmount for a zone that never started", async () => {
         setAdRequestContext(undefined);
 
-        const view = render(<AdZone zoneId={ZONE_ID} />);
+        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -298,7 +300,7 @@ describe("mounting before the SDK is ready", () => {
     it("stops waiting when it unmounts, so a late context does not revive it", async () => {
         setAdRequestContext(undefined);
 
-        const view = render(<AdZone zoneId={ZONE_ID} />);
+        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -324,7 +326,7 @@ describe("displaying an ad", () => {
             buildAd({ creative_url: "https://example.test/creative-9.html" }),
         );
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -334,7 +336,7 @@ describe("displaying an ad", () => {
     });
 
     it("reports one impression for the ad it is showing", async () => {
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -351,7 +353,13 @@ describe("displaying an ad", () => {
     it("tells the host whether the zone has an ad", async () => {
         const onZoneHasAds = jest.fn();
 
-        render(<AdZone zoneId={ZONE_ID} onZoneHasAds={onZoneHasAds} />);
+        render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                onZoneHasAds={onZoneHasAds}
+            />,
+        );
 
         await settle();
 
@@ -363,7 +371,7 @@ describe("refreshing", () => {
     it("requests the next ad once the refresh time has elapsed", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         expect(retrieveAdMock).toHaveBeenCalledTimes(1);
@@ -378,7 +386,7 @@ describe("refreshing", () => {
     it("clamps a refresh time below the minimum instead of hammering the API", async () => {
         serveAd(buildAd({ refresh_time: 2 }));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -394,7 +402,7 @@ describe("refreshing", () => {
     it("falls back to the default when no usable refresh time is served", async () => {
         serveAd(buildAd({ refresh_time: 0 }));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -408,7 +416,7 @@ describe("refreshing", () => {
     it("closes out each ad's impression exactly once as it rotates", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -533,7 +541,7 @@ describe("visibility", () => {
     it("pauses while the app is backgrounded and resumes when it returns", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -561,7 +569,7 @@ describe("visibility", () => {
     it("ignores the transient inactive state", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -583,7 +591,7 @@ describe("unfilled zones", () => {
     it("reports no_ad when the API serves an ad with no ID", async () => {
         serveAd(undefined, 45);
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -618,7 +626,7 @@ describe("unfilled zones", () => {
             },
         } as any);
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -639,7 +647,7 @@ describe("unfilled zones", () => {
     it("reports request_failed when the request itself fails", async () => {
         retrieveAdMock.mockRejectedValue(new Error("network down"));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -656,7 +664,7 @@ describe("unfilled zones", () => {
     it("keeps retrying on a pace after a failure rather than going quiet", async () => {
         retrieveAdMock.mockRejectedValue(new Error("network down"));
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -669,7 +677,7 @@ describe("unfilled zones", () => {
     it("sends no ad or impression ID on a zone level event", async () => {
         serveAd(undefined);
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -699,7 +707,7 @@ describe("clicks", () => {
             }),
         );
 
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -716,7 +724,13 @@ describe("clicks", () => {
     });
 
     it("treats a drag as a scroll, not a click", async () => {
-        render(<AdZone zoneId={ZONE_ID} xyDragDistanceAllowed={25} />);
+        render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                xyDragDistanceAllowed={25}
+            />,
+        );
 
         await settle();
 
@@ -733,7 +747,7 @@ describe("clicks", () => {
     });
 
     it("reports at most one interaction per ad, however many taps land", async () => {
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -776,6 +790,7 @@ describe("clicks", () => {
         render(
             <AdZone
                 zoneId={ZONE_ID}
+                isVisible={true}
                 onAddToListTriggered={onAddToListTriggered}
             />,
         );
@@ -834,7 +849,7 @@ describe("add to list without a zone handler", () => {
 
         // No onAddToListTriggered prop. The callback was global before zones became
         // components, so a host with one handler must not have to repeat it.
-        render(<AdZone zoneId={ZONE_ID} />);
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -872,6 +887,7 @@ describe("add to list without a zone handler", () => {
         render(
             <AdZone
                 zoneId={ZONE_ID}
+                isVisible={true}
                 onAddToListTriggered={onAddToListTriggered}
             />,
         );
@@ -891,12 +907,16 @@ describe("add to list without a zone handler", () => {
 
 describe("recipe context changes", () => {
     it("requests a new ad when the zone's context changes", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} contextId="recipe-1" />);
+        const view = render(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
+        );
 
         await settle();
         expect(retrieveAdMock).toHaveBeenCalledTimes(1);
 
-        view.update(<AdZone zoneId={ZONE_ID} contextId="recipe-2" />);
+        view.update(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-2" />,
+        );
         await settle();
 
         // The ad on screen was chosen for the old context, so it is no longer the
@@ -906,11 +926,15 @@ describe("recipe context changes", () => {
     });
 
     it("does not refetch when the context is unchanged", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} contextId="recipe-1" />);
+        const view = render(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
+        );
 
         await settle();
 
-        view.update(<AdZone zoneId={ZONE_ID} contextId="recipe-1" />);
+        view.update(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
+        );
         await settle();
 
         expect(retrieveAdMock).toHaveBeenCalledTimes(1);
