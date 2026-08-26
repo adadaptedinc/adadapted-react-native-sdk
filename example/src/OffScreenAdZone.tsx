@@ -18,7 +18,7 @@ import {
     AdZone,
     KeywordSearchResult,
 } from "../../src/index";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { RootStackParamList, SelectedItem } from "./App";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { IOScrollView, InView } from "react-native-intersection-observer";
@@ -56,6 +56,11 @@ interface OffScreenAdZonePageProps {
 export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
     // navigation
     const navigation = useNavigation<OffScreenAdZoneProp>();
+
+    // Scroll position alone is not enough. InView keeps reporting the zone as in
+    // view when another screen is pushed over this one, because nothing scrolled,
+    // so the zone has to be told about both conditions.
+    const isFocused = useIsFocused();
     /**
      * Determine if this is first mount for useEffects.
      */
@@ -249,7 +254,7 @@ export const OffScreenAdZonePage = (props: OffScreenAdZonePageProps) => {
                             other zone on screen. */}
                         <AdZone
                             zoneId="110003"
-                            isVisible={isVisible}
+                            isVisible={isVisible && isFocused}
                             xyDragDistanceAllowed={30}
                             onAddToListTriggered={(items) => {
                                 for (const item of items) {

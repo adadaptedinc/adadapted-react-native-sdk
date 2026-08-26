@@ -21,7 +21,7 @@ import {
 } from "../../src/index";
 import { RootStackParamList, SelectedItem } from "./App";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 
 type StandardAdZoneProp = NativeStackNavigationProp<
     RootStackParamList,
@@ -56,6 +56,12 @@ interface StandardAdZonePageProps {
 export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
     // navigation
     const navigation = useNavigation<StandardAdZoneProp>();
+
+    // The native stack keeps this screen mounted when another is pushed on top of
+    // it, and React Native gives the SDK no way to notice that. Without reporting
+    // it, the zone keeps counting down and recording impressions for an ad nobody
+    // can see. Android gets this from the view lifecycle instead.
+    const isFocused = useIsFocused();
     /**
      * Determine if this is first mount for useEffects.
      */
@@ -167,6 +173,7 @@ export const StandardAdZonePage = (props: StandardAdZonePageProps) => {
                         its refresh from here on. */}
                     <AdZone
                         zoneId="102110"
+                        isVisible={isFocused}
                         contextId={adContextId}
                         xyDragDistanceAllowed={30}
                         onAddToListTriggered={(items) => {
