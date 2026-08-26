@@ -2,7 +2,6 @@
 #import "AdadaptedReactNativeSdk.h"
 #import <CoreTelephony/CTTelephonyNetworkInfo.h>
 #import <CoreTelephony/CTCarrier.h>
-#import <UIKit/UIKit.h>
 
 @implementation AdadaptedReactNativeSdk
 
@@ -28,7 +27,12 @@ RCT_REMAP_METHOD(
     NSString *deviceScreenDensity = [NSString stringWithFormat:@"%0.0f", [[UIScreen mainScreen] scale]];
     NSString *deviceLocal = [[NSLocale preferredLanguages] objectAtIndex:0];
     NSString *timezoneName = [[NSTimeZone localTimeZone] name];
-    NSNumber *isAdTrackingEnabled = [NSNumber numberWithBool: [[ASIdentifierManager sharedManager] isAdvertisingTrackingEnabled]];
+    // Via the ATT-aware helper below, not ASIdentifierManager directly: Apple made
+    // isAdvertisingTrackingEnabled always return NO from iOS 14, so reading it here
+    // reported every user as having refused tracking, including those who granted
+    // it. This is the same signal that decides whether an advertising identifier is
+    // reported, so the two must agree.
+    NSNumber *isAdTrackingEnabled = [NSNumber numberWithBool: [self isAdTrackingEnabled]];
     NSString *udid = [self identifierForAdvertising];
 
     NSString *carrierName = [carrierInfo carrierName];
@@ -83,21 +87,18 @@ RCT_REMAP_METHOD(
         return [identifier UUIDString];
     }
 
-    // With tracking denied there is no advertising identifier to report, so fall
-    // back to the vendor identifier: stable for this vendor's apps on this device
-    // and available without a tracking prompt.
+    // Nothing is substituted when the user has not permitted tracking. This
+    // matches the Android module, which leaves the identifier empty when the
+    // advertising ID is unavailable rather than reporting something else.
     //
-    // This used to read the session ID that storeCurrentSessionId wrote to
-    // NSUserDefaults, which meant the device ID changed on every session and each
-    // session looked like a brand new device. Sessions are now generated in JS and
-    // never persisted, so that method is gone along with the key it wrote.
-    NSUUID *vendorIdentifier = [[UIDevice currentDevice] identifierForVendor];
-
-    if (vendorIdentifier) {
-        return [vendorIdentifier UUIDString];
-    }
-
-    return @"0000000-0000-0000-0000-000000000000";
+    // Two previous behaviours are deliberately gone. This used to return the
+    // session ID that storeCurrentSessionId wrote to NSUserDefaults, so the device
+    // looked brand new on every session; sessions are generated in JS now and that
+    // method no longer exists. It then briefly returned identifierForVendor, which
+    // is stable and needs no prompt but is shared across this vendor's apps, and
+    // sending it to an ad service after tracking was denied is the sort of linkage
+    // App Tracking Transparency exists to prevent.
+    return @"";
 }
 
 @end
