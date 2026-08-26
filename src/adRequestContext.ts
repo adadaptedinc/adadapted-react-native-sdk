@@ -149,13 +149,44 @@ export interface AdRequestContext {
 let activeContext: AdRequestContext | undefined;
 
 /**
+ * Zones waiting for a context to become available.
+ */
+const waitingForContext = new Set<() => void>();
+
+/**
  * Registers the context ad zones should use. Called by the SDK during initialize().
  * @param context - The context to make active, or undefined to clear it.
  */
 export function setAdRequestContext(
     context: AdRequestContext | undefined,
 ): void {
+    const hadNoContext = activeContext === undefined;
+
     activeContext = context;
+
+    if (context && hadNoContext) {
+        // A zone typically mounts before initialize() resolves, since the host
+        // renders its layout straight away and device info is gathered over the
+        // native bridge. Without this the zone would find no context on mount and
+        // sit empty for the rest of the session.
+        for (const listener of [...waitingForContext]) {
+            listener();
+        }
+    }
+}
+
+/**
+ * Registers interest in a context arriving, for a zone that mounted before the SDK
+ * finished initializing.
+ * @param listener - Called once, when a context becomes available.
+ * @returns a function that cancels the registration.
+ */
+export function onAdRequestContextReady(listener: () => void): () => void {
+    waitingForContext.add(listener);
+
+    return () => {
+        waitingForContext.delete(listener);
+    };
 }
 
 /**

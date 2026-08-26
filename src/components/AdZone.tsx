@@ -29,7 +29,10 @@ import { WebView } from "react-native-webview";
 import { safeInvoke } from "../util";
 import { ReportAdButton } from "./ReportAdButton";
 import { AdZoneTypes } from "src/componentTypes/AdZone";
-import { getAdRequestContext } from "../adRequestContext";
+import {
+    getAdRequestContext,
+    onAdRequestContextReady,
+} from "../adRequestContext";
 
 /**
  * How long an ad is displayed for when the API supplies no usable refresh time.
@@ -116,6 +119,11 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         isVisible: true,
         isAppActive: true,
         mounted: true,
+        /**
+         * Whether the zone has reported its mount and made its first request. False
+         * while it is still waiting for the SDK to finish initializing.
+         */
+        started: false,
         impressionTracked: false,
         impressionEndTracked: false,
         clickHandled: false,
@@ -500,18 +508,46 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
         state.mounted = true;
 
-        // Reported for every zone, whether it ever receives an ad or not.
-        reportEvent(ReportedEventType.ZONE_MOUNTED);
+        /**
+         * Starts the zone once there is a session and device info to request with.
+         */
+        const start = (): void => {
+            if (state.started) {
+                return;
+            }
 
-        fetchAd();
+            state.started = true;
+
+            // Reported for every zone, whether it ever receives an ad or not.
+            reportEvent(ReportedEventType.ZONE_MOUNTED);
+
+            fetchAd();
+        };
+
+        // A host renders its layout immediately, while initialize() is still
+        // gathering device info over the native bridge, so a zone normally mounts
+        // before there is any context to request with. Android has no equivalent
+        // problem: its SessionClient is an object that always exists, so the
+        // presenter can call straight into it. Here the zone waits to be told.
+        const unsubscribe = getAdRequestContext()
+            ? (start(), () => undefined)
+            : onAdRequestContextReady(start);
 
         return () => {
+            unsubscribe();
+
             endImpression();
             cancelTimer();
 
             state.mounted = false;
 
-            reportEvent(ReportedEventType.ZONE_UNMOUNTED);
+            // Only if the mount was reported, so the two stay paired. reportEvent
+            // would drop this anyway while there is no context, so this is about
+            // keeping the pairing explicit rather than being the only thing
+            // stopping an unpaired unmount.
+            if (state.started) {
+                reportEvent(ReportedEventType.ZONE_UNMOUNTED);
+            }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

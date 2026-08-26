@@ -14,6 +14,7 @@ import { AdZone } from "../components/AdZone";
 import * as adadaptedApiRequests from "../api/adadaptedApiRequests";
 import {
     AdEventReport,
+    AdRequestContext,
     setAdRequestContext,
     PendingAtlContent,
 } from "../adRequestContext";
@@ -122,6 +123,28 @@ async function advance(ms: number): Promise<void> {
 }
 
 /**
+ * Builds the context the SDK registers during initialize().
+ * @returns the context.
+ */
+function buildContext(): AdRequestContext {
+    return {
+        appId: "TEST_APP_ID",
+        apiEnv: EnvironmentTypes.ApiEnv.Dev,
+        udid: "test-udid",
+        bundleId: "com.test.app",
+        sdkVersion: "1.2.3",
+        storeId: "store-1",
+        getSessionId: () => SESSION_ID,
+        reportAdEvent,
+        reportSdkEvent,
+        setPendingAtlContent: (content) => {
+            pendingAtlContent = content;
+        },
+        forwardAddToList,
+    };
+}
+
+/**
  * Taps the creative, moving the given distance between touch down and up.
  * @param distance - How far the touch travels.
  */
@@ -152,21 +175,7 @@ beforeEach(() => {
     forwardAddToList = jest.fn();
     pendingAtlContent = undefined;
 
-    setAdRequestContext({
-        appId: "TEST_APP_ID",
-        apiEnv: EnvironmentTypes.ApiEnv.Dev,
-        udid: "test-udid",
-        bundleId: "com.test.app",
-        sdkVersion: "1.2.3",
-        storeId: "store-1",
-        getSessionId: () => SESSION_ID,
-        reportAdEvent,
-        reportSdkEvent,
-        setPendingAtlContent: (content) => {
-            pendingAtlContent = content;
-        },
-        forwardAddToList,
-    });
+    setAdRequestContext(buildContext());
 
     retrieveAdMock = jest.spyOn(adadaptedApiRequests, "retrieveAd");
     serveAd(buildAd());
@@ -242,6 +251,70 @@ describe("requesting an ad", () => {
         await settle();
 
         expect(retrieveAdMock.mock.calls[0][0].contextId).toBe("recipe-7");
+    });
+});
+
+describe("mounting before the SDK is ready", () => {
+    it("requests its ad once initialize() registers the context", async () => {
+        // The real ordering: a host renders its layout straight away, while
+        // initialize() is still gathering device info over the native bridge. Every
+        // other test in this file sets the context first, which is why an emulator
+        // run was what caught this: the zone sat empty for the whole session.
+        setAdRequestContext(undefined);
+
+        render(<AdZone zoneId={ZONE_ID} />);
+
+        await settle();
+
+        expect(retrieveAdMock).not.toHaveBeenCalled();
+        expect(reportAdEvent).not.toHaveBeenCalled();
+
+        await act(async () => {
+            setAdRequestContext(buildContext());
+
+            await Promise.resolve();
+        });
+
+        await settle();
+
+        expect(retrieveAdMock).toHaveBeenCalledTimes(1);
+        expect(retrieveAdMock.mock.calls[0][0].zoneId).toBe(ZONE_ID);
+        expect(reportedTypes()).toContain(ReportedEventType.ZONE_MOUNTED);
+    });
+
+    it("reports no unmount for a zone that never started", async () => {
+        setAdRequestContext(undefined);
+
+        const view = render(<AdZone zoneId={ZONE_ID} />);
+
+        await settle();
+
+        view.unmount();
+
+        // Nothing to pair the unmount with, since the mount was never reported.
+        expect(reportAdEvent).not.toHaveBeenCalled();
+    });
+
+    it("stops waiting when it unmounts, so a late context does not revive it", async () => {
+        setAdRequestContext(undefined);
+
+        const view = render(<AdZone zoneId={ZONE_ID} />);
+
+        await settle();
+
+        view.unmount();
+
+        await act(async () => {
+            setAdRequestContext(buildContext());
+
+            await Promise.resolve();
+        });
+
+        await settle();
+
+        // A zone that is gone must not request an ad, or report against one.
+        expect(retrieveAdMock).not.toHaveBeenCalled();
+        expect(reportAdEvent).not.toHaveBeenCalled();
     });
 });
 
