@@ -620,9 +620,16 @@ export class AdadaptedReactNativeSdk {
             // literal, so an index of 30 with a 5 character search string sliced
             // from 305 instead of 35 and every out-of-app payload deep link threw
             // on the decode below.
-            const encodedData: string = event.url.slice(
-                dataIndex + searchStr.length,
-            );
+            // Bounded at the next parameter. Slicing to the end of the url put
+            // any trailing parameters inside the base64, so a link of the form
+            // ...?data=<payload>&other=1 decoded to garbage — which the guard
+            // below now swallows silently rather than throwing.
+            const dataStart = dataIndex + searchStr.length;
+            const nextParam = event.url.indexOf("&", dataStart);
+            const encodedData: string =
+                nextParam === -1
+                    ? event.url.slice(dataStart)
+                    : event.url.slice(dataStart, nextParam);
 
             let payloadData;
 

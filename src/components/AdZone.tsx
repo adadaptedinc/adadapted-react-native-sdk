@@ -115,6 +115,11 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
          */
         inFlight: false,
         /**
+         * Incremented whenever what an open request would be answering changes, so
+         * a response that belongs to a previous zone can be recognised and dropped.
+         */
+        requestGeneration: 0,
+        /**
          * Set when a targeting change arrives mid-request, so it is not lost.
          */
         refetchWhenSettled: false,
@@ -142,6 +147,12 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
          * it alongside visibility.
          */
         creativeLoaded: false,
+        /**
+         * Pending timer for a load event that has not been confirmed yet. See
+         * onCreativeLoaded for why a load event is not trusted immediately.
+         */
+        creativeSettleTimer: undefined as
+            ReturnType<typeof setTimeout> | undefined,
         impressionTracked: false,
         impressionEndTracked: false,
         clickHandled: false,
@@ -235,15 +246,40 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const onCreativeLoaded = useCallback((): void => {
         const state = zone.current;
 
-        if (!state.currentAd || state.creativeLoaded) {
+        if (
+            !state.currentAd ||
+            state.creativeLoaded ||
+            state.creativeSettleTimer
+        ) {
             return;
         }
 
-        state.creativeLoaded = true;
+        // A load event is not proof the creative rendered. On Android
+        // react-native-webview synthesises a finish event before the error event
+        // for a failed load, deliberately, and maps finish straight to onLoad:
+        //
+        //   // In case of an error JS side expect to get a finish event first,
+        //   // and then get an error event
+        //   emitFinishEvent(webView, failingUrl);
+        //
+        // in RNCWebViewClient.onReceivedError. Acting on that first event billed an
+        // impression and fired the creative's tracking pixels for an ad that had
+        // failed, and left the real error a no-op because the flag was already set.
+        // Both events arrive in one native batch, so settling on a timer gives an
+        // error that is coming the chance to cancel this first.
+        state.creativeSettleTimer = setTimeout(() => {
+            state.creativeSettleTimer = undefined;
 
-        safeInvoke(props.onAdLoaded);
+            if (!state.currentAd || state.creativeLoaded) {
+                return;
+            }
 
-        trackImpression();
+            state.creativeLoaded = true;
+
+            safeInvoke(props.onAdLoaded);
+
+            trackImpression();
+        }, 0);
     }, [trackImpression, props.onAdLoaded]);
 
     /**
@@ -477,6 +513,8 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         state.unfilledReported = false;
         state.pendingUnfilledReason = undefined;
 
+        const generation = state.requestGeneration;
+
         adadaptedApiRequests
             .retrieveAd(
                 {
@@ -494,6 +532,23 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             )
             .then((response) => {
                 state.inFlight = false;
+
+                if (generation !== state.requestGeneration) {
+                    // Answered for a zone this component is no longer serving.
+                    // Displaying it would put the previous zone's creative under
+                    // the current one and bill the current one for it.
+                    //
+                    // Straight back to fetchAd rather than loadNextAd, because the
+                    // current zone has not loaded anything yet and loadNextAd
+                    // returns early on that, which would strand it with no ad and
+                    // no request outstanding.
+                    state.refetchWhenSettled = false;
+
+                    fetchAdRef.current?.();
+
+                    return;
+                }
+
                 state.loaded = true;
 
                 const body = response.data;
@@ -534,6 +589,15 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             })
             .catch(() => {
                 state.inFlight = false;
+
+                if (generation !== state.requestGeneration) {
+                    state.refetchWhenSettled = false;
+
+                    fetchAdRef.current?.();
+
+                    return;
+                }
+
                 state.loaded = true;
 
                 reportUnfilled(ZoneUnfilledReason.REQUEST_FAILED);
@@ -568,15 +632,24 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             return;
         }
 
+        // Cancels the load event Android emits just before this one, which is the
+        // whole reason the settle above is deferred.
+        if (state.creativeSettleTimer) {
+            clearTimeout(state.creativeSettleTimer);
+
+            state.creativeSettleTimer = undefined;
+        }
+
         // Marked handled so a later load event for the same ad cannot file an
         // impression for a creative that already failed.
         state.creativeLoaded = true;
 
-        safeInvoke(props.onAdLoadFailed);
-
+        // onAdLoadFailed is left to displayAd below, which reports it for every
+        // outcome leaving the zone without an ad. Calling it here as well fired it
+        // twice for a single failure.
         reportUnfilled(ZoneUnfilledReason.RENDER_FAILED);
         displayAd(undefined, state.refreshSeconds);
-    }, [displayAd, reportUnfilled, props.onAdLoadFailed]);
+    }, [displayAd, reportUnfilled]);
 
     /**
      * Requests the next ad, replacing whatever the zone is showing.
@@ -642,12 +715,30 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
             // Whatever was on screen belonged to the previous cycle: either to a
             // different zone, or to a session that has since ended. Either way it
-            // must not stay up, or the arriving zone gets billed for it. The
-            // tracking flags are left to displayAd, which resets them all when the
-            // replacement lands.
+            // must not stay up, or the arriving zone gets billed for it.
             state.currentAd = undefined;
 
             setCurrentAd(undefined);
+
+            // The tracking flags go with it. Leaving them to displayAd was wrong:
+            // displayAd calls endImpression() before resetting them, and
+            // endImpression reports against a currentAd this has already cleared,
+            // so a creative that finished loading after teardown left
+            // impressionTracked set and the next ad opened with an impression_end
+            // carrying an empty ad id and impression id.
+            if (state.creativeSettleTimer) {
+                clearTimeout(state.creativeSettleTimer);
+
+                state.creativeSettleTimer = undefined;
+            }
+
+            state.creativeLoaded = false;
+            state.impressionTracked = false;
+            state.impressionEndTracked = false;
+            state.clickHandled = false;
+
+            // Anything already in flight was asked on behalf of the previous zone.
+            state.requestGeneration += 1;
 
             state.started = true;
             state.closed = false;
@@ -909,6 +1000,15 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         <View style={finalMainViewStyle}>
             {currentAd && currentAd.creative_url ? (
                 <WebView<object>
+                    // Keyed on the impression so each served ad gets its own
+                    // WebView. Both platforms refuse to reload an identical URL —
+                    // iOS compares the whole source dictionary, Android returns
+                    // early when the new uri equals the current one — so an ad
+                    // repeating the creative_url already on screen fired no load
+                    // event, and since the impression is owed on that event it was
+                    // never reported at all. Rotating between two ads sharing a
+                    // creative is enough to trigger it.
+                    key={currentAd.impression_id}
                     ref={webViewRef}
                     source={{ uri: currentAd.creative_url }}
                     androidLayerType="hardware"

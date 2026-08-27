@@ -37,12 +37,33 @@ import { EnvironmentTypes } from "../componentTypes/Environment";
 // recorded so the pixel injection can be asserted.
 const injectedScripts: string[] = [];
 
+/**
+ * Which WebView instance has already loaded which url.
+ *
+ * Both platforms refuse to reload a url a live WebView is already showing: iOS
+ * compares the whole source dictionary, Android returns early when the new uri
+ * equals the current one. Modelling that is what makes a test able to tell whether
+ * each served ad really gets its own load event.
+ */
+const loadedByInstance = new Map<number, string>();
+
+let mockNextWebViewInstanceId = 0;
+
 jest.mock("react-native-webview", () => {
     const reactNative = jest.requireActual("react-native");
     const react = jest.requireActual("react");
 
     return {
         WebView: react.forwardRef((props: any, ref: any) => {
+            // Stable for the life of one mounted instance, so remounting through a
+            // changed key produces a new one and reusing the instance does not.
+            const instanceId = react.useRef(undefined);
+
+            if (instanceId.current === undefined) {
+                mockNextWebViewInstanceId += 1;
+                instanceId.current = mockNextWebViewInstanceId;
+            }
+
             react.useImperativeHandle(ref, () => ({
                 injectJavaScript: (script: string) => {
                     injectedScripts.push(script);
@@ -52,33 +73,103 @@ jest.mock("react-native-webview", () => {
             return react.createElement(reactNative.View, {
                 ...props,
                 testID: "ad-creative",
+                // Read by the load helpers to decide whether this instance would
+                // actually reload.
+                "data-instance-id": instanceId.current,
             });
         }),
     };
 });
 
 /**
+ * Whether firing a load event on the element now on screen is realistic, i.e.
+ * whether a real WebView would have reloaded rather than ignored the source.
+ * @returns true when the platform would have loaded.
+ */
+function creativeWouldLoad(): boolean {
+    const creative = screen.getByTestId("ad-creative");
+    const instanceId = creative.props["data-instance-id"] as number;
+    const uri = creative.props.source.uri as string;
+
+    if (loadedByInstance.get(instanceId) === uri) {
+        return false;
+    }
+
+    loadedByInstance.set(instanceId, uri);
+
+    return true;
+}
+
+/**
  * Simulates the creative finishing its render, which is what makes an impression
  * owed. Nothing is reported for an ad whose creative never paints.
+ *
+ * The timers are flushed because a load event is only acted on after a deferral,
+ * so that an error arriving straight after it can cancel the impression.
  */
 async function loadCreative(): Promise<void> {
     const creative = screen.getByTestId("ad-creative");
+
+    if (!creativeWouldLoad()) {
+        // A real WebView would ignore this source, so no load event exists to
+        // fire. Simply returning is what reproduces the platform.
+        return;
+    }
 
     await act(async () => {
         fireEvent(creative, "load", { nativeEvent: {} });
 
         await Promise.resolve();
     });
+
+    await act(async () => {
+        jest.advanceTimersByTime(1);
+
+        await Promise.resolve();
+    });
 }
 
 /**
- * Simulates the creative failing to render.
+ * Simulates the creative failing to render, in the order Android delivers it.
+ *
+ * react-native-webview's Android client synthesises a finish event before the
+ * error event on purpose, and maps finish to onLoad, so a failing creative really
+ * does report a successful load first. Firing only the error, as this helper used
+ * to, tested a sequence neither platform produces and hid the fact that the first
+ * event was being trusted.
  */
 async function failCreative(): Promise<void> {
     const creative = screen.getByTestId("ad-creative");
 
     await act(async () => {
+        fireEvent(creative, "load", { nativeEvent: {} });
         fireEvent(creative, "error", { nativeEvent: { description: "boom" } });
+
+        await Promise.resolve();
+    });
+
+    await act(async () => {
+        jest.advanceTimersByTime(1);
+
+        await Promise.resolve();
+    });
+}
+
+/**
+ * Simulates the creative failing to render, in the order iOS delivers it: the
+ * error alone, with no preceding load event.
+ */
+async function failCreativeWithoutLoad(): Promise<void> {
+    const creative = screen.getByTestId("ad-creative");
+
+    await act(async () => {
+        fireEvent(creative, "error", { nativeEvent: { description: "boom" } });
+
+        await Promise.resolve();
+    });
+
+    await act(async () => {
+        jest.advanceTimersByTime(1);
 
         await Promise.resolve();
     });
@@ -210,6 +301,7 @@ beforeEach(() => {
     jest.clearAllMocks();
 
     injectedScripts.length = 0;
+    loadedByInstance.clear();
 
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-01-01T12:00:00Z"));
@@ -363,6 +455,48 @@ describe("mounting before the SDK is ready", () => {
 });
 
 describe("after the SDK is torn down and re-initialized", () => {
+    it("does not open the next ad with an orphaned impression_end", async () => {
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        // Torn down while the creative is still loading.
+        await act(async () => {
+            notifySdkTeardown();
+            setAdRequestContext(undefined);
+
+            await Promise.resolve();
+        });
+
+        // The creative finishes afterwards, which marks the impression tracked
+        // even though the report itself goes nowhere without a context.
+        await loadCreative();
+
+        serveAd(buildAd({ id: "ad-next", impression_id: "impression-next" }));
+
+        await act(async () => {
+            setAdRequestContext(buildContext());
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        const ends = reportAdEvent.mock.calls
+            .map(([event]) => event)
+            .filter(
+                (event) => event.eventType === ReportedEventType.IMPRESSION_END,
+            );
+
+        // displayAd calls endImpression before resetting the flags, and
+        // endImpression reads a currentAd that start() has already cleared, so the
+        // next ad used to arrive behind an impression_end with empty ids: a
+        // billing event with no impression to match it.
+        for (const end of ends) {
+            expect(end.adId).not.toBe("");
+            expect(end.impressionId).not.toBe("");
+        }
+    });
+
     it("serves again for a zone that stayed mounted", async () => {
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
@@ -514,6 +648,88 @@ describe("the creative rendering", () => {
         ).toHaveLength(1);
     });
 
+    it("still owes an impression when the next ad repeats the same creative", async () => {
+        serveAd(
+            buildAd({
+                id: "ad-1",
+                impression_id: "impression-1",
+                creative_url: "https://example.test/shared.html",
+            }),
+        );
+
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+        await loadCreative();
+
+        // Same creative_url, different serve. Both platforms refuse to reload an
+        // identical url, so without a per-impression WebView no load event fires
+        // and the ad is displayed for a whole refresh interval earning nothing.
+        serveAd(
+            buildAd({
+                id: "ad-2",
+                impression_id: "impression-2",
+                creative_url: "https://example.test/shared.html",
+            }),
+        );
+
+        await advance(30_000);
+        await loadCreative();
+
+        const impressions = reportAdEvent.mock.calls
+            .map(([event]) => event)
+            .filter(
+                (event) => event.eventType === ReportedEventType.IMPRESSION,
+            );
+
+        expect(impressions.map((event) => event.impressionId)).toEqual([
+            "impression-1",
+            "impression-2",
+        ]);
+    });
+
+    it("reports render_failed when the error arrives with no preceding load", async () => {
+        serveAd(buildAd({ refresh_time: 45 }));
+
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        // iOS delivers only the error. Android synthesises a load first, which
+        // failCreative covers.
+        await failCreativeWithoutLoad();
+
+        const unfilled = reportAdEvent.mock.calls.filter(
+            ([event]) => event.eventType === ReportedEventType.ZONE_UNFILLED,
+        );
+
+        expect(unfilled).toHaveLength(1);
+        expect(unfilled[0][0].eventName).toBe(ZoneUnfilledReason.RENDER_FAILED);
+        expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
+        expect(injectedScripts).toEqual([]);
+    });
+
+    it("reports one load failure to the host, not two", async () => {
+        const onAdLoadFailed = jest.fn();
+
+        serveAd(buildAd());
+
+        render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                onAdLoadFailed={onAdLoadFailed}
+            />,
+        );
+
+        await settle();
+        await failCreative();
+
+        // The render failure path and the display of the resulting empty zone both
+        // used to report it.
+        expect(onAdLoadFailed).toHaveBeenCalledTimes(1);
+    });
+
     it("reports render_failed and drops an ad whose creative will not load", async () => {
         serveAd(buildAd({ refresh_time: 45 }));
 
@@ -656,6 +872,11 @@ describe("refreshing", () => {
                 id: "ad-2",
                 impression_id: "impression-2",
                 refresh_time: 30,
+                // A distinct creative. Reusing ad-1's url made this test pass only
+                // because the mock re-fires load on an unchanged source, which
+                // neither platform does, and so hid exactly the defect the test
+                // below covers.
+                creative_url: "https://example.test/creative-2.html",
             }),
         );
 
@@ -1502,6 +1723,60 @@ describe("changing which zone the component serves", () => {
             "zone-a",
             "zone-b",
         ]);
+    });
+
+    it("drops a response that belonged to the zone it has left", async () => {
+        let release: (() => void) | undefined;
+        const asked: string[] = [];
+
+        retrieveAdMock.mockImplementation((request: never) => {
+            const { zoneId } = request as { zoneId: string };
+
+            asked.push(zoneId);
+
+            return new Promise((resolve) => {
+                release = () =>
+                    resolve({
+                        data: {
+                            success: true,
+                            data: {
+                                ad: buildAd({
+                                    id: `ad-for-${zoneId}`,
+                                    impression_id: `impression-${zoneId}`,
+                                    creative_url: `https://example.test/${zoneId}.html`,
+                                }),
+                                port_height: 100,
+                                port_width: 320,
+                            },
+                        },
+                    });
+            });
+        });
+
+        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+
+        await settle();
+
+        // Switched while zone-a's request is still open.
+        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+
+        await settle();
+
+        // zone-a's answer arrives after the switch.
+        await act(async () => {
+            release!();
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        // Showing it would put zone-a's creative under zone-b, and the impression
+        // that followed would carry zone-a's ad with zone-b's id.
+        expect(screen.queryByTestId("ad-creative")).toBeNull();
+        expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
+
+        // zone-b still gets its own request rather than being stranded.
+        expect(asked).toEqual(["zone-a", "zone-b"]);
     });
 
     it("reports one impression per zone across a switch", async () => {

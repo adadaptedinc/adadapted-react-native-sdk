@@ -555,6 +555,60 @@ describe("out of app payload deep links", () => {
         });
     });
 
+    it("decodes a payload followed by another query parameter", async () => {
+        const payload = {
+            payload_id: "payload-2",
+            detailed_list_items: [
+                {
+                    product_title: "Bread",
+                    product_brand: "",
+                    product_category: "",
+                    product_barcode: "",
+                    product_discount: "",
+                    product_image: "",
+                    product_sku: "",
+                },
+            ],
+        };
+        const encoded = base64.encode(JSON.stringify(payload));
+
+        let deepLinkHandler: ((event: { url: string }) => void) | undefined;
+
+        jest.spyOn(Linking, "addEventListener").mockImplementation(
+            (type, handler) => {
+                if (type === "url") {
+                    deepLinkHandler = handler;
+                }
+
+                return { remove: jest.fn() };
+            },
+        );
+
+        const received: unknown[] = [];
+        const sdk = new AdadaptedReactNativeSdk();
+
+        await sdk.initialize({
+            appId: APP_ID,
+            apiEnv: EnvironmentTypes.ApiEnv.Dev,
+            onOutOfAppPayloadAvailable: (items) => {
+                received.push(...items);
+            },
+        });
+
+        // Slicing to the end of the url swept "&source=email" into the base64, so
+        // the decode produced garbage and the payload was dropped — silently, once
+        // the decode was guarded.
+        deepLinkHandler!({
+            url: `myapp://addtolist?data=${encoded}&source=email`,
+        });
+
+        expect(received).toHaveLength(1);
+        expect(received[0]).toEqual({
+            payload_id: "payload-2",
+            detailed_list_items: [payload.detailed_list_items[0]],
+        });
+    });
+
     it("ignores a malformed link instead of throwing into the host", async () => {
         let deepLinkHandler: ((event: { url: string }) => void) | undefined;
 
