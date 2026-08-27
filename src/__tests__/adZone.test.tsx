@@ -1310,6 +1310,136 @@ describe("touch sensitivity", () => {
     });
 });
 
+describe("changing which zone the component serves", () => {
+    it("treats a new zoneId as leaving one zone and arriving at another", async () => {
+        retrieveAdMock.mockImplementation((request: never) =>
+            Promise.resolve({
+                data: {
+                    success: true,
+                    data: {
+                        ad: buildAd({
+                            id: `ad-${(request as { zoneId: string }).zoneId}`,
+                            impression_id: `impression-${(request as { zoneId: string }).zoneId}`,
+                        }),
+                        port_height: 100,
+                        port_width: 320,
+                    },
+                },
+            } as never),
+        );
+
+        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+
+        await settle();
+        await loadCreative();
+
+        // A host reusing the component for another zone, an unkeyed list row for
+        // instance. This was ignored outright: no events either way, and zone-b
+        // was never requested.
+        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+
+        await settle();
+
+        expect(
+            retrieveAdMock.mock.calls.map(([request]) => request.zoneId),
+        ).toEqual(["zone-a", "zone-b"]);
+
+        const mountEvents = reportAdEvent.mock.calls
+            .map(([event]) => event)
+            .filter(
+                (event) =>
+                    event.eventType === ReportedEventType.ZONE_MOUNTED ||
+                    event.eventType === ReportedEventType.ZONE_UNMOUNTED,
+            );
+
+        expect(
+            mountEvents.map((event) => `${event.eventType}@${event.zoneId}`),
+        ).toEqual([
+            "zone_mounted@zone-a",
+            // Attributed to the zone being left, not the one arriving.
+            "zone_unmounted@zone-a",
+            "zone_mounted@zone-b",
+        ]);
+    });
+
+    it("stops showing the previous zone's ad while the new one is requested", async () => {
+        serveAd(buildAd({ creative_url: "https://example.test/zone-a.html" }));
+
+        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+
+        await settle();
+        await loadCreative();
+
+        expect(screen.getByTestId("ad-creative").props.source.uri).toBe(
+            "https://example.test/zone-a.html",
+        );
+
+        // Held open so the gap between zones is observable.
+        let release: (() => void) | undefined;
+
+        retrieveAdMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    release = () =>
+                        resolve({
+                            data: {
+                                success: true,
+                                data: {
+                                    ad: buildAd({
+                                        creative_url:
+                                            "https://example.test/zone-b.html",
+                                    }),
+                                    port_height: 100,
+                                    port_width: 320,
+                                },
+                            },
+                        });
+                }),
+        );
+
+        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+
+        await settle();
+
+        // Showing zone-a's creative under zone-b would bill zone-b for it.
+        expect(screen.queryByTestId("ad-creative")).toBeNull();
+
+        await act(async () => {
+            release!();
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        expect(screen.getByTestId("ad-creative").props.source.uri).toBe(
+            "https://example.test/zone-b.html",
+        );
+    });
+
+    it("reports one impression per zone across a switch", async () => {
+        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+
+        await settle();
+        await loadCreative();
+
+        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+
+        await settle();
+        await loadCreative();
+
+        const impressions = reportAdEvent.mock.calls
+            .map(([event]) => event)
+            .filter(
+                (event) => event.eventType === ReportedEventType.IMPRESSION,
+            );
+
+        expect(impressions.map((event) => event.zoneId)).toEqual([
+            "zone-a",
+            "zone-b",
+        ]);
+    });
+});
+
 describe("recipe context changes", () => {
     it("requests a new ad when the zone's context changes", async () => {
         const view = render(

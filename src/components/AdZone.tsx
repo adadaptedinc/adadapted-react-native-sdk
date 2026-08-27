@@ -244,7 +244,6 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         safeInvoke(props.onAdLoaded);
 
         trackImpression();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [trackImpression, props.onAdLoaded]);
 
     /**
@@ -566,7 +565,6 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
         reportUnfilled(ZoneUnfilledReason.RENDER_FAILED);
         displayAd(undefined, state.refreshSeconds);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [displayAd, reportUnfilled, props.onAdLoadFailed]);
 
     /**
@@ -631,6 +629,15 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                 return;
             }
 
+            // Whatever was on screen belonged to the previous cycle: either to a
+            // different zone, or to a session that has since ended. Either way it
+            // must not stay up, or the arriving zone gets billed for it. The
+            // tracking flags are left to displayAd, which resets them all when the
+            // replacement lands.
+            state.currentAd = undefined;
+
+            setCurrentAd(undefined);
+
             state.started = true;
             state.closed = false;
 
@@ -674,8 +681,15 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                 reportEvent(ReportedEventType.ZONE_UNMOUNTED);
             }
         };
+        // Re-runs when the zone changes, which is what makes a switch report an
+        // unmount for the zone being left and a mount for the one arriving. React
+        // runs the cleanup with the previous render's closures, so the unmount is
+        // still attributed to the zone it belongs to. Without this the change was
+        // ignored outright: no events either way, and the new zone displayed the
+        // previous one's ad until its next refresh happened to request the right
+        // one. A host can still avoid all of it by keying the component.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [zoneId]);
 
     // The host app reports visibility, since the SDK cannot determine it here.
     useEffect(() => {
