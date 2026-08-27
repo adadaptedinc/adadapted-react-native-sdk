@@ -485,6 +485,21 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const loadNextAd = useCallback((): void => {
         const state = zone.current;
 
+        // Armed before the request goes out, and deliberately so. It keeps the
+        // countdown owned for the whole time that request is open, which is what
+        // makes resumeTimer() a no-op while one is in flight. Without it any
+        // visibility change during the request saw a stopped timer and an ad
+        // already past its refresh time, queued a refetch, and then billed an
+        // impression and an impression_end for the arriving ad in a single tick.
+        // A visibility flip mid-request is routine: the demo drives isVisible from
+        // navigation focus, and returning to the foreground does the same.
+        //
+        // This cannot leave a response arriving to an expired timer, because every
+        // request is bounded by REQUEST_TIMEOUT_MS, which is below
+        // MINIMUM_AD_REFRESH_SECONDS: the response always lands first. Android
+        // arms it in both places too, in getNextAd and again in handleAd.
+        restartTimer();
+
         if (state.inFlight) {
             state.refetchWhenSettled = true;
 
@@ -495,17 +510,10 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             return;
         }
 
-        // Deliberately no timer armed here. displayAd restarts it on every
-        // outcome, filled or not, so the zone always ends up with one. Arming it
-        // before the request meant the countdown ran while that request was open,
-        // and a response slower than the refresh time then arrived to an already
-        // expired timer: the new ad was displayed, its impression reported, and
-        // immediately rotated away again, billing a pair for an ad that was on
-        // screen for a single frame.
         endImpression();
 
         fetchAd();
-    }, [endImpression, fetchAd]);
+    }, [endImpression, fetchAd, restartTimer]);
 
     // Declared before the effects below so it flushes first on mount, which
     // guarantees the refs are populated before any timer or response can read them.
@@ -522,13 +530,22 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
         /**
          * Starts the zone once there is a session and device info to request with.
+         *
+         * Also restarts one that SDK teardown closed out, which is what makes a
+         * host that calls unmount() and then initialize() again work: teardown
+         * cancels the countdown, so without this the zone stayed on screen with no
+         * timer and never served or reported anything again.
          */
         const start = (): void => {
-            if (state.started) {
+            if (state.started && !state.closed) {
                 return;
             }
 
             state.started = true;
+            state.closed = false;
+
+            // The ad from before teardown is gone, so this is a fresh cycle.
+            state.loaded = false;
 
             // Reported for every zone, whether it ever receives an ad or not.
             reportEvent(ReportedEventType.ZONE_MOUNTED);
@@ -541,9 +558,14 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         // before there is any context to request with. Android has no equivalent
         // problem: its SessionClient is an object that always exists, so the
         // presenter can call straight into it. Here the zone waits to be told.
-        const unsubscribe = getAdRequestContext()
-            ? (start(), () => undefined)
-            : onAdRequestContextReady(start);
+        //
+        // Subscribed for the component's lifetime rather than just until the first
+        // context, so a later initialize() reaches a zone that is still mounted.
+        const unsubscribe = onAdRequestContextReady(start);
+
+        if (getAdRequestContext()) {
+            start();
+        }
 
         return () => {
             unsubscribe();

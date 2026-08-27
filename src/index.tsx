@@ -467,6 +467,11 @@ export class AdadaptedReactNativeSdk {
             reportSdkEvent: (eventName, extraParams) =>
                 this.reportSdkEvent(eventName, extraParams),
             setPendingAtlContent: (content) => {
+                // Delete first: Map.set on an existing key keeps its original
+                // insertion position, so re-keying a zone would leave it where it
+                // was and acknowledge()'s newest-first scan would pick an older
+                // zone's ad instead.
+                this.pendingAtlContent.delete(content.zoneId);
                 this.pendingAtlContent.set(content.zoneId, content);
             },
             forwardAddToList: (items) => {
@@ -672,9 +677,13 @@ export class AdadaptedReactNativeSdk {
                 this.createOrResumeSession();
 
                 this.getPayloadItemData();
-            }
 
-            notifyAppActiveChanged(true);
+                // Only after a real background. Zones are paused on background
+                // and nowhere else, so there is nothing to wake otherwise, and
+                // iOS raises inactive then active for a glance at the app
+                // switcher — poking every zone for that is churn at best.
+                notifyAppActiveChanged(true);
+            }
         } else if (state === "background") {
             this.hasBeenBackgrounded = true;
 
@@ -986,11 +995,15 @@ export class AdadaptedReactNativeSdk {
                         session_id: this.sessionId,
                         events: finalEventsList,
                     },
-                    this.deviceOs!,
+                    this.appId,
                     this.apiEnv,
                 )
                 .then(() => {
                     // Do nothing with the response for now...
+                })
+                .catch(() => {
+                    // Reporting failures must not interrupt keyword search, and an
+                    // unhandled rejection here surfaces as a red screen in dev.
                 });
         }
 
@@ -1042,11 +1055,15 @@ export class AdadaptedReactNativeSdk {
                             },
                         ],
                     },
-                    this.deviceOs!,
+                    this.appId,
                     this.apiEnv,
                 )
                 .then(() => {
                     // Do nothing with the response for now...
+                })
+                .catch(() => {
+                    // Reporting failures must not interrupt keyword search, and an
+                    // unhandled rejection here surfaces as a red screen in dev.
                 });
         }
     }
@@ -1106,11 +1123,15 @@ export class AdadaptedReactNativeSdk {
                         session_id: this.sessionId,
                         events: termEvents,
                     },
-                    this.deviceOs!,
+                    this.appId,
                     this.apiEnv,
                 )
                 .then(() => {
                     // Do nothing with the response for now...
+                })
+                .catch(() => {
+                    // Reporting failures must not interrupt keyword search, and an
+                    // unhandled rejection here surfaces as a red screen in dev.
                 });
         }
     }
@@ -1264,6 +1285,9 @@ export class AdadaptedReactNativeSdk {
      * can experience memory leaks.
      */
     public unmount(): void {
+        // Nothing acknowledged after this belongs to the session that is ending.
+        this.pendingAtlContent.clear();
+
         // Zones close out first, while the context is still in place. Releasing it
         // beforehand makes reportAdEvent a no-op, which silently swallowed the
         // impression_end and zone_unmounted of every zone still mounted. The web

@@ -318,12 +318,18 @@ describe("ordering against the ad zones", () => {
             notified.push(isActive);
         });
 
+        // The real iOS sequence for a glance at the app switcher, a notification
+        // banner or an incoming call: inactive, then active again, with no
+        // background in between. Firing only the inactive half missed that the
+        // active half was still reaching the zones.
         appStateHandler!("inactive");
+        appStateHandler!("active");
 
         unsubscribe();
 
-        // iOS raises this for the app switcher and incoming calls. Passing it on
-        // would pause every zone's countdown for a glance at the switcher.
+        // Zones are paused on background and nowhere else, so there is nothing to
+        // wake here. Telling them anyway made a zone with a refresh request open
+        // treat its ad as expired and bill an impression pair for the replacement.
         expect(notified).toEqual([]);
     });
 
@@ -417,6 +423,55 @@ describe("initializing more than once", () => {
     });
 });
 
+describe("keyword intercept reporting", () => {
+    it("authenticates intercept events with the app ID, not the device OS", async () => {
+        // Terms have to be in place before initialize(), which is what loads them.
+        mockedAxios.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    search_id: "search-1",
+                    terms: [
+                        {
+                            term_id: "term-1",
+                            term: "milk",
+                            replacement: "Fairlife Milk",
+                            priority: 1,
+                        },
+                    ],
+                },
+            },
+        });
+
+        const sdk = await initializeSdk();
+
+        mockedAxios.mockClear();
+
+        sdk.performKeywordSearch("milk");
+        sdk.reportKeywordInterceptTermsPresented(["term-1"]);
+        sdk.reportKeywordInterceptTermSelected("term-1");
+
+        const interceptCalls = mockedAxios.mock.calls.filter(([url]) =>
+            String(url).includes("/v/1.0.0/intercept/events"),
+        );
+
+        expect(interceptCalls.length).toBeGreaterThan(0);
+
+        // The parameter changed from a path segment to the API key header when this
+        // route moved to v1.0.0, and DeviceOS is a string enum so passing it here
+        // type-checks: every intercept event went out as x-api-key: "ios" and was
+        // rejected, silently losing the whole channel.
+        for (const [, config] of interceptCalls) {
+            const headers = (config as { headers: Record<string, string> })
+                .headers;
+
+            expect(headers["x-api-key"]).toBe(APP_ID);
+            expect(headers["x-api-key"]).not.toBe("ios");
+            expect(headers["x-api-key"]).not.toBe("android");
+        }
+    });
+});
+
 describe("add to list acknowledgement", () => {
     /**
      * Builds a pending ATL item.
@@ -477,6 +532,59 @@ describe("add to list acknowledgement", () => {
 
         expect(interactions).toHaveLength(1);
         expect(interactions[0].ad_id).toBe("ad-a");
+    });
+
+    it("attributes to the most recent click when a zone clicks twice", async () => {
+        const sdk = await initializeSdk();
+        const context = getAdRequestContext()!;
+
+        // All three offer the same title, which one advertiser running a campaign
+        // across zones would produce.
+        context.setPendingAtlContent({
+            adId: "ad-a1",
+            zoneId: "zone-a",
+            impressionId: "imp-a1",
+            items: [item("Milk")],
+            isHandled: false,
+        });
+        context.setPendingAtlContent({
+            adId: "ad-b1",
+            zoneId: "zone-b",
+            impressionId: "imp-b1",
+            items: [item("Milk")],
+            isHandled: false,
+        });
+        // zone-a again, so its key already exists. Map.set does not move an
+        // existing key to the end, so a newest-first scan by insertion order alone
+        // would pick zone-b's older ad.
+        context.setPendingAtlContent({
+            adId: "ad-a2",
+            zoneId: "zone-a",
+            impressionId: "imp-a2",
+            items: [item("Milk")],
+            isHandled: false,
+        });
+
+        mockedAxios.mockClear();
+
+        sdk.acknowledge("Milk");
+
+        const interactions = mockedAxios.mock.calls
+            .filter(([url]) => String(url).includes("/v/1.0.0/ad/events"))
+            .flatMap(
+                ([, config]) =>
+                    (
+                        config as never as {
+                            data: {
+                                events: { ad_id: string; event_type: string }[];
+                            };
+                        }
+                    ).data.events,
+            )
+            .filter((event) => event.event_type === "interaction");
+
+        expect(interactions).toHaveLength(1);
+        expect(interactions[0].ad_id).toBe("ad-a2");
     });
 
     it("reports one interaction per ad however many items are acknowledged", async () => {

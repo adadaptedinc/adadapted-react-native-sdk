@@ -320,6 +320,40 @@ describe("mounting before the SDK is ready", () => {
     });
 });
 
+describe("after the SDK is torn down and re-initialized", () => {
+    it("serves again for a zone that stayed mounted", async () => {
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+        expect(retrieveAdMock).toHaveBeenCalledTimes(1);
+
+        // What sdk.unmount() does.
+        await act(async () => {
+            notifySdkTeardown();
+            setAdRequestContext(undefined);
+
+            await Promise.resolve();
+        });
+
+        // ...and then the host initializes again, on a login or store change.
+        await act(async () => {
+            setAdRequestContext(buildContext());
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        // Teardown cancels the countdown, so without a restart the zone sat on
+        // screen with no timer and never served or reported anything again.
+        expect(retrieveAdMock).toHaveBeenCalledTimes(2);
+        expect(
+            reportedTypes().filter(
+                (type) => type === ReportedEventType.ZONE_MOUNTED,
+            ),
+        ).toHaveLength(2);
+    });
+});
+
 describe("displaying an ad", () => {
     it("renders the served creative", async () => {
         serveAd(
@@ -930,10 +964,14 @@ describe("add to list without a zone handler", () => {
 });
 
 describe("slow and overlapping requests", () => {
-    it("does not bill an impression pair for an ad replaced on arrival", async () => {
-        // A response slower than the refresh interval. The countdown must not have
-        // been running while it was open, or the ad lands on an expired timer and
-        // is rotated away in the same tick it was shown.
+    it("does not bill an impression pair when the zone becomes visible mid-request", async () => {
+        // The countdown must stay owned for as long as a refresh request is open.
+        // If it does not, this visibility change sees a stopped timer and an ad
+        // already past its refresh time, queues a refetch, and the arriving ad is
+        // billed an impression and an impression_end in the same tick.
+        //
+        // Routine, not exotic: the demo drives isVisible from navigation focus, and
+        // returning from the background does the same thing.
         serveAd(buildAd({ refresh_time: 15 }));
 
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
@@ -951,8 +989,8 @@ describe("slow and overlapping requests", () => {
                                 success: true,
                                 data: {
                                     ad: buildAd({
-                                        id: "ad-slow",
-                                        impression_id: "impression-slow",
+                                        id: "ad-next",
+                                        impression_id: "impression-next",
                                         refresh_time: 15,
                                     }),
                                     port_height: 100,
@@ -963,10 +1001,15 @@ describe("slow and overlapping requests", () => {
                 }),
         );
 
+        // The refresh fires, opening a request we hold open.
         await advance(15_000);
+        expect(retrieveAdMock).toHaveBeenCalledTimes(2);
 
-        // Well past the refresh interval, with the request still open.
-        await advance(60_000);
+        await act(async () => {
+            notifyAppActiveChanged(true);
+
+            await Promise.resolve();
+        });
 
         await act(async () => {
             release!();
@@ -975,19 +1018,22 @@ describe("slow and overlapping requests", () => {
         });
         await settle();
 
-        const slowImpressions = reportAdEvent.mock.calls.filter(
+        const nextImpressions = reportAdEvent.mock.calls.filter(
             ([event]) =>
-                event.adId === "ad-slow" &&
+                event.adId === "ad-next" &&
                 event.eventType === ReportedEventType.IMPRESSION,
         );
-        const slowEnds = reportAdEvent.mock.calls.filter(
+        const nextEnds = reportAdEvent.mock.calls.filter(
             ([event]) =>
-                event.adId === "ad-slow" &&
+                event.adId === "ad-next" &&
                 event.eventType === ReportedEventType.IMPRESSION_END,
         );
 
-        expect(slowImpressions).toHaveLength(1);
-        expect(slowEnds).toHaveLength(0);
+        expect(nextImpressions).toHaveLength(1);
+        expect(nextEnds).toHaveLength(0);
+
+        // And no third request provoked by the same false expiry.
+        expect(retrieveAdMock).toHaveBeenCalledTimes(2);
     });
 
     it("picks up a context change that arrived during the first request", async () => {
