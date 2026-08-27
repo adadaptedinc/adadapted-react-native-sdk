@@ -503,6 +503,17 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                 if (!body || body.success === false || !body.data) {
                     reportUnfilled(ZoneUnfilledReason.REQUEST_FAILED);
                     displayAd(undefined, state.refreshSeconds);
+                } else if (
+                    body.data.ad &&
+                    body.data.ad.id &&
+                    !body.data.ad.creative_url
+                ) {
+                    // An ad with an id but nothing to render. It counts as a fill by
+                    // every other measure, so without this the zone reported its
+                    // mount, no impression and no unfilled reason, and sat blank until
+                    // the next refresh.
+                    reportUnfilled(ZoneUnfilledReason.RENDER_FAILED);
+                    displayAd(undefined, body.data.ad.refresh_time);
                 } else if (!body.data.ad || !body.data.ad.id) {
                     // An ad object with no ID is how the API reports that it had
                     // nothing to serve. Its refresh_time is the backoff.
@@ -731,8 +742,13 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                 pauseTimer();
             }
         });
+        // Resubscribed when the zone changes. These callbacks close over
+        // reportEvent, which carries the zone id, so an empty dependency array
+        // left this subscription holding the first render's zone for the life of
+        // the component: after a switch, this zone's own events were reported
+        // against the zone it used to be.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [zoneId]);
 
     // The SDK is going away. Close out while there is still a context to report
     // through, because releasing it turns every report into a no-op.
@@ -749,8 +765,11 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                 reportEvent(ReportedEventType.ZONE_UNMOUNTED);
             }
         });
+        // Same reason as above: without this, teardown after a zone switch
+        // reported a second unmount for the zone that had already been left, and
+        // none at all for the one actually on screen.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [zoneId]);
 
     // A changed recipe context means the ad on screen was chosen for the wrong one.
     const previousContextId = useRef(props.contextId);

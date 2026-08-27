@@ -164,15 +164,6 @@ export class AdadaptedReactNativeSdk {
      * a click/press on the Ad Zone.
      */
     private xyAdZoneDragDistanceAllowed: number | undefined;
-
-    /**
-     * The touch drag sensitivity configured at initialize(), for a host that wants
-     * to apply the same value to the zones it renders.
-     * @returns the configured drag distance, if one was provided.
-     */
-    public getXyDragDistanceAllowed(): number | undefined {
-        return this.xyAdZoneDragDistanceAllowed;
-    }
     /**
      * The user input string provided by the client and used to return a
      * result of keyword intercept terms. This will always be the last
@@ -1365,3 +1356,16 @@ export class AdadaptedReactNativeSdk {
 // existed because the removed session response happened to carry the zone list.
 export { AdZone } from "./components/AdZone";
 export type { AdZoneTypes } from "./componentTypes/AdZone";
+
+// Re-exported because the public surface above refers to them: apiEnv on
+// InitializeProps, the items handed to onAddToListTriggered and
+// onOutOfAppPayloadAvailable, and the device info getDeviceInfo resolves. Without
+// these a consumer cannot name the types of the API they are calling without
+// reaching into src/, which the example app had to do and which is not covered by
+// the published entry point at all.
+export { EnvironmentTypes } from "./componentTypes/Environment";
+export { DeviceTypes } from "./componentTypes/Device";
+export type {
+    DetailedListItem,
+    OutOfAppDataPayload,
+} from "./api/adadaptedApiTypes";

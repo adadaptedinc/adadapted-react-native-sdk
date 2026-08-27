@@ -4,8 +4,11 @@
  */
 import React, { useMemo } from "react";
 import { useState, useEffect } from "react";
-import { AdadaptedReactNativeSdk, KeywordSearchResult } from "../../src/index";
-import { EnvironmentTypes } from "../../src/componentTypes/Environment";
+import {
+    AdadaptedReactNativeSdk,
+    EnvironmentTypes,
+    KeywordSearchResult,
+} from "../../src/index";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StandardAdZonePage } from "./StandardAdZone";

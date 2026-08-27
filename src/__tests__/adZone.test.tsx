@@ -870,6 +870,43 @@ describe("unfilled zones", () => {
         expect(retrieveAdMock).toHaveBeenCalledTimes(2);
     });
 
+    it("reports render_failed for an ad served with nothing to render", async () => {
+        // Passes every other fill check: it has an id, and success is true.
+        retrieveAdMock.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    ad: buildAd({ creative_url: "", refresh_time: 40 }),
+                    port_height: 100,
+                    port_width: 320,
+                },
+            },
+        });
+
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        const unfilled = reportAdEvent.mock.calls.filter(
+            ([event]) => event.eventType === ReportedEventType.ZONE_UNFILLED,
+        );
+
+        expect(unfilled).toHaveLength(1);
+        expect(unfilled[0][0].eventName).toBe(ZoneUnfilledReason.RENDER_FAILED);
+
+        // No WebView is rendered for it, so neither load callback can ever fire:
+        // the zone previously reported its mount and then nothing at all.
+        expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
+        expect(screen.queryByTestId("ad-creative")).toBeNull();
+
+        // The served refresh time still paces the retry.
+        await advance(39_000);
+        expect(retrieveAdMock).toHaveBeenCalledTimes(1);
+
+        await advance(1_000);
+        expect(retrieveAdMock).toHaveBeenCalledTimes(2);
+    });
+
     it("reports request_failed when the API rejects the request on a 200", async () => {
         // The rejection still carries a populated zone, which is what makes the
         // success flag the only thing distinguishing it from a fill. Reading the
@@ -1414,6 +1451,57 @@ describe("changing which zone the component serves", () => {
         expect(screen.getByTestId("ad-creative").props.source.uri).toBe(
             "https://example.test/zone-b.html",
         );
+    });
+
+    it("attributes later events to the zone now on screen, not the one it replaced", async () => {
+        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+
+        await settle();
+        await loadCreative();
+
+        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+
+        await settle();
+        await loadCreative();
+
+        // The app state and teardown subscriptions close over reportEvent, which
+        // carries the zone id. Held from the first render, they reported this
+        // zone's events against the zone it used to be.
+        await act(async () => {
+            notifyAppActiveChanged(false);
+
+            await Promise.resolve();
+        });
+
+        const ends = reportAdEvent.mock.calls
+            .map(([event]) => event)
+            .filter(
+                (event) => event.eventType === ReportedEventType.IMPRESSION_END,
+            );
+
+        expect(ends.map((event) => `${event.adId}@${event.zoneId}`)).toEqual([
+            "ad-1@zone-a",
+            "ad-1@zone-b",
+        ]);
+
+        await act(async () => {
+            notifySdkTeardown();
+
+            await Promise.resolve();
+        });
+
+        const unmounts = reportAdEvent.mock.calls
+            .map(([event]) => event)
+            .filter(
+                (event) => event.eventType === ReportedEventType.ZONE_UNMOUNTED,
+            );
+
+        // One per zone: a second for the zone already left, and none for the one
+        // on screen, was the shape of the bug.
+        expect(unmounts.map((event) => event.zoneId)).toEqual([
+            "zone-a",
+            "zone-b",
+        ]);
     });
 
     it("reports one impression per zone across a switch", async () => {
