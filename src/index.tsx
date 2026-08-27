@@ -625,10 +625,25 @@ export class AdadaptedReactNativeSdk {
         const dataIndex: number = event.url.indexOf(searchStr);
 
         if (dataIndex !== -1) {
-            const encodedData: string = event.url.substr(
-                `${dataIndex}${searchStr.length}`,
+            // The two numbers are added, not concatenated. This was a template
+            // literal, so an index of 30 with a 5 character search string sliced
+            // from 305 instead of 35 and every out-of-app payload deep link threw
+            // on the decode below.
+            const encodedData: string = event.url.slice(
+                dataIndex + searchStr.length,
             );
-            const payloadData = JSON.parse(base64.decode(encodedData));
+
+            let payloadData;
+
+            try {
+                payloadData = JSON.parse(base64.decode(encodedData));
+            } catch {
+                // A malformed link is the sender's problem, not something to crash
+                // the host app for. This runs inside the Linking handler and inside
+                // getInitialURL().then(), neither of which is guarded.
+                return;
+            }
+
             const payloadId = payloadData.payload_id;
             const itemDataList = payloadData.detailed_list_items;
 

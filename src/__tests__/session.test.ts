@@ -9,6 +9,7 @@
  */
 import { AppState, AppStateStatus, Linking } from "react-native";
 import axios from "axios";
+import base64 from "react-native-base64";
 import { AdadaptedReactNativeSdk } from "../index";
 import { EnvironmentTypes } from "../componentTypes/Environment";
 import { ListManagerEventSource, SdkEventName } from "../api/adadaptedApiTypes";
@@ -420,6 +421,89 @@ describe("initializing more than once", () => {
         );
 
         expect(backgrounded).toHaveLength(1);
+    });
+});
+
+describe("out of app payload deep links", () => {
+    it("decodes the payload and hands its items to the host", async () => {
+        const payload = {
+            payload_id: "payload-1",
+            detailed_list_items: [
+                {
+                    product_title: "Fairlife Milk",
+                    product_brand: "Fairlife",
+                    product_category: "dairy",
+                    product_barcode: "123",
+                    product_discount: "",
+                    product_image: "https://example.test/milk.png",
+                    product_sku: "sku-1",
+                },
+            ],
+        };
+        // The same module the SDK decodes with, so the round trip is symmetric.
+        const encoded = base64.encode(JSON.stringify(payload));
+
+        let deepLinkHandler: ((event: { url: string }) => void) | undefined;
+
+        jest.spyOn(Linking, "addEventListener").mockImplementation(
+            (type, handler) => {
+                if (type === "url") {
+                    deepLinkHandler = handler;
+                }
+
+                return { remove: jest.fn() };
+            },
+        );
+
+        const received: unknown[] = [];
+        const sdk = new AdadaptedReactNativeSdk();
+
+        await sdk.initialize({
+            appId: APP_ID,
+            apiEnv: EnvironmentTypes.ApiEnv.Dev,
+            onOutOfAppPayloadAvailable: (items) => {
+                received.push(...items);
+            },
+        });
+
+        // The index into the URL is what was broken: it was concatenated with the
+        // search string's length rather than added, so the slice started far past
+        // the end and the decode threw for every real link.
+        deepLinkHandler!({
+            url: `myapp://addtolist?somethingelse=1&data=${encoded}`,
+        });
+
+        expect(received).toHaveLength(1);
+        expect(received[0]).toEqual({
+            payload_id: "payload-1",
+            detailed_list_items: [payload.detailed_list_items[0]],
+        });
+    });
+
+    it("ignores a malformed link instead of throwing into the host", async () => {
+        let deepLinkHandler: ((event: { url: string }) => void) | undefined;
+
+        jest.spyOn(Linking, "addEventListener").mockImplementation(
+            (type, handler) => {
+                if (type === "url") {
+                    deepLinkHandler = handler;
+                }
+
+                return { remove: jest.fn() };
+            },
+        );
+
+        const sdk = new AdadaptedReactNativeSdk();
+
+        await sdk.initialize({
+            appId: APP_ID,
+            apiEnv: EnvironmentTypes.ApiEnv.Dev,
+        });
+
+        // Runs inside the Linking handler, which is not guarded by the caller.
+        expect(() =>
+            deepLinkHandler!({ url: "myapp://addtolist?data=not-base64-json" }),
+        ).not.toThrow();
     });
 });
 
