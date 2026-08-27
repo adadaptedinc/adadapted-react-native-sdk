@@ -31,18 +31,58 @@ import { EnvironmentTypes } from "../componentTypes/Environment";
 
 // Rendered as a View that keeps its props, so a test can read which creative the
 // zone is showing and drive touches through it.
+// Stands in for the native WebView. An impression is now owed only once the
+// creative has rendered, so the mock has to be able to report that: onLoad is
+// fired from the test through the rendered element, and injectJavaScript is
+// recorded so the pixel injection can be asserted.
+const injectedScripts: string[] = [];
+
 jest.mock("react-native-webview", () => {
     const reactNative = jest.requireActual("react-native");
     const react = jest.requireActual("react");
 
     return {
-        WebView: (props: any) =>
-            react.createElement(reactNative.View, {
+        WebView: react.forwardRef((props: any, ref: any) => {
+            react.useImperativeHandle(ref, () => ({
+                injectJavaScript: (script: string) => {
+                    injectedScripts.push(script);
+                },
+            }));
+
+            return react.createElement(reactNative.View, {
                 ...props,
                 testID: "ad-creative",
-            }),
+            });
+        }),
     };
 });
+
+/**
+ * Simulates the creative finishing its render, which is what makes an impression
+ * owed. Nothing is reported for an ad whose creative never paints.
+ */
+async function loadCreative(): Promise<void> {
+    const creative = screen.getByTestId("ad-creative");
+
+    await act(async () => {
+        fireEvent(creative, "load", { nativeEvent: {} });
+
+        await Promise.resolve();
+    });
+}
+
+/**
+ * Simulates the creative failing to render.
+ */
+async function failCreative(): Promise<void> {
+    const creative = screen.getByTestId("ad-creative");
+
+    await act(async () => {
+        fireEvent(creative, "error", { nativeEvent: { description: "boom" } });
+
+        await Promise.resolve();
+    });
+}
 
 const ZONE_ID = "102110";
 const SESSION_ID = "RNABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
@@ -168,6 +208,8 @@ beforeEach(() => {
     // front makes each test's counts its own.
     jest.restoreAllMocks();
     jest.clearAllMocks();
+
+    injectedScripts.length = 0;
 
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-01-01T12:00:00Z"));
@@ -373,6 +415,7 @@ describe("displaying an ad", () => {
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
+        await loadCreative();
 
         const impressions = reportAdEvent.mock.calls.filter(
             ([event]) => event.eventType === ReportedEventType.IMPRESSION,
@@ -398,6 +441,159 @@ describe("displaying an ad", () => {
         await settle();
 
         expect(onZoneHasAds).toHaveBeenLastCalledWith(true);
+    });
+});
+
+describe("the creative rendering", () => {
+    it("reports no impression until the creative has rendered", async () => {
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        // The response has arrived and the ad is on screen, but nothing has
+        // painted. Billing here charges for ads the user could not have seen.
+        expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
+
+        await loadCreative();
+
+        expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION);
+    });
+
+    it("fires the creative's tracking pixels before reporting the impression", async () => {
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        expect(injectedScripts).toEqual([]);
+
+        await loadCreative();
+
+        // Without this, advertiser-side and third party measurement never fires,
+        // so external verification sees no impressions at all.
+        expect(injectedScripts).toEqual(["loadTrackingPixels()"]);
+    });
+
+    it("waits for visibility as well as the render, in either order", async () => {
+        const view = render(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+
+        await settle();
+
+        // Rendered while off screen: owed nothing yet.
+        await loadCreative();
+
+        expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
+        expect(injectedScripts).toEqual([]);
+
+        view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        // Now both conditions hold, so the impression is owed at this point.
+        expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION);
+        expect(injectedScripts).toEqual(["loadTrackingPixels()"]);
+    });
+
+    it("reports no impression on a visibility change before the render", async () => {
+        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        // The ad has arrived but has not painted. Toggling visibility must not be
+        // enough on its own: without the render gate this bills an impression for
+        // a creative that has shown nothing.
+        view.update(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
+        expect(injectedScripts).toEqual([]);
+
+        await loadCreative();
+
+        expect(
+            reportedTypes().filter(
+                (type) => type === ReportedEventType.IMPRESSION,
+            ),
+        ).toHaveLength(1);
+    });
+
+    it("reports render_failed and drops an ad whose creative will not load", async () => {
+        serveAd(buildAd({ refresh_time: 45 }));
+
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+        await failCreative();
+
+        const unfilled = reportAdEvent.mock.calls.filter(
+            ([event]) => event.eventType === ReportedEventType.ZONE_UNFILLED,
+        );
+
+        expect(unfilled).toHaveLength(1);
+        expect(unfilled[0][0].eventName).toBe(ZoneUnfilledReason.RENDER_FAILED);
+
+        // An ad was served, so this is neither a no-fill nor a failed request.
+        expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
+        expect(injectedScripts).toEqual([]);
+
+        // Dropped, and the served refresh time is kept so the zone retries on
+        // schedule rather than sitting on a creative that will not paint.
+        expect(screen.queryByTestId("ad-creative")).toBeNull();
+
+        await advance(44_000);
+        expect(retrieveAdMock).toHaveBeenCalledTimes(1);
+
+        await advance(1_000);
+        expect(retrieveAdMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("tells the host whether the creative rendered, not whether one was served", async () => {
+        const onAdLoaded = jest.fn();
+        const onAdLoadFailed = jest.fn();
+
+        render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                onAdLoaded={onAdLoaded}
+                onAdLoadFailed={onAdLoadFailed}
+            />,
+        );
+
+        await settle();
+
+        // A served ad is not a loaded ad. Android reports these from the WebView's
+        // own load callbacks, so the prop names mean the same thing on both.
+        expect(onAdLoaded).not.toHaveBeenCalled();
+
+        await loadCreative();
+
+        expect(onAdLoaded).toHaveBeenCalledTimes(1);
+        expect(onAdLoadFailed).not.toHaveBeenCalled();
+    });
+
+    it("reports one impression and one load however many times the creative reloads", async () => {
+        const onAdLoaded = jest.fn();
+
+        render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                onAdLoaded={onAdLoaded}
+            />,
+        );
+
+        await settle();
+        await loadCreative();
+        await loadCreative();
+
+        expect(
+            reportedTypes().filter(
+                (type) => type === ReportedEventType.IMPRESSION,
+            ),
+        ).toHaveLength(1);
+        expect(injectedScripts).toEqual(["loadTrackingPixels()"]);
+
+        // A creative that reloads itself is still one loaded ad, so the host hears
+        // about it once. Android guards this with the same flag.
+        expect(onAdLoaded).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -453,6 +649,7 @@ describe("refreshing", () => {
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
+        await loadCreative();
 
         serveAd(
             buildAd({
@@ -463,6 +660,7 @@ describe("refreshing", () => {
         );
 
         await advance(30_000);
+        await loadCreative();
 
         const impressions = reportAdEvent.mock.calls.filter(
             ([event]) => event.eventType === ReportedEventType.IMPRESSION,
@@ -549,6 +747,7 @@ describe("visibility", () => {
         const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
+        await loadCreative();
 
         view.update(<AdZone zoneId={ZONE_ID} isVisible={false} />);
 
@@ -568,6 +767,7 @@ describe("visibility", () => {
         expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
 
         view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await loadCreative();
 
         expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION);
     });
@@ -578,6 +778,7 @@ describe("visibility", () => {
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
+        await loadCreative();
 
         await act(async () => {
             notifyAppActiveChanged(false);
@@ -606,6 +807,7 @@ describe("visibility", () => {
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
+        await loadCreative();
 
         expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION);
 
@@ -977,6 +1179,7 @@ describe("slow and overlapping requests", () => {
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
+        await loadCreative();
 
         let release: (() => void) | undefined;
 
@@ -1017,6 +1220,7 @@ describe("slow and overlapping requests", () => {
             await Promise.resolve();
         });
         await settle();
+        await loadCreative();
 
         const nextImpressions = reportAdEvent.mock.calls.filter(
             ([event]) =>

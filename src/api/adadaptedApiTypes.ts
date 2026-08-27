@@ -262,6 +262,10 @@ export enum ZoneUnfilledReason {
      * The ad request failed outright and never returned a usable response.
      */
     REQUEST_FAILED = "request_failed",
+    /**
+     * An ad was served and the WebView could not display it.
+     */
+    RENDER_FAILED = "render_failed",
 }
 
 /**

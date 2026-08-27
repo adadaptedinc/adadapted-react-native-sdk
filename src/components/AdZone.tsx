@@ -42,6 +42,14 @@ const DEFAULT_AD_REFRESH_SECONDS = 60;
 const MINIMUM_AD_REFRESH_SECONDS = 15;
 
 /**
+ * Injected into the creative once it has rendered and is on screen, immediately
+ * before the impression is reported. The creative is expected to define this
+ * function; it loads the advertiser's measurement pixels.
+ * Matches PIXEL_TRACKING_JS in the Android SDK's AdZonePresenter.
+ */
+const PIXEL_TRACKING_JS = "loadTrackingPixels()";
+
+/**
  * Resolves how long an ad should be displayed for.
  * Mirrors Ad.refreshTimeOrDefault on Android.
  * @param refreshTime - The refresh_time served for the ad.
@@ -128,6 +136,12 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
          * component unmount cannot both report one.
          */
         closed: false,
+        /**
+         * Whether the creative itself has rendered in the WebView. An impression is
+         * not owed for an ad the user could not actually have seen, so this gates
+         * it alongside visibility.
+         */
+        creativeLoaded: false,
         impressionTracked: false,
         impressionEndTracked: false,
         clickHandled: false,
@@ -172,11 +186,26 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const trackImpression = useCallback((): void => {
         const state = zone.current;
 
-        if (!state.currentAd || state.impressionTracked || !isOnScreen()) {
+        if (
+            !state.currentAd ||
+            state.impressionTracked ||
+            // The creative has to have rendered. Reporting on the response alone
+            // billed ads whose creative failed to paint, and meant the tracking
+            // script below never ran. Mirrors the webView.loaded condition in
+            // AdZonePresenter.trackAdImpression.
+            !state.creativeLoaded ||
+            !isOnScreen()
+        ) {
             return;
         }
 
         state.impressionTracked = true;
+
+        // Before the impression, as on Android. The creative defines this
+        // function; it loads the advertiser's own measurement pixels, so without
+        // it third party verification sees no impressions at all however healthy
+        // our own numbers look.
+        webViewRef.current?.injectJavaScript(PIXEL_TRACKING_JS);
 
         reportEvent(ReportedEventType.IMPRESSION, state.currentAd);
     }, [isOnScreen, reportEvent]);
@@ -197,6 +226,26 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
         reportEvent(ReportedEventType.IMPRESSION_END, state.currentAd);
     }, [reportEvent]);
+
+    /**
+     * The creative finished rendering. This is when an impression becomes owed,
+     * so it is attempted here and again on any later visibility change.
+     * Mirrors AaZoneView.onAdLoadedInWebView.
+     */
+    const onCreativeLoaded = useCallback((): void => {
+        const state = zone.current;
+
+        if (!state.currentAd || state.creativeLoaded) {
+            return;
+        }
+
+        state.creativeLoaded = true;
+
+        safeInvoke(props.onAdLoaded);
+
+        trackImpression();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trackImpression, props.onAdLoaded]);
 
     /**
      * Reports a queued unfilled event once the zone is on screen.
@@ -264,6 +313,16 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     // ready starts later, and calling the fetchAd captured on the first render
     // would request with whatever contextId was set at that moment.
     const fetchAdRef = useRef<(() => void) | undefined>(undefined);
+
+    // Needed to inject the creative's own pixel tracking before an impression is
+    // filed, which is the only way third party measurement ever fires.
+    //
+    // The <object> type argument is not decoration. react-native-webview declares
+    // `class WebView<P = undefined> extends Component<WebViewProps & P>`, and
+    // `WebViewProps & undefined` collapses to never, so the moment a ref is
+    // attached every prop on the element fails to type check. Naming any object
+    // type for P restores the real props.
+    const webViewRef = useRef<WebView<object>>(null);
 
     /**
      * Starts the countdown with whatever time it has left.
@@ -368,29 +427,31 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             state.impressionEndTracked = false;
             state.clickHandled = false;
 
+            // The replacement has not rendered yet. The WebView's own load
+            // callback sets this and files the impression from there.
+            state.creativeLoaded = false;
+
             // Armed before anything else, so a later failure cannot leave the zone
             // without a refresh timer.
             restartTimer();
 
             setCurrentAd(ad);
-            trackImpression();
 
+            // Deliberately no impression here. It is owed when the creative has
+            // rendered and the zone is on screen, whichever happens last, so it is
+            // filed from the WebView's load callback and re-attempted whenever
+            // visibility changes. Android files it from the same place, through
+            // onAdLoadedInWebView.
             safeInvoke(props.onZoneHasAds, ad !== undefined);
 
-            if (ad) {
-                safeInvoke(props.onAdLoaded);
-            } else {
+            // A response with no ad is a fill failure, reported here. A response
+            // with an ad whose creative will not render is a render failure,
+            // reported from the WebView's error callback.
+            if (!ad) {
                 safeInvoke(props.onAdLoadFailed);
             }
         },
-        [
-            endImpression,
-            restartTimer,
-            trackImpression,
-            props.onZoneHasAds,
-            props.onAdLoaded,
-            props.onAdLoadFailed,
-        ],
+        [endImpression, restartTimer, props.onZoneHasAds, props.onAdLoadFailed],
     );
 
     /**
@@ -478,6 +539,35 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                 }
             });
     }, [displayAd, props.contextId, reportUnfilled, zoneId]);
+
+    /**
+     * The creative could not be rendered. An ad was served, so this is neither a
+     * no-fill nor a failed request: Android reports it as its own reason and drops
+     * the ad, keeping the refresh time so the zone tries again on schedule.
+     * Mirrors AdZonePresenter.onAdDisplayFailed.
+     *
+     * NOTE: Driven from onError only, not onHttpError. onError is the main frame
+     *       failing, which is what Android's onReceivedError covers. onHttpError
+     *       can fire for a sub-resource inside a creative that is otherwise fine,
+     *       and reporting that as a render failure would discard a real fill.
+     */
+    const onCreativeFailed = useCallback((): void => {
+        const state = zone.current;
+
+        if (!state.currentAd || state.creativeLoaded) {
+            return;
+        }
+
+        // Marked handled so a later load event for the same ad cannot file an
+        // impression for a creative that already failed.
+        state.creativeLoaded = true;
+
+        safeInvoke(props.onAdLoadFailed);
+
+        reportUnfilled(ZoneUnfilledReason.RENDER_FAILED);
+        displayAd(undefined, state.refreshSeconds);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [displayAd, reportUnfilled, props.onAdLoadFailed]);
 
     /**
      * Requests the next ad, replacing whatever the zone is showing.
@@ -785,11 +875,14 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     return (
         <View style={finalMainViewStyle}>
             {currentAd && currentAd.creative_url ? (
-                <WebView
+                <WebView<object>
+                    ref={webViewRef}
                     source={{ uri: currentAd.creative_url }}
                     androidLayerType="hardware"
                     automaticallyAdjustContentInsets={false}
                     style={styles.webView}
+                    onLoad={onCreativeLoaded}
+                    onError={onCreativeFailed}
                     onTouchStart={(e) => {
                         touchStartCoords.current = {
                             x: e.nativeEvent.pageX,
