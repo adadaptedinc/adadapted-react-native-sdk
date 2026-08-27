@@ -424,6 +424,81 @@ describe("initializing more than once", () => {
     });
 });
 
+describe("api environments", () => {
+    /**
+     * Collects the distinct hosts every request went to.
+     * @returns one entry per host.
+     */
+    function hostsCalled(): string[] {
+        return [
+            ...new Set(
+                mockedAxios.mock.calls.map(
+                    ([url]) => new URL(String(url)).host,
+                ),
+            ),
+        ].sort();
+    }
+
+    it("points every backend at the sandbox when asked for dev", async () => {
+        const sdk = new AdadaptedReactNativeSdk();
+
+        await sdk.initialize({
+            appId: APP_ID,
+            apiEnv: EnvironmentTypes.ApiEnv.Dev,
+        });
+
+        sdk.markPayloadContentAcknowledged("payload-1");
+        sdk.reportItemsAddedToList(["Milk"], "My list");
+
+        // The payload host was the one that got missed: it was left at whatever the
+        // constructor set, so a sandbox integration wrote its payload delivery and
+        // rejection tracking to production.
+        expect(hostsCalled()).toEqual([
+            "sandbox.adadapted.com",
+            "sandec.adadapted.com",
+            "sandpayload.adadapted.com",
+        ]);
+
+        for (const [url] of mockedAxios.mock.calls) {
+            expect(String(url)).not.toContain("://payload.adadapted.com");
+            expect(String(url)).not.toContain("://ec.adadapted.com");
+            expect(String(url)).not.toContain("://ads.adadapted.com");
+        }
+    });
+
+    it("points every backend at production by default", async () => {
+        const sdk = new AdadaptedReactNativeSdk();
+
+        await sdk.initialize({ appId: APP_ID });
+
+        sdk.markPayloadContentAcknowledged("payload-1");
+        sdk.reportItemsAddedToList(["Milk"], "My list");
+
+        expect(hostsCalled()).toEqual([
+            "ads.adadapted.com",
+            "ec.adadapted.com",
+            "payload.adadapted.com",
+        ]);
+    });
+
+    it("reaches no network at all in the mock environment", async () => {
+        const sdk = new AdadaptedReactNativeSdk();
+
+        await sdk.initialize({
+            appId: APP_ID,
+            apiEnv: EnvironmentTypes.ApiEnv.Mock,
+        });
+
+        sdk.markPayloadContentAcknowledged("payload-1");
+        sdk.reportItemsAddedToList(["Milk"], "My list");
+
+        // The list manager previously mapped anything that was not production to
+        // the sandbox, so the environment that exists to serve local fixtures sent
+        // real requests to a real host.
+        expect(mockedAxios).not.toHaveBeenCalled();
+    });
+});
+
 describe("out of app payload deep links", () => {
     it("decodes the payload and hands its items to the host", async () => {
         const payload = {

@@ -811,26 +811,8 @@ export class AdadaptedReactNativeSdk {
         // Set the app ID.
         this.appId = props.appId;
 
-        // Set the API environment based on the provided override value.
-        // If the apiEnv value is not provided, production will be used as default.
-        if (props.apiEnv) {
-            this.apiEnv = props.apiEnv;
-        } else {
-            this.apiEnv = EnvironmentTypes.ApiEnv.Prod;
-        }
-
-        // Base the List Manager API environment off what
-        // the user provides for the props.apiEnv value.
-        if (props.apiEnv) {
-            if (props.apiEnv === EnvironmentTypes.ApiEnv.Prod) {
-                this.listManagerApiEnv =
-                    EnvironmentTypes.ListManagerApiEnv.Prod;
-            } else {
-                this.listManagerApiEnv = EnvironmentTypes.ListManagerApiEnv.Dev;
-            }
-        } else {
-            this.listManagerApiEnv = EnvironmentTypes.ListManagerApiEnv.Prod;
-        }
+        // All three backends follow the environment the caller asked for.
+        this.resolveApiEnvironments(props.apiEnv);
 
         // The ad zone touch drag sensitivity setting.
         if (props.xyDragDistanceAllowed) {
@@ -1314,6 +1296,43 @@ export class AdadaptedReactNativeSdk {
         setAdRequestContext(undefined);
 
         this.removeEventListeners();
+    }
+
+    /**
+     * Points the ad, list manager and payload backends at one environment.
+     *
+     * All three are separate hosts with their own production and sandbox tiers, so
+     * each has to be derived. The payload environment was previously left at
+     * whatever the constructor set and never revisited, which meant a sandbox
+     * integration wrote its payload delivery and rejection tracking to production.
+     * The list manager environment mapped anything that was not production to
+     * sandbox, so the mock environment reached the real sandbox host instead of the
+     * local fixtures it exists to serve.
+     * @param apiEnv - The environment the caller asked for, if any.
+     */
+    private resolveApiEnvironments(
+        apiEnv: EnvironmentTypes.ApiEnv | undefined,
+    ): void {
+        // Production unless told otherwise, which is the long-standing default.
+        this.apiEnv = apiEnv ?? EnvironmentTypes.ApiEnv.Prod;
+
+        switch (this.apiEnv) {
+            case EnvironmentTypes.ApiEnv.Dev:
+                this.listManagerApiEnv = EnvironmentTypes.ListManagerApiEnv.Dev;
+                this.payloadApiEnv = EnvironmentTypes.PayloadApiEnv.Dev;
+                break;
+
+            case EnvironmentTypes.ApiEnv.Mock:
+                this.listManagerApiEnv =
+                    EnvironmentTypes.ListManagerApiEnv.Mock;
+                this.payloadApiEnv = EnvironmentTypes.PayloadApiEnv.Mock;
+                break;
+
+            default:
+                this.listManagerApiEnv =
+                    EnvironmentTypes.ListManagerApiEnv.Prod;
+                this.payloadApiEnv = EnvironmentTypes.PayloadApiEnv.Prod;
+        }
     }
 
     /**
