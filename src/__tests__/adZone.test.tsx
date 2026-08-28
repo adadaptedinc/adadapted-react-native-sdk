@@ -130,6 +130,31 @@ async function loadCreative(): Promise<void> {
 }
 
 /**
+ * Fires a load event on the WebView already on screen, without asking whether the
+ * platform would have reloaded the source.
+ *
+ * The refusal to reload is about re-setting the source prop from JS. A live
+ * WebView still commits a second page of its own accord — an SPA navigation
+ * inside the creative, a meta refresh — and reports it. That is the case the
+ * SDK's own dedupe exists for, and loadCreative cannot reach it.
+ */
+async function reloadCreativeInPlace(): Promise<void> {
+    const creative = screen.getByTestId("ad-creative");
+
+    await act(async () => {
+        fireEvent(creative, "load", { nativeEvent: {} });
+
+        await Promise.resolve();
+    });
+
+    await act(async () => {
+        jest.advanceTimersByTime(1);
+
+        await Promise.resolve();
+    });
+}
+
+/**
  * Simulates the creative failing to render, in the order Android delivers it.
  *
  * react-native-webview's Android client synthesises a finish event before the
@@ -495,6 +520,20 @@ describe("after the SDK is torn down and re-initialized", () => {
             expect(end.adId).not.toBe("");
             expect(end.impressionId).not.toBe("");
         }
+
+        // And the zone is not merely silent: it serves the next ad normally, whose
+        // own impression_end is still reported when it rotates.
+        await loadCreative();
+
+        expect(
+            reportAdEvent.mock.calls
+                .map(([event]) => event)
+                .filter(
+                    (event) =>
+                        event.eventType === ReportedEventType.IMPRESSION &&
+                        event.adId === "ad-next",
+                ),
+        ).toHaveLength(1);
     });
 
     it("serves again for a zone that stayed mounted", async () => {
@@ -688,6 +727,133 @@ describe("the creative rendering", () => {
         ]);
     });
 
+    it("does not let a pending load settle onto the ad that replaced it", async () => {
+        serveAd(
+            buildAd({
+                id: "ad-1",
+                impression_id: "impression-1",
+                creative_url: "https://example.test/one.html",
+            }),
+        );
+
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        // The load event lands, scheduling a settle for ad-1...
+        await act(async () => {
+            fireEvent(screen.getByTestId("ad-creative"), "load", {
+                nativeEvent: {},
+            });
+
+            await Promise.resolve();
+        });
+
+        // ...and before that settle runs, ad-2 arrives. A promise resolving in the
+        // same turn is a microtask, so it beats the timer.
+        serveAd(
+            buildAd({
+                id: "ad-2",
+                impression_id: "impression-2",
+                creative_url: "https://example.test/two.html",
+            }),
+        );
+
+        // A tap rotates the zone. Its fetch resolves as a microtask, so displayAd
+        // runs before the pending 0ms settle.
+        await act(async () => {
+            tapCreative();
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        // Now let the stale settle fire.
+        await act(async () => {
+            jest.advanceTimersByTime(1);
+
+            await Promise.resolve();
+        });
+
+        const impressions = reportAdEvent.mock.calls
+            .map(([event]) => event)
+            .filter(
+                (event) => event.eventType === ReportedEventType.IMPRESSION,
+            );
+
+        // ad-2's creative has not rendered, so it is owed nothing. Billing it here
+        // would also swallow its real load and its render failure, because the
+        // flag would already be set.
+        expect(impressions.map((event) => event.adId)).not.toContain("ad-2");
+    });
+
+    it("does not call back into a zone that has unmounted", async () => {
+        const onAdLoaded = jest.fn();
+
+        const view = render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                onAdLoaded={onAdLoaded}
+            />,
+        );
+
+        await settle();
+
+        // The load lands, scheduling the settle, and the component goes away
+        // before it fires.
+        await act(async () => {
+            fireEvent(screen.getByTestId("ad-creative"), "load", {
+                nativeEvent: {},
+            });
+
+            await Promise.resolve();
+        });
+
+        view.unmount();
+
+        await act(async () => {
+            jest.advanceTimersByTime(1);
+
+            await Promise.resolve();
+        });
+
+        expect(onAdLoaded).not.toHaveBeenCalled();
+    });
+
+    it("does not fire tracking pixels after the SDK is torn down", async () => {
+        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+        await settle();
+
+        await act(async () => {
+            fireEvent(screen.getByTestId("ad-creative"), "load", {
+                nativeEvent: {},
+            });
+
+            await Promise.resolve();
+        });
+
+        // Teardown leaves the component mounted and visible, so nothing else
+        // stops the settle reaching trackImpression. The report itself is a no-op
+        // without a context, but the injection is not: the advertiser's pixels
+        // would record an impression the SDK never sends.
+        await act(async () => {
+            notifySdkTeardown();
+            setAdRequestContext(undefined);
+
+            await Promise.resolve();
+        });
+
+        await act(async () => {
+            jest.advanceTimersByTime(1);
+
+            await Promise.resolve();
+        });
+
+        expect(injectedScripts).toEqual([]);
+    });
+
     it("reports render_failed when the error arrives with no preceding load", async () => {
         serveAd(buildAd({ refresh_time: 45 }));
 
@@ -798,7 +964,11 @@ describe("the creative rendering", () => {
 
         await settle();
         await loadCreative();
-        await loadCreative();
+
+        // A real second commit from the creative itself. Calling loadCreative
+        // again instead is a no-op, because the mock correctly refuses to reload
+        // an unchanged source — which left this test asserting nothing.
+        await reloadCreativeInPlace();
 
         expect(
             reportedTypes().filter(
@@ -1777,6 +1947,29 @@ describe("changing which zone the component serves", () => {
 
         // zone-b still gets its own request rather than being stranded.
         expect(asked).toEqual(["zone-a", "zone-b"]);
+
+        // And it goes on to show its own ad. Dropping the stale response is only
+        // half of it; the zone has to recover, which an earlier attempt at this
+        // fix did not do because loadNextAd bails until something has loaded.
+        await act(async () => {
+            release!();
+
+            await Promise.resolve();
+        });
+        await settle();
+        await loadCreative();
+
+        expect(screen.getByTestId("ad-creative").props.source.uri).toBe(
+            "https://example.test/zone-b.html",
+        );
+        expect(
+            reportAdEvent.mock.calls
+                .map(([event]) => event)
+                .filter(
+                    (event) => event.eventType === ReportedEventType.IMPRESSION,
+                )
+                .map((event) => `${event.adId}@${event.zoneId}`),
+        ).toEqual(["ad-for-zone-b@zone-b"]);
     });
 
     it("reports one impression per zone across a switch", async () => {

@@ -86,6 +86,16 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     const [currentAd, setCurrentAd] = useState<Ad | undefined>(undefined);
 
     /**
+     * Bumped for every ad displayed, and used as the WebView's key.
+     *
+     * A fresh instance per serve is what makes the creative reload: both platforms
+     * ignore a source they are already showing. Keyed on a counter rather than the
+     * impression id because an absent id would silently become key={undefined},
+     * which React accepts as "no key" without warning, quietly restoring the bug.
+     */
+    const [creativeKey, setCreativeKey] = useState(0);
+
+    /**
      * Where the user started touching the ad, used to tell a tap from a scroll.
      *
      * A ref rather than state: the touch end handler has to read the value the
@@ -267,10 +277,21 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         // failed, and left the real error a no-op because the flag was already set.
         // Both events arrive in one native batch, so settling on a timer gives an
         // error that is coming the chance to cancel this first.
+        // Captured, because this fires a task later and the ad can be replaced in
+        // between: a response resolving in the same turn runs displayAd first, as a
+        // microtask beats a timer. Without this check the settle landed on the new
+        // ad, billing an impression for a creative that had not rendered and
+        // swallowing its later load and failure events alike.
+        const settlingAd = state.currentAd;
+
         state.creativeSettleTimer = setTimeout(() => {
             state.creativeSettleTimer = undefined;
 
-            if (!state.currentAd || state.creativeLoaded) {
+            if (
+                !state.currentAd ||
+                state.currentAd !== settlingAd ||
+                state.creativeLoaded
+            ) {
                 return;
             }
 
@@ -454,6 +475,20 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             // out before the tracking flags reset.
             endImpression();
 
+            // Any settle pending for the outgoing ad is void.
+            //
+            // Deliberately belt and braces with the settlingAd check in the timer
+            // callback: either alone is enough for the behaviour, and mutation
+            // testing confirms removing just one changes nothing. Both are kept
+            // because every review of this file so far has turned up a
+            // cancellation path someone forgot, and the callback check is what
+            // stays correct when that happens again.
+            if (state.creativeSettleTimer) {
+                clearTimeout(state.creativeSettleTimer);
+
+                state.creativeSettleTimer = undefined;
+            }
+
             state.currentAd = ad;
             state.refreshSeconds = resolveRefreshSeconds(
                 ad ? ad.refresh_time : refreshSecondsOverride,
@@ -471,6 +506,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             restartTimer();
 
             setCurrentAd(ad);
+            setCreativeKey((previous) => previous + 1);
 
             // Deliberately no impression here. It is owed when the creative has
             // rendered and the zone is on screen, whichever happens last, so it is
@@ -700,6 +736,14 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
         state.mounted = true;
 
+        // Anything already in flight was asked on behalf of whichever zone this
+        // component was serving before. Bumped here rather than inside start(),
+        // which is skipped entirely while there is no request context: a zone
+        // switch between unmount() and the next initialize() then left the
+        // generation untouched, and the previous zone's response landed and
+        // rendered its creative under the new zone.
+        state.requestGeneration += 1;
+
         /**
          * Starts the zone once there is a session and device info to request with.
          *
@@ -737,9 +781,6 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             state.impressionEndTracked = false;
             state.clickHandled = false;
 
-            // Anything already in flight was asked on behalf of the previous zone.
-            state.requestGeneration += 1;
-
             state.started = true;
             state.closed = false;
 
@@ -771,6 +812,14 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
             endImpression();
             cancelTimer();
+
+            // Otherwise it fires against a zone that is gone, calling back into a
+            // host that has unmounted it.
+            if (state.creativeSettleTimer) {
+                clearTimeout(state.creativeSettleTimer);
+
+                state.creativeSettleTimer = undefined;
+            }
 
             state.mounted = false;
 
@@ -849,6 +898,15 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
             endImpression();
             cancelTimer();
+
+            // The component is still mounted here, so isOnScreen() is still true:
+            // left running, this settle reaches trackImpression and injects the
+            // creative's pixels for an impression the SDK can no longer report.
+            if (state.creativeSettleTimer) {
+                clearTimeout(state.creativeSettleTimer);
+
+                state.creativeSettleTimer = undefined;
+            }
 
             if (state.started && !state.closed) {
                 state.closed = true;
@@ -1000,15 +1058,15 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         <View style={finalMainViewStyle}>
             {currentAd && currentAd.creative_url ? (
                 <WebView<object>
-                    // Keyed on the impression so each served ad gets its own
-                    // WebView. Both platforms refuse to reload an identical URL —
+                    // Keyed per serve so each ad gets its own WebView. Both
+                    // platforms refuse to reload an identical URL —
                     // iOS compares the whole source dictionary, Android returns
                     // early when the new uri equals the current one — so an ad
                     // repeating the creative_url already on screen fired no load
                     // event, and since the impression is owed on that event it was
                     // never reported at all. Rotating between two ads sharing a
                     // creative is enough to trigger it.
-                    key={currentAd.impression_id}
+                    key={creativeKey}
                     ref={webViewRef}
                     source={{ uri: currentAd.creative_url }}
                     androidLayerType="hardware"
