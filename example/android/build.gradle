@@ -34,6 +34,14 @@ allprojects {
             url("$rootDir/../node_modules/react-native/android")
         }
         google()
+        // Central before jitpack, and present at all. Without it, artifacts that
+        // live on Maven Central — org.jspecify and the Kotlin stdlib among them —
+        // could only be fetched through jitpack's proxy, and Gradle disables a
+        // whole repository after one timeout rather than falling back. A jitpack
+        // outage therefore failed the build outright, which is what happened on
+        // PR #52: Central served the same pom in 0.09s while jitpack timed out.
+        // jitpack stays last, for anything genuinely hosted there.
+        mavenCentral()
         maven { url 'https://jitpack.io' }
     }
 }
