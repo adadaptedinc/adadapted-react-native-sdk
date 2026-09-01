@@ -958,6 +958,19 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
                 reportEvent(ReportedEventType.ZONE_UNMOUNTED);
             }
+
+            // The ad comes down with the SDK. Reporting has just been closed out
+            // and the context is about to be released, so anything left on screen
+            // is an ad nothing can account for - and it stays tappable, because
+            // the touch handler acts on currentAd. A tap would still hand items to
+            // the host or open the advertiser's URL while the interaction went
+            // unreported. Cleared after the events above, which report against it.
+            //
+            // Ordered and worded to match start(), which clears the same state for
+            // the same reason when a zone begins a new cycle.
+            state.currentAd = undefined;
+
+            setCurrentAd(undefined);
         });
         // Same reason as above: without this, teardown after a zone switch
         // reported a second unmount for the zone that had already been left, and

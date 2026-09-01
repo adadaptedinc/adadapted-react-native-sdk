@@ -864,11 +864,20 @@ describe("teardown", () => {
         sdk.unmount();
         mockedAxios.mockClear();
 
-        // These guard on the session and device info being present, not on the SDK
-        // still being mounted, so leaving them populated let a host keep posting
-        // under a session that had already ended.
-        sdk.reportItemsAddedToList(["Milk"], "My List");
-        sdk.reportItemsCrossedOffList(["Milk"], "My List");
+        // Every public reporter that builds a payload from the session or the
+        // device info. Listed out rather than sampled, because guarding only some
+        // of them is exactly how this was got wrong once already: the payload pair
+        // were missed, and since the udid is read while building the argument
+        // object, the TypeError is thrown synchronously out of the method - before
+        // any promise exists, so the .catch() inside never sees it and it lands in
+        // the host's call stack.
+        expect(() => {
+            sdk.reportItemsAddedToList(["Milk"], "My List");
+            sdk.reportItemsCrossedOffList(["Milk"], "My List");
+            sdk.reportItemsDeletedFromList(["Milk"], "My List");
+            sdk.markPayloadContentAcknowledged("payload-1");
+            sdk.markPayloadContentRejected("payload-1");
+        }).not.toThrow();
 
         await Promise.resolve();
 

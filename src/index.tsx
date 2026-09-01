@@ -1279,6 +1279,10 @@ export class AdadaptedReactNativeSdk {
      * @param payloadId - The payload ID that we want to acknowledge.
      */
     public markPayloadContentAcknowledged(payloadId: string): void {
+        if (!this.canReport("markPayloadContentAcknowledged")) {
+            return;
+        }
+
         adadaptedApiRequests
             .reportPayloadContentStatus(
                 {
@@ -1307,6 +1311,10 @@ export class AdadaptedReactNativeSdk {
      * @param payloadId - The payload ID that we want to acknowledge.
      */
     public markPayloadContentRejected(payloadId: string): void {
+        if (!this.canReport("markPayloadContentRejected")) {
+            return;
+        }
+
         adadaptedApiRequests
             .reportPayloadContentStatus(
                 {

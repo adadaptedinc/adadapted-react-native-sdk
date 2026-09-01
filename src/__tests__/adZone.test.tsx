@@ -492,6 +492,56 @@ describe("mounting before the SDK is ready", () => {
 });
 
 describe("after the SDK is torn down and re-initialized", () => {
+    it("takes the ad down so it cannot be interacted with unreported", async () => {
+        const onAddToListTriggered = jest.fn();
+
+        serveAd(
+            buildAd({
+                action_type: AdActionType.CONTENT,
+                payload: {
+                    detailed_list_items: [
+                        {
+                            product_title: "Milk",
+                            product_brand: "",
+                            product_category: "",
+                            product_barcode: "",
+                            product_discount: "",
+                            product_image: "",
+                            product_sku: "",
+                        },
+                    ],
+                },
+            }),
+        );
+
+        render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                onAddToListTriggered={onAddToListTriggered}
+            />,
+        );
+
+        await settle();
+        await loadCreative();
+
+        expect(screen.queryByTestId("ad-creative")).not.toBeNull();
+
+        await act(async () => {
+            notifySdkTeardown();
+            setAdRequestContext(undefined);
+
+            await Promise.resolve();
+        });
+
+        // Reporting has been closed out and the context released, so anything
+        // still on screen is an ad nothing can account for - and the touch handler
+        // acts on currentAd, so a tap would still hand items to the host or open
+        // the advertiser's URL with the interaction going unreported.
+        expect(screen.queryByTestId("ad-creative")).toBeNull();
+        expect(onAddToListTriggered).not.toHaveBeenCalled();
+    });
+
     it("does not open the next ad with an orphaned impression_end", async () => {
         render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
@@ -505,9 +555,12 @@ describe("after the SDK is torn down and re-initialized", () => {
             await Promise.resolve();
         });
 
-        // The creative finishes afterwards, which marks the impression tracked
-        // even though the report itself goes nowhere without a context.
-        await loadCreative();
+        // The creative used to still be mounted here, so it could finish loading
+        // after teardown and mark the impression tracked against an ad nothing
+        // could report for. Teardown now takes the ad down with it, so there is no
+        // creative left to fire that load event at all - which is what the
+        // assertion below is now guarding from the other side.
+        expect(screen.queryByTestId("ad-creative")).toBeNull();
 
         serveAd(buildAd({ id: "ad-next", impression_id: "impression-next" }));
 
