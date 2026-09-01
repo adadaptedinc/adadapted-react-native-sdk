@@ -350,6 +350,19 @@ export class AdadaptedReactNativeSdk {
                 ? SdkEventName.SESSION_CREATED
                 : SdkEventName.SESSION_RESUMED,
         );
+
+        // The intercepts belong to the session that fetched them: search_id is
+        // minted with them and rides on every intercept event. Fetched only at
+        // initialize(), a session replaced on returning from the background left
+        // the SDK reporting a search_id from the session that just ended against
+        // the one that replaced it. Resuming a session keeps its own intercepts,
+        // so only a replacement refetches.
+        //
+        // Skipped before device info lands, because the request needs it. The
+        // initialize() path fetches them itself once it does.
+        if (isNewSession && this.deviceInfo) {
+            this.getKeywordIntercepts();
+        }
     }
 
     /**
@@ -538,6 +551,30 @@ export class AdadaptedReactNativeSdk {
      * @param listName - The list associated to the items, if any.
      * @returns the data required for the request.
      */
+    /**
+     * Whether the SDK currently has what a reported event needs to identify
+     * itself.
+     *
+     * The reporting methods are public and the host can call them whenever it
+     * likes, including before initialize() has resolved and after unmount() has
+     * released the session. Both leave the request unbuildable - the session and
+     * device info are asserted non-null where the payload is assembled - so this
+     * is checked at the entry point rather than crashing several frames down.
+     * @param method - The method being called, named in the log.
+     * @returns true when an event can be reported.
+     */
+    private canReport(method: string): boolean {
+        if (!this.sessionId || !this.deviceInfo || !this.deviceOs) {
+            console.error(
+                `AdAdapted SDK cannot report "${method}" before initialize() has resolved or after unmount().`,
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
     private getListManagerApiRequestData(
         eventSource: ListManagerEventSource,
         eventName: ListManagerEventName,
@@ -912,7 +949,6 @@ export class AdadaptedReactNativeSdk {
      */
     public performKeywordSearch(searchTerm: string): KeywordSearchResult[] {
         const finalResultListStartsWith: KeywordSearchResult[] = [];
-        const finalResultListContains: KeywordSearchResult[] = [];
 
         this.keywordInterceptSearchValue = searchTerm;
 
@@ -963,9 +999,6 @@ export class AdadaptedReactNativeSdk {
             finalResultListStartsWith.sort((a, b) =>
                 a.priority > b.priority ? 1 : -1,
             );
-            finalResultListContains.sort((a, b) =>
-                a.priority > b.priority ? 1 : -1,
-            );
 
             // If there are no events to report at this point,
             // we need to report the "not_matched" event.
@@ -1007,7 +1040,13 @@ export class AdadaptedReactNativeSdk {
         // terms found that didn't match the beginning of the string, but
         // still contained the search term will be concatenated to the end
         // of the list.
-        return finalResultListStartsWith.concat(finalResultListContains);
+        // Only terms that start with the search term are returned. Matching terms
+        // that merely contain it is deliberately not enabled - the JS SDK has the
+        // same restriction, and turning it on here would both widen what the host
+        // sees and start reporting "matched" for terms the product does not treat
+        // as matches. The list it was concatenating was never populated, so this is
+        // the behaviour that was already in effect.
+        return finalResultListStartsWith;
     }
 
     /**
@@ -1141,6 +1180,10 @@ export class AdadaptedReactNativeSdk {
         itemNames: string[],
         listName?: string,
     ): void {
+        if (!this.canReport("reportItemsAddedToList")) {
+            return;
+        }
+
         const requestData = this.getListManagerApiRequestData(
             ListManagerEventSource.APP,
             ListManagerEventName.ADDED_TO_LIST,
@@ -1170,6 +1213,10 @@ export class AdadaptedReactNativeSdk {
         itemNames: string[],
         listName?: string,
     ): void {
+        if (!this.canReport("reportItemsCrossedOffList")) {
+            return;
+        }
+
         const requestData = this.getListManagerApiRequestData(
             ListManagerEventSource.APP,
             ListManagerEventName.CROSSED_OFF_LIST,
@@ -1199,6 +1246,10 @@ export class AdadaptedReactNativeSdk {
         itemNames: string[],
         listName?: string,
     ): void {
+        if (!this.canReport("reportItemsDeletedFromList")) {
+            return;
+        }
+
         const requestData = this.getListManagerApiRequestData(
             ListManagerEventSource.APP,
             ListManagerEventName.DELETED_FROM_LIST,
@@ -1294,6 +1345,17 @@ export class AdadaptedReactNativeSdk {
         setAdRequestContext(undefined);
 
         this.removeEventListeners();
+
+        // The session is over, so nothing that identifies it survives. Left in
+        // place, the public reporting methods carried on posting under a session
+        // the SDK had declared finished - they guard on these being present, not on
+        // the SDK still being mounted - and a later initialize() could resume a
+        // session that its own start had already replaced.
+        this.sessionId = undefined;
+        this.deviceInfo = undefined;
+        this.keywordIntercepts = undefined;
+        this.keywordInterceptSearchValue = "";
+        this.hasBeenBackgrounded = false;
     }
 
     /**

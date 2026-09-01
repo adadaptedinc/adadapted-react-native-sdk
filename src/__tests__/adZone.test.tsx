@@ -38,6 +38,13 @@ import { EnvironmentTypes } from "../componentTypes/Environment";
 const injectedScripts: string[] = [];
 
 /**
+ * Makes injectJavaScript throw, standing in for a creative whose own code fails.
+ * The function the injected pixels call is defined by the creative, so this is
+ * outside the SDK's control and must not cost the SDK its own impression.
+ */
+let mockInjectShouldThrow = false;
+
+/**
  * Which WebView instance has already loaded which url.
  *
  * Both platforms refuse to reload a url a live WebView is already showing: iOS
@@ -66,6 +73,10 @@ jest.mock("react-native-webview", () => {
 
             react.useImperativeHandle(ref, () => ({
                 injectJavaScript: (script: string) => {
+                    if (mockInjectShouldThrow) {
+                        throw new Error("injection blew up");
+                    }
+
                     injectedScripts.push(script);
                 },
             }));
@@ -326,6 +337,7 @@ beforeEach(() => {
     jest.clearAllMocks();
 
     injectedScripts.length = 0;
+    mockInjectShouldThrow = false;
     loadedByInstance.clear();
 
     jest.useFakeTimers();
@@ -614,6 +626,106 @@ describe("displaying an ad", () => {
         await settle();
 
         expect(onZoneHasAds).toHaveBeenLastCalledWith(true);
+    });
+});
+
+describe("review follow ups", () => {
+    it("tells the host about the fill state only when it changes", async () => {
+        const onZoneHasAds = jest.fn();
+
+        render(
+            <AdZone
+                zoneId={ZONE_ID}
+                isVisible={true}
+                onZoneHasAds={onZoneHasAds}
+            />,
+        );
+
+        await settle();
+        await loadCreative();
+
+        expect(onZoneHasAds.mock.calls).toEqual([[true]]);
+
+        // A second filled serve is not a change. The callback exists so the host
+        // can collapse or reveal the space around the zone, and firing it again
+        // with the same value re-renders the host for nothing.
+        serveAd(buildAd({ id: "ad-2", impression_id: "impression-2" }));
+
+        await act(async () => {
+            jest.advanceTimersByTime(30 * 1000);
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        expect(onZoneHasAds.mock.calls).toEqual([[true]]);
+
+        // Going unfilled is a change, and has to be reported.
+        serveAd(undefined);
+
+        await act(async () => {
+            jest.advanceTimersByTime(30 * 1000);
+
+            await Promise.resolve();
+        });
+        await settle();
+
+        expect(onZoneHasAds.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it("still reports the impression when the tracking pixels cannot be injected", async () => {
+        const consoleErrorSpy = jest
+            .spyOn(console, "error")
+            .mockImplementation(() => undefined);
+
+        // The creative supplies the function these pixels call, so injection is
+        // the creative's code and outside the SDK's control. A throw there must
+        // not cost us our own impression.
+        mockInjectShouldThrow = true;
+
+        try {
+            render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+
+            await settle();
+            await loadCreative();
+
+            const impressions = reportAdEvent.mock.calls.filter(
+                ([event]) => event.eventType === ReportedEventType.IMPRESSION,
+            );
+
+            expect(impressions).toHaveLength(1);
+            expect(consoleErrorSpy).toHaveBeenCalled();
+        } finally {
+            mockInjectShouldThrow = false;
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
+    it("does not request twice when the zone and the context change together", async () => {
+        const { rerender } = render(
+            <AdZone zoneId={ZONE_ID} isVisible={true} contextId="context-1" />,
+        );
+
+        await settle();
+        await loadCreative();
+
+        retrieveAdMock.mockClear();
+        serveAd(buildAd({ id: "ad-2", impression_id: "impression-2" }));
+
+        // Both props change in one render. The request the zone change issues
+        // already carries the new context, so a second one on top of it would
+        // throw away a fill that was targeted correctly.
+        rerender(
+            <AdZone zoneId="102999" isVisible={true} contextId="context-2" />,
+        );
+
+        await settle();
+        await loadCreative();
+        await settle();
+
+        expect(retrieveAdMock).toHaveBeenCalledTimes(1);
+        expect(retrieveAdMock.mock.calls[0][0].zoneId).toBe("102999");
+        expect(retrieveAdMock.mock.calls[0][0].contextId).toBe("context-2");
     });
 });
 

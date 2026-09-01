@@ -855,6 +855,105 @@ describe("teardown", () => {
         expect(getAdRequestContext()).toBeUndefined();
     });
 
+    it("stops reporting under a session it has declared finished", async () => {
+        const consoleErrorSpy = jest
+            .spyOn(console, "error")
+            .mockImplementation(() => undefined);
+        const sdk = await initializeSdk();
+
+        sdk.unmount();
+        mockedAxios.mockClear();
+
+        // These guard on the session and device info being present, not on the SDK
+        // still being mounted, so leaving them populated let a host keep posting
+        // under a session that had already ended.
+        sdk.reportItemsAddedToList(["Milk"], "My List");
+        sdk.reportItemsCrossedOffList(["Milk"], "My List");
+
+        await Promise.resolve();
+
+        expect(sdk.getSessionId()).toBeUndefined();
+        expect(mockedAxios).not.toHaveBeenCalled();
+
+        consoleErrorSpy.mockRestore();
+    });
+
+    it("refetches the keyword intercepts when the session is replaced", async () => {
+        mockedAxios.mockResolvedValue({
+            data: {
+                success: true,
+                data: {
+                    search_id: "search-1",
+                    terms: [
+                        {
+                            term_id: "term-1",
+                            term: "milk",
+                            replacement: "Fairlife Milk",
+                            priority: 1,
+                        },
+                    ],
+                },
+            },
+        });
+
+        const sdk = await initializeSdk();
+        const originalId = sdk.getSessionId();
+
+        mockedAxios.mockClear();
+
+        appStateHandler!("background");
+
+        jest.setSystemTime(Date.now() + THIRTY_MINUTES_MS + 1000);
+
+        appStateHandler!("active");
+
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // search_id is minted with the intercepts and rides on every intercept
+        // event. Fetched only at initialize(), a replaced session went on
+        // reporting the search_id of the session that had just ended.
+        expect(sdk.getSessionId()).not.toBe(originalId);
+        expect(
+            mockedAxios.mock.calls.filter(([url]) =>
+                String(url).includes("intercept/retrieve"),
+            ).length,
+        ).toBeGreaterThan(0);
+    });
+
+    it("keeps the intercepts it already has when the session is only resumed", async () => {
+        mockedAxios.mockResolvedValue({
+            data: {
+                success: true,
+                data: { search_id: "search-1", terms: [] },
+            },
+        });
+
+        const sdk = await initializeSdk();
+        const originalId = sdk.getSessionId();
+
+        mockedAxios.mockClear();
+
+        appStateHandler!("background");
+
+        jest.setSystemTime(Date.now() + THIRTY_MINUTES_MS - 1000);
+
+        appStateHandler!("active");
+
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // The session survived, so its intercepts and their search_id are still
+        // the right ones. Refetching here would spend a request and mint a new
+        // search_id for a session that never ended.
+        expect(sdk.getSessionId()).toBe(originalId);
+        expect(
+            mockedAxios.mock.calls.filter(([url]) =>
+                String(url).includes("intercept/retrieve"),
+            ),
+        ).toHaveLength(0);
+    });
+
     it("stops listening to app state changes on unmount", async () => {
         const remove = jest.fn();
 

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm test                    # Run all Jest tests (clears cache)
+npm test                    # Run all Jest tests
 npm run test-coverage       # Run tests with coverage reporting
 npm run lint                # Run ESLint
 npm run compile             # TypeScript type-check (no emit) — the SDK AND the example app

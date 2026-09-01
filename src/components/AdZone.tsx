@@ -133,6 +133,12 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
          * Set when a targeting change arrives mid-request, so it is not lost.
          */
         refetchWhenSettled: false,
+        /**
+         * The fill state last handed to onZoneHasAds, so the host is told when it
+         * changes rather than on every serve. Undefined until the first report,
+         * which distinguishes "not told yet" from "told it was false".
+         */
+        reportedHasAds: undefined as boolean | undefined,
         adFetchedAt: 0,
         msLeftOnRefresh: 0,
         countdownResumedAt: 0,
@@ -202,6 +208,25 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
     }, []);
 
     /**
+     * Cancels any deferred creative settle.
+     *
+     * The settle is what waits out the load event Android emits immediately before
+     * an error, so it has to be cancelled anywhere the ad it belongs to stops being
+     * the ad on screen. That is five places, and every review of this file so far
+     * has found another one, which is why it is a named helper rather than the same
+     * three lines repeated.
+     */
+    const cancelCreativeSettle = useCallback((): void => {
+        const state = zone.current;
+
+        if (state.creativeSettleTimer) {
+            clearTimeout(state.creativeSettleTimer);
+
+            state.creativeSettleTimer = undefined;
+        }
+    }, []);
+
+    /**
      * Reports the impression for the current ad, at most once per ad.
      */
     const trackImpression = useCallback((): void => {
@@ -226,7 +251,20 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         // function; it loads the advertiser's own measurement pixels, so without
         // it third party verification sees no impressions at all however healthy
         // our own numbers look.
-        webViewRef.current?.injectJavaScript(PIXEL_TRACKING_JS);
+        //
+        // Contained, because the flag above is already set: a throw from the
+        // injection would otherwise lose this ad's impression permanently - the
+        // guard says it was reported and the report below never runs - and escape
+        // into whichever handler called this. The advertiser's pixels are the
+        // creative's own code and outside our control; ours are not.
+        try {
+            webViewRef.current?.injectJavaScript(PIXEL_TRACKING_JS);
+        } catch (error) {
+            console.error(
+                `Unable to inject the tracking pixels for ad "${state.currentAd.id}".`,
+                error,
+            );
+        }
 
         reportEvent(ReportedEventType.IMPRESSION, state.currentAd);
     }, [isOnScreen, reportEvent]);
@@ -483,11 +521,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             // because every review of this file so far has turned up a
             // cancellation path someone forgot, and the callback check is what
             // stays correct when that happens again.
-            if (state.creativeSettleTimer) {
-                clearTimeout(state.creativeSettleTimer);
-
-                state.creativeSettleTimer = undefined;
-            }
+            cancelCreativeSettle();
 
             state.currentAd = ad;
             state.refreshSeconds = resolveRefreshSeconds(
@@ -513,7 +547,17 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             // filed from the WebView's load callback and re-attempted whenever
             // visibility changes. Android files it from the same place, through
             // onAdLoadedInWebView.
-            safeInvoke(props.onZoneHasAds, ad !== undefined);
+            // Only on a change, which is what the callback documents and what a
+            // host needs: it exists so the app can collapse or reveal the space
+            // around the zone, and firing it on every rotation with an unchanged
+            // value re-renders the host for nothing.
+            const hasAds = ad !== undefined;
+
+            if (state.reportedHasAds !== hasAds) {
+                state.reportedHasAds = hasAds;
+
+                safeInvoke(props.onZoneHasAds, hasAds);
+            }
 
             // A response with no ad is a fill failure, reported here. A response
             // with an ad whose creative will not render is a render failure,
@@ -522,7 +566,13 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
                 safeInvoke(props.onAdLoadFailed);
             }
         },
-        [endImpression, restartTimer, props.onZoneHasAds, props.onAdLoadFailed],
+        [
+            cancelCreativeSettle,
+            endImpression,
+            restartTimer,
+            props.onZoneHasAds,
+            props.onAdLoadFailed,
+        ],
     );
 
     /**
@@ -670,11 +720,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
         // Cancels the load event Android emits just before this one, which is the
         // whole reason the settle above is deferred.
-        if (state.creativeSettleTimer) {
-            clearTimeout(state.creativeSettleTimer);
-
-            state.creativeSettleTimer = undefined;
-        }
+        cancelCreativeSettle();
 
         // Marked handled so a later load event for the same ad cannot file an
         // impression for a creative that already failed.
@@ -685,7 +731,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         // twice for a single failure.
         reportUnfilled(ZoneUnfilledReason.RENDER_FAILED);
         displayAd(undefined, state.refreshSeconds);
-    }, [displayAd, reportUnfilled]);
+    }, [cancelCreativeSettle, displayAd, reportUnfilled]);
 
     /**
      * Requests the next ad, replacing whatever the zone is showing.
@@ -730,6 +776,10 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         fetchAdRef.current = fetchAd;
     }, [loadNextAd, fetchAd]);
 
+    // A changed recipe context means the ad on screen was chosen for the wrong one.
+    // Declared above the zone effect below, which keeps it in step.
+    const previousContextId = useRef(props.contextId);
+
     // Mount and unmount. Mirrors AdZonePresenter.onStart / onStop.
     useEffect(() => {
         const state = zone.current;
@@ -743,6 +793,13 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         // generation untouched, and the previous zone's response landed and
         // rendered its creative under the new zone.
         state.requestGeneration += 1;
+
+        // The request this effect is about to make already carries the current
+        // context, because it is read when the request is built. Without this the
+        // context effect below would see a stale value on a render where both
+        // props changed, queue a refetch on top of a request that was already
+        // targeted correctly, and throw that fill away.
+        previousContextId.current = props.contextId;
 
         /**
          * Starts the zone once there is a session and device info to request with.
@@ -770,11 +827,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             // so a creative that finished loading after teardown left
             // impressionTracked set and the next ad opened with an impression_end
             // carrying an empty ad id and impression id.
-            if (state.creativeSettleTimer) {
-                clearTimeout(state.creativeSettleTimer);
-
-                state.creativeSettleTimer = undefined;
-            }
+            cancelCreativeSettle();
 
             state.creativeLoaded = false;
             state.impressionTracked = false;
@@ -815,11 +868,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
             // Otherwise it fires against a zone that is gone, calling back into a
             // host that has unmounted it.
-            if (state.creativeSettleTimer) {
-                clearTimeout(state.creativeSettleTimer);
-
-                state.creativeSettleTimer = undefined;
-            }
+            cancelCreativeSettle();
 
             state.mounted = false;
 
@@ -902,11 +951,7 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
             // The component is still mounted here, so isOnScreen() is still true:
             // left running, this settle reaches trackImpression and injects the
             // creative's pixels for an impression the SDK can no longer report.
-            if (state.creativeSettleTimer) {
-                clearTimeout(state.creativeSettleTimer);
-
-                state.creativeSettleTimer = undefined;
-            }
+            cancelCreativeSettle();
 
             if (state.started && !state.closed) {
                 state.closed = true;
@@ -919,9 +964,6 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
         // none at all for the one actually on screen.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [zoneId]);
-
-    // A changed recipe context means the ad on screen was chosen for the wrong one.
-    const previousContextId = useRef(props.contextId);
 
     useEffect(() => {
         const state = zone.current;
@@ -1006,7 +1048,16 @@ export const AdZone = (props: AdZoneTypes.Props): React.ReactElement => {
 
             reportEvent(ReportedEventType.INTERACTION, selectedAd);
 
-            Linking.openURL(selectedAd.action_path).then();
+            // Rejects when the platform has no handler for the URL, which is
+            // the ad's content rather than anything the SDK controls. The
+            // interaction above is already reported, so this only needs to not
+            // surface as an unhandled rejection.
+            Linking.openURL(selectedAd.action_path).catch((error) => {
+                console.error(
+                    `Unable to open the URL for ad "${selectedAd.id}".`,
+                    error,
+                );
+            });
         } else if (
             selectedAd.action_type === AdActionType.CONTENT &&
             selectedAd.payload &&

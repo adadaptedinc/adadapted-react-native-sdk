@@ -745,11 +745,6 @@ export interface ReportAdEventResponse {
 }
 
 /**
- * Interface for the response of the Keyword Intercepts API request.
- */
-export interface KeywordInterceptsResponse extends KeywordIntercepts {}
-
-/**
  * Interface for the response of the Report Intercept Event API request.
  */
 export interface ReportInterceptEventResponse {

@@ -20,7 +20,7 @@
     "prettier-fix": "prettier --write \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\" \"example/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
     "lint": "eslint --version && eslint ./",
     "compile": "tsc --version && tsc --project tsconfig.json --noEmit --noErrorTruncation --pretty && tsc --project example/tsconfig.json --noEmit --noErrorTruncation --pretty",
-    "test-coverage": "rm -rf coverage && jest --version --clearCache && jest --coverage --clearCache",
+    "test-coverage": "rm -rf coverage && jest --coverage",
     "enable-pre-commit": "pre-commit install",
     "test": "jest --version && jest",
     "prettier": "prettier --list-different \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
