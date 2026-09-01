@@ -350,19 +350,6 @@ export class AdadaptedReactNativeSdk {
                 ? SdkEventName.SESSION_CREATED
                 : SdkEventName.SESSION_RESUMED,
         );
-
-        // The intercepts belong to the session that fetched them: search_id is
-        // minted with them and rides on every intercept event. Fetched only at
-        // initialize(), a session replaced on returning from the background left
-        // the SDK reporting a search_id from the session that just ended against
-        // the one that replaced it. Resuming a session keeps its own intercepts,
-        // so only a replacement refetches.
-        //
-        // Skipped before device info lands, because the request needs it. The
-        // initialize() path fetches them itself once it does.
-        if (isNewSession && this.deviceInfo) {
-            this.getKeywordIntercepts();
-        }
     }
 
     /**
@@ -724,7 +711,24 @@ export class AdadaptedReactNativeSdk {
                 // reads the session synchronously, so telling it first would send
                 // that request under the session about to be replaced and split
                 // the retrieve and its impression across two sessions.
+                const previousSessionId = this.sessionId;
+
                 this.createOrResumeSession();
+
+                // The intercepts belong to the session that fetched them:
+                // search_id is minted with them and rides on every intercept
+                // event. Fetched only at initialize(), a session replaced here
+                // left the SDK reporting a search_id from the session that had
+                // just ended. A resumed session keeps its own, which are still
+                // the right ones.
+                //
+                // Compared by ID rather than done inside createOrResumeSession,
+                // because initialize() resolves the session and fetches the
+                // intercepts itself - doing it there sent the request twice on
+                // every launch.
+                if (this.sessionId !== previousSessionId) {
+                    this.getKeywordIntercepts();
+                }
 
                 this.getPayloadItemData();
 
