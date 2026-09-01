@@ -27,7 +27,12 @@ RCT_REMAP_METHOD(
     NSString *deviceScreenDensity = [NSString stringWithFormat:@"%0.0f", [[UIScreen mainScreen] scale]];
     NSString *deviceLocal = [[NSLocale preferredLanguages] objectAtIndex:0];
     NSString *timezoneName = [[NSTimeZone localTimeZone] name];
-    NSNumber *isAdTrackingEnabled = [NSNumber numberWithBool: [[ASIdentifierManager sharedManager] isAdvertisingTrackingEnabled]];
+    // Via the ATT-aware helper below, not ASIdentifierManager directly: Apple made
+    // isAdvertisingTrackingEnabled always return NO from iOS 14, so reading it here
+    // reported every user as having refused tracking, including those who granted
+    // it. This is the same signal that decides whether an advertising identifier is
+    // reported, so the two must agree.
+    NSNumber *isAdTrackingEnabled = [NSNumber numberWithBool: [self isAdTrackingEnabled]];
     NSString *udid = [self identifierForAdvertising];
 
     NSString *carrierName = [carrierInfo carrierName];
@@ -80,19 +85,20 @@ RCT_REMAP_METHOD(
     if([self isAdTrackingEnabled]) {
         NSUUID *identifier = [[ASIdentifierManager sharedManager] advertisingIdentifier];
         return [identifier UUIDString];
-    } else {
-        NSString *sessionId = [[NSUserDefaults standardUserDefaults]
-            stringForKey:@"aasdkSessionIdKey"];
-        if (sessionId) {
-            return sessionId;
-        } 
     }
-    return @"0000000-0000-0000-0000-000000000000";
-}
 
-RCT_EXPORT_METHOD(storeCurrentSessionId:(NSString *) sessionId) {
-    [[NSUserDefaults standardUserDefaults] setObject:sessionId forKey:@"aasdkSessionIdKey"];
-    [[NSUserDefaults standardUserDefaults] synchronize];
+    // Nothing is substituted when the user has not permitted tracking. This
+    // matches the Android module, which leaves the identifier empty when the
+    // advertising ID is unavailable rather than reporting something else.
+    //
+    // Two previous behaviours are deliberately gone. This used to return the
+    // session ID that storeCurrentSessionId wrote to NSUserDefaults, so the device
+    // looked brand new on every session; sessions are generated in JS now and that
+    // method no longer exists. It then briefly returned identifierForVendor, which
+    // is stable and needs no prompt but is shared across this vendor's apps, and
+    // sending it to an ad service after tracking was denied is the sort of linkage
+    // App Tracking Transparency exists to prevent.
+    return @"";
 }
 
 @end

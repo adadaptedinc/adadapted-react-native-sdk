@@ -40,12 +40,19 @@ jobs:
                   node-version: 24
             - name: NPM Install
               run: npm ci
+            - name: NPM Install (example app)
+              # The compile step type-checks the example as well as the SDK, and
+              # it imports react-navigation and friends. Without its own install
+              # every one of those imports is an unresolved module.
+              run: npm ci --prefix example
             - name: Prettier Validation
               run: npm run prettier
             - name: Linting Validation
               run: npm run lint
             - name: Build Validation
               run: npm run compile
+            - name: Unit Tests
+              run: npm test
     create_release_version:
         if: ${{ github.event_name == 'push' && github.ref_name == 'main'}}
         needs: [validation]

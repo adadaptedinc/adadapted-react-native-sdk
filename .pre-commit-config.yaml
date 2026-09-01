@@ -28,6 +28,13 @@ repos:
             pass_filenames: false
             always_run: true
             stages: [pre-commit]
+          - id: test
+            name: Unit Tests
+            entry: npm test
+            language: system
+            pass_filenames: false
+            always_run: true
+            stages: [pre-commit]
 
     - repo: https://github.com/compilerla/conventional-pre-commit
       rev: v4.4.0

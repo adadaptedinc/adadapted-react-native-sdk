@@ -4,31 +4,30 @@
 /**
  * The definition of an ad session data object.
  */
-export interface AdSession {
+export interface AdRetrieveResponse {
     /**
-     * The session ID.
+     * The zone data, carrying the single ad the API chose for the requested zone.
      */
-    session_id: string;
+    data: Zone;
     /**
-     * If true, ads will be served.
+     * False when the request was rejected. NOTE: The API returns this on a 200 for
+     * business rejections, so the status code alone is not enough to detect failure.
      */
-    will_serve_ads: boolean;
+    success: boolean;
+}
+
+/**
+ * Interface for the v1.0.0 keyword intercept retrieve response envelope.
+ */
+export interface InterceptRetrieveResponse {
     /**
-     * If true, there are active campaigns.
+     * The available keyword intercepts.
      */
-    active_campaigns: boolean;
+    data: KeywordIntercepts;
     /**
-     * How often to refresh session/ad data?
+     * False when the request was rejected.
      */
-    polling_interval_ms: number;
-    /**
-     * The time at which the session will expire.
-     */
-    session_expires_at: number;
-    /**
-     * All ad zones.
-     */
-    zones: { [key: number]: Zone };
+    success: boolean;
 }
 
 /**
@@ -36,29 +35,18 @@ export interface AdSession {
  */
 export interface Zone {
     /**
-     * The zone ID.
+     * The single ad to display within the zone. An ad whose {@link Ad.id} is empty
+     * means the API had nothing to serve, and only its refresh_time is meaningful.
      */
-    id: string;
+    ad: Ad;
     /**
-     * ?
-     */
-    land_height: number;
-    /**
-     * ?
-     */
-    land_width: number;
-    /**
-     * ?
+     * The optimized height of the zone.
      */
     port_height: number;
     /**
-     * ?
+     * The optimized width of the zone.
      */
     port_width: number;
-    /**
-     * The available ads.
-     */
-    ads: Ad[];
 }
 
 /**
@@ -66,50 +54,42 @@ export interface Zone {
  */
 export interface Ad {
     /**
-     * The ad ID.
+     * The ad ID. An empty string means the API had no ad to serve.
      */
-    ad_id: string;
+    id: string;
     /**
      * The impression ID.
      */
     impression_id: string;
     /**
-     * The type of ad this is.
-     */
-    type: string;
-    /**
-     * How often the ad refreshes? Swaps out for another?
-     * Length of time in seconds.
+     * How long, in seconds, this ad is displayed for before the next ad is
+     * requested for the zone. On a response carrying no ad, this is instead the
+     * backoff to wait before asking again.
      */
     refresh_time: number;
     /**
-     * The URL for the ad image to display.
+     * The URL of the ad creative to display.
      */
     creative_url: string;
     /**
-     * The tracking pixel to include in the zone view for this ad?
-     */
-    tracking_html: string;
-    /**
-     * ?
+     * The URL the ad navigates to when interacted with. An empty string when the
+     * action type does not navigate anywhere.
      */
     action_path: string;
     /**
-     * ?
+     * What interacting with the ad does.
      */
     action_type: AdActionType;
     /**
-     * If true, the ad will be hidden after interaction.
-     */
-    hide_after_interaction: boolean;
-    /**
-     * ?
+     * The items to add to a list, for add-to-list ads.
      */
     payload: AdPayload;
     /**
-     * Track impression status.
+     * The ID of the zone this ad was served for.
+     * NOTE: Set by the SDK rather than the API, so every reported event can name
+     *       its zone without parsing it back out of the impression ID.
      */
-    impression_tracked?: boolean;
+    zone_id?: string;
 }
 
 /**
@@ -118,8 +98,10 @@ export interface Ad {
 export interface AdPayload {
     /**
      * The array of list items.
+     * NOTE: Optional, because the API substitutes an empty payload object for an
+     *       ad that carries no items.
      */
-    detailed_list_items: DetailedListItem[];
+    detailed_list_items?: DetailedListItem[];
 }
 
 /**
@@ -204,11 +186,6 @@ export interface KeywordIntercepts {
      */
     search_id: string;
     /**
-     * The minimum number of characters required to perform
-     * a search against all available search terms.
-     */
-    min_match_length: number;
-    /**
      * All available search terms.
      */
     terms: KeywordSearchTerm[];
@@ -244,11 +221,16 @@ export interface KeywordSearchTerm {
  */
 export interface ReportedAdEvent {
     /**
-     * The add ID.
+     * The ad ID. An empty string on the zone level events, which describe the zone
+     * itself rather than any ad within it.
      */
     ad_id: string;
     /**
-     * The impression ID.
+     * The ad zone the event is for.
+     */
+    zone_id: string;
+    /**
+     * The impression ID. An empty string on the zone level events.
      */
     impression_id: string;
     /**
@@ -256,9 +238,65 @@ export interface ReportedAdEvent {
      */
     event_type: ReportedEventType;
     /**
+     * Additional detail for event types that carry one, currently only the reason a
+     * zone went unfilled.
+     * NOTE: Must be left off the payload entirely rather than sent as null when
+     *       there isn't one.
+     */
+    event_name?: ZoneUnfilledReason;
+    /**
      * The timestamp at which the event occurred.
      */
     created_at: number;
+}
+
+/**
+ * Enum defining why an ad zone went unfilled.
+ */
+export enum ZoneUnfilledReason {
+    /**
+     * The API answered normally but had no ad to serve.
+     */
+    NO_AD = "no_ad",
+    /**
+     * The ad request failed outright and never returned a usable response.
+     */
+    REQUEST_FAILED = "request_failed",
+    /**
+     * An ad was served and the WebView could not display it.
+     */
+    RENDER_FAILED = "render_failed",
+}
+
+/**
+ * Enum defining the SDK level event names that get reported.
+ * NOTE: These match the native SDKs on the wire, so reporting can treat every
+ *       platform the same.
+ */
+export enum SdkEventName {
+    /**
+     * A new session ID was generated.
+     */
+    SESSION_CREATED = "SESSION_CREATED",
+    /**
+     * An existing session was picked back up, because the app returned to the
+     * foreground within the session window.
+     */
+    SESSION_RESUMED = "SESSION_RESUMED",
+    /**
+     * The app was sent to the background.
+     */
+    SESSION_BACKGROUNDED = "SESSION_BACKGROUNDED",
+    /**
+     * An "add to list" ad was clicked. Reported instead of an interaction,
+     * because the interaction is only earned once the host app confirms the
+     * items actually reached the user's list. See AdadaptedReactNativeSdk.acknowledge.
+     */
+    ATL_AD_CLICKED = "atl_ad_clicked",
+    /**
+     * A single "add to list" item was confirmed as added to the user's list.
+     */
+    ATL_ITEM_ADDED_TO_LIST = "atl_item_added_to_list",
 }
 
 /**
@@ -307,11 +345,22 @@ export interface ListManagerEvent {
     /**
      * The event name.
      */
-    event_name: ListManagerEventName;
+    event_name: ListManagerEventName | SdkEventName;
     /**
      * The parameter the event is triggered for.
      */
-    event_params: ListManagerEventParam;
+    event_params: ListManagerEventParam | SdkEventParam;
+}
+
+/**
+ * The params carried by a session lifecycle event, matching the map Android's
+ * SessionClient.trackEvent sends.
+ */
+export interface SdkEventParam {
+    /**
+     * The session the event describes.
+     */
+    sessionId: string;
 }
 
 /**
@@ -354,6 +403,11 @@ export enum ListManagerEventSource {
      * The event was triggered from the app.
      */
     APP = "app",
+    /**
+     * The event was triggered by the SDK itself rather than by a user action.
+     * Used for the session lifecycle events, matching SDK_EVENT_TYPE on Android.
+     */
+    SDK = "sdk",
 }
 
 /**
@@ -411,13 +465,29 @@ export enum ReportedEventType {
      */
     IMPRESSION = "impression",
     /**
-     * Occurs when an ad is not viewable before timimg out.
+     * Occurs when an ad that was displayed to the user stops being displayed,
+     * because it rotated out, the zone left the view, or the app was backgrounded.
+     * Reported at most once per ad that recorded an impression.
      */
-    INVISIBLE_IMPRESSION = "invisible_impression",
+    IMPRESSION_END = "impression_end",
     /**
      * Occurs when the user interacts with an ad.
      */
     INTERACTION = "interaction",
+    /**
+     * Occurs when an ad zone is first placed. Reported for every zone, whether it
+     * ever receives an ad or not.
+     */
+    ZONE_MOUNTED = "zone_mounted",
+    /**
+     * Occurs when an ad zone is removed.
+     */
+    ZONE_UNMOUNTED = "zone_unmounted",
+    /**
+     * Occurs when an ad was requested for a zone but none could be displayed.
+     * Always accompanied by a {@link ZoneUnfilledReason} event name.
+     */
+    ZONE_UNFILLED = "zone_unfilled",
     /**
      * Occurs when the user's search term did not
      * match an available keyword intercept term.
@@ -475,108 +545,70 @@ export interface BaseRequestInputs {
 /**
  * Interface for the request of the Initialize Session API call.
  */
-export interface InitializeSessionRequest {
+export interface AdRetrieveRequest {
     /**
-     * The app ID provided by the client using the API.
+     * The SDK version.
+     * NOTE: Named sdkId on the wire, matching the native SDKs.
      */
-    app_id: string;
+    sdkId: string;
     /**
-     * The unique device ID of the users device.
+     * The bundle ID of the host app.
      */
-    udid: string;
+    bundleId: string;
     /**
-     * The bundle ID.
+     * The unique device ID of the user.
      */
-    bundle_id?: string;
+    userId: string;
     /**
-     * The bundle version.
+     * The zone to retrieve an ad for. One ad is returned per request.
      */
-    bundle_version?: string;
+    zoneId: string;
     /**
-     * The name of the device.
+     * The store to target ads for, or an empty string.
      */
-    device_name?: string;
+    storeId: string;
     /**
-     * The unique device ID of the users device.
+     * The recipe context this zone is showing, or an empty string.
      */
-    device_udid?: string;
-    /**
-     * The OS of the device.
-     */
-    device_os?: string;
-    /**
-     * The OS version of the device.
-     */
-    device_osv?: string;
-    /**
-     * The locale the device is currently set for.
-     */
-    device_locale?: string;
-    /**
-     * The timezone the device is currently set for.
-     */
-    device_timezone?: string;
-    /**
-     * The device carrier name.
-     */
-    device_carrier?: string;
-    /**
-     * The height of the devices screen in pixels.
-     */
-    device_height?: number;
-    /**
-     * The width of the devices screen in pixels.
-     */
-    device_width?: number;
-    /**
-     * The density of the devices screen.
-     */
-    device_density?: string;
-    /**
-     * If true, the device allows for ad retargeting.
-     */
-    allow_retargeting?: boolean;
-    /**
-     * ?
-     */
-    created_at?: number;
-    /**
-     * The AdAdapted SDK version number.
-     */
-    sdk_version?: string;
-    /**
-     * ?
-     */
-    params?: { [key: string]: string };
-}
-
-/**
- * Interface for the request of the Refresh Session Data API call.
- */
-export interface RefreshSessionDataRequest {
-    /**
-     * The app ID provided by the client using the API.
-     */
-    aid: string;
-    /**
-     * The unique device ID.
-     */
-    uid: string;
+    contextId: string;
     /**
      * The current session ID.
      */
-    sid: string;
+    sessionId: string;
     /**
-     * The current sdk version.
+     * Reserved for additional targeting params. Currently always an empty string.
      */
-    sdkVersion: string;
+    extra: string;
+}
+
+/**
+ * Interface for the request of the v1.0.0 keyword intercept retrieve call.
+ */
+export interface InterceptRetrieveRequest {
     /**
-     * The context IDs and associated zone IDs.
+     * The SDK version.
      */
-    adContext?: {
-        contextIds: string[] | undefined;
-        zoneIds: string[];
-    };
+    sdkId: string;
+    /**
+     * The bundle ID of the host app.
+     */
+    bundleId: string;
+    /**
+     * The unique device ID of the user.
+     */
+    userId: string;
+    /**
+     * Always an empty string for intercepts, which are not zone scoped.
+     */
+    zoneId: string;
+    /**
+     * The current session ID.
+     */
+    sessionId: string;
+    /**
+     * Reserved for additional params.
+     */
+    extra: string;
 }
 
 /**
@@ -625,6 +657,62 @@ export interface ReportListManagerDataRequest extends BaseRequestInputs {
      * The events to report.
      */
     events: ListManagerEvent[];
+    /**
+     * The SDK version.
+     */
+    sdk_version: string;
+    /**
+     * The bundle ID of the host app.
+     */
+    bundle_id: string;
+    /**
+     * The bundle version of the host app.
+     */
+    bundle_version: string;
+    /**
+     * The device locale.
+     * NOTE: Carried here because the session initialize request that used to send
+     *       it no longer exists.
+     */
+    locale: string;
+    /**
+     * Whether the user permits ad retargeting, as 1 or 0.
+     * NOTE: Carried here for the same reason as locale. The native SDKs send it on
+     *       this request too.
+     */
+    allow_retargeting: number;
+    /**
+     * The device name. Android calls this field "device" on this request.
+     */
+    device: string;
+    /**
+     * The device operating system.
+     */
+    os: string;
+    /**
+     * The device operating system version.
+     */
+    osv: string;
+    /**
+     * The device's timezone.
+     */
+    timezone: string;
+    /**
+     * The device's cellular carrier.
+     */
+    carrier: string;
+    /**
+     * The device width in pixels.
+     */
+    dw: number;
+    /**
+     * The device height in pixels.
+     */
+    dh: number;
+    /**
+     * The device screen density.
+     */
+    density: string;
 }
 
 /**
@@ -646,16 +734,6 @@ export interface RetrievePayloadItemDataRequest extends BaseRequestInputs {}
 // RESPONSE MODELS
 // =============================================================================
 /**
- * Interface for the response of the Campaign API request.
- */
-export interface InitializeSessionResponse extends AdSession {}
-
-/**
- * Interface for the response of the Campaign API request.
- */
-export interface RefreshSessionDataResponse extends AdSession {}
-
-/**
  * Interface for the response of the Report Ad Event API request.
  */
 export interface ReportAdEventResponse {
@@ -665,11 +743,6 @@ export interface ReportAdEventResponse {
      */
     results: string[];
 }
-
-/**
- * Interface for the response of the Keyword Intercepts API request.
- */
-export interface KeywordInterceptsResponse extends KeywordIntercepts {}
 
 /**
  * Interface for the response of the Report Intercept Event API request.

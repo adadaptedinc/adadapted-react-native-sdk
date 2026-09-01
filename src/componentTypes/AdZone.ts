@@ -1,7 +1,5 @@
-import { ViewStyle } from "react-native";
-import { Zone, DetailedListItem } from "src/api/adadaptedApiTypes";
-import { DeviceTypes } from "./Device";
-import { EnvironmentTypes } from "./Environment";
+import { StyleProp, ViewStyle } from "react-native";
+import { DetailedListItem } from "../api/adadaptedApiTypes";
 
 /**
  * Namespace for AdZone types.
@@ -9,20 +7,40 @@ import { EnvironmentTypes } from "./Environment";
 export namespace AdZoneTypes {
     /**
      * Props interface for an ad zone.
+     *
+     * NOTE: The zone declares only its own ID. App ID, session, device info and
+     *       environment all come from the SDK, the same way AaZoneView reads them
+     *       from the Android SDK's singletons rather than taking them as arguments.
      */
     export interface Props {
         /**
-         * The app ID.
+         * The ad zone ID to serve ads for. Supplied by the host app, which is the
+         * only party that knows which zones it has been allocated.
          */
-        appId: string;
+        zoneId: string;
         /**
-         * The session ID.
+         * Whether the zone is currently on screen.
+         *
+         * The SDK cannot determine this in React Native, so the host app reports
+         * it, exactly as AaZoneView.setAdZoneVisibility requires on Android. While
+         * false the zone neither refreshes nor records impressions.
+         *
+         * Required rather than defaulted, because both defaults fail silently.
+         * Defaulting to true over-reports impressions for any zone left mounted on
+         * a screen the user has navigated away from, which React Native gives the
+         * SDK no way to detect. Defaulting to false is worse: the ad is still
+         * fetched and still rendered to the user, but no impression is ever
+         * reported and the zone never refreshes, so a host that overlooked the prop
+         * would show ads and report nothing, indefinitely and without error.
+         *
+         * A zone that really is always on screen should pass true explicitly.
          */
-        sessionId: string;
+        isVisible: boolean;
         /**
-         * The UDID.
+         * The recipe context this zone is currently showing, if any. Equivalent to
+         * AaZoneView.setAdZoneContextId.
          */
-        udid: string;
+        contextId?: string;
         /**
          * The touch sensitivity of the Ad Zone in both the X and Y directions.
          * This is used to determine the click/press sensitivity when the
@@ -31,36 +49,32 @@ export namespace AdZoneTypes {
          * X or Y direction is less than this value, we will treat the action as
          * a click/press on the Ad Zone.
          */
-        xyDragDistanceAllowed: number;
+        xyDragDistanceAllowed?: number;
         /**
-         * The device OS used for API requests.
+         * Style applied to the zone's outer View.
          */
-        deviceOs: DeviceTypes.DeviceOS;
-        /**
-         * The API environment to use when making an API request.
-         */
-        apiEnv: EnvironmentTypes.ApiEnv;
-        /**
-         * The ad zone data.
-         */
-        adZoneData: Zone;
+        style?: StyleProp<ViewStyle>;
         /**
          * Callback that gets triggered when an "add to list" item/items are clicked.
          * @param items - The array of items to "add to list".
          */
         onAddToListTriggered?(items: DetailedListItem[]): void;
         /**
-         * An ad zone that is not visible on screen for the initial render.
+         * Called whenever the zone's fill state changes, so the host can collapse
+         * or reveal the space around it. Mirrors AaZoneView.Listener.onZoneHasAds.
+         * @param hasAds - True when an ad is currently available for the zone.
          */
-        offScreenAdZone: boolean;
+        onZoneHasAds?(hasAds: boolean): void;
         /**
-         * Track the ad zone visibility in parent component. (for off-screen ads)
+         * Called when an ad has been retrieved and displayed.
+         * Mirrors AaZoneView.Listener.onAdLoaded.
          */
-        isAdZoneVisible?: boolean;
+        onAdLoaded?(): void;
         /**
-         * Flag to determine if the ad is contextual.
+         * Called when an ad could not be retrieved or displayed.
+         * Mirrors AaZoneView.Listener.onAdLoadFailed.
          */
-        isContextualAd?: boolean;
+        onAdLoadFailed?(): void;
     }
 
     /**
