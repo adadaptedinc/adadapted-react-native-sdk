@@ -96,6 +96,7 @@
     "react-native": "^0.87.0",
     "react-native-builder-bob": "^0.43.0",
     "react-native-webview": "^13.16.1",
+    "react-test-renderer": "^19.3.0",
     "ts-jest": "^29.4.9",
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.59.0"
