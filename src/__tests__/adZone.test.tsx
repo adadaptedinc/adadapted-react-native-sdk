@@ -128,7 +128,7 @@ async function loadCreative(): Promise<void> {
     }
 
     await act(async () => {
-        fireEvent(creative, "load", { nativeEvent: {} });
+        await fireEvent(creative, "load", { nativeEvent: {} });
 
         await Promise.resolve();
     });
@@ -153,7 +153,7 @@ async function reloadCreativeInPlace(): Promise<void> {
     const creative = screen.getByTestId("ad-creative");
 
     await act(async () => {
-        fireEvent(creative, "load", { nativeEvent: {} });
+        await fireEvent(creative, "load", { nativeEvent: {} });
 
         await Promise.resolve();
     });
@@ -178,8 +178,10 @@ async function failCreative(): Promise<void> {
     const creative = screen.getByTestId("ad-creative");
 
     await act(async () => {
-        fireEvent(creative, "load", { nativeEvent: {} });
-        fireEvent(creative, "error", { nativeEvent: { description: "boom" } });
+        await fireEvent(creative, "load", { nativeEvent: {} });
+        await fireEvent(creative, "error", {
+            nativeEvent: { description: "boom" },
+        });
 
         await Promise.resolve();
     });
@@ -199,7 +201,9 @@ async function failCreativeWithoutLoad(): Promise<void> {
     const creative = screen.getByTestId("ad-creative");
 
     await act(async () => {
-        fireEvent(creative, "error", { nativeEvent: { description: "boom" } });
+        await fireEvent(creative, "error", {
+            nativeEvent: { description: "boom" },
+        });
 
         await Promise.resolve();
     });
@@ -317,13 +321,13 @@ function buildContext(): AdRequestContext {
  * Taps the creative, moving the given distance between touch down and up.
  * @param distance - How far the touch travels.
  */
-function tapCreative(distance = 0): void {
+async function tapCreative(distance = 0): Promise<void> {
     const creative = screen.getByTestId("ad-creative");
 
-    fireEvent(creative, "touchStart", {
+    await fireEvent(creative, "touchStart", {
         nativeEvent: { pageX: 100, pageY: 100 },
     });
-    fireEvent(creative, "touchEnd", {
+    await fireEvent(creative, "touchEnd", {
         nativeEvent: { pageX: 100 + distance, pageY: 100 },
     });
 }
@@ -365,7 +369,7 @@ afterEach(() => {
 
 describe("requesting an ad", () => {
     it("requests a single ad for its own zone on mount", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -380,7 +384,7 @@ describe("requesting an ad", () => {
     });
 
     it("gives each zone its own request, rather than one shared list", async () => {
-        render(
+        await render(
             <>
                 <AdZone zoneId="zone-a" isVisible={true} />
                 <AdZone zoneId="zone-b" isVisible={true} />
@@ -395,7 +399,7 @@ describe("requesting an ad", () => {
     });
 
     it("reports the zone as mounted, and as unmounted when it goes away", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -407,7 +411,7 @@ describe("requesting an ad", () => {
             ),
         ).toHaveLength(1);
 
-        view.unmount();
+        await view.unmount();
 
         expect(
             reportedTypes().filter(
@@ -417,7 +421,7 @@ describe("requesting an ad", () => {
     });
 
     it("sends the recipe context the zone was given", async () => {
-        render(
+        await render(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-7" />,
         );
 
@@ -435,7 +439,7 @@ describe("mounting before the SDK is ready", () => {
         // run was what caught this: the zone sat empty for the whole session.
         setAdRequestContext(undefined);
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -458,11 +462,11 @@ describe("mounting before the SDK is ready", () => {
     it("reports no unmount for a zone that never started", async () => {
         setAdRequestContext(undefined);
 
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
-        view.unmount();
+        await view.unmount();
 
         // Nothing to pair the unmount with, since the mount was never reported.
         expect(reportAdEvent).not.toHaveBeenCalled();
@@ -471,11 +475,11 @@ describe("mounting before the SDK is ready", () => {
     it("stops waiting when it unmounts, so a late context does not revive it", async () => {
         setAdRequestContext(undefined);
 
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
-        view.unmount();
+        await view.unmount();
 
         await act(async () => {
             setAdRequestContext(buildContext());
@@ -514,7 +518,7 @@ describe("after the SDK is torn down and re-initialized", () => {
             }),
         );
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -543,7 +547,7 @@ describe("after the SDK is torn down and re-initialized", () => {
     });
 
     it("does not open the next ad with an orphaned impression_end", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -602,7 +606,7 @@ describe("after the SDK is torn down and re-initialized", () => {
     });
 
     it("serves again for a zone that stayed mounted", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         expect(retrieveAdMock).toHaveBeenCalledTimes(1);
@@ -640,7 +644,7 @@ describe("displaying an ad", () => {
             buildAd({ creative_url: "https://example.test/creative-9.html" }),
         );
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -650,7 +654,7 @@ describe("displaying an ad", () => {
     });
 
     it("reports one impression for the ad it is showing", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -668,7 +672,7 @@ describe("displaying an ad", () => {
     it("tells the host whether the zone has an ad", async () => {
         const onZoneHasAds = jest.fn();
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -686,7 +690,7 @@ describe("review follow ups", () => {
     it("tells the host about the fill state only when it changes", async () => {
         const onZoneHasAds = jest.fn();
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -737,7 +741,7 @@ describe("review follow ups", () => {
         mockInjectShouldThrow = true;
 
         try {
-            render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+            await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
             await settle();
             await loadCreative();
@@ -755,7 +759,7 @@ describe("review follow ups", () => {
     });
 
     it("does not request twice when the zone and the context change together", async () => {
-        const { rerender } = render(
+        const { rerender } = await render(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="context-1" />,
         );
 
@@ -768,7 +772,7 @@ describe("review follow ups", () => {
         // Both props change in one render. The request the zone change issues
         // already carries the new context, so a second one on top of it would
         // throw away a fill that was targeted correctly.
-        rerender(
+        await rerender(
             <AdZone zoneId="102999" isVisible={true} contextId="context-2" />,
         );
 
@@ -784,7 +788,7 @@ describe("review follow ups", () => {
 
 describe("the creative rendering", () => {
     it("reports no impression until the creative has rendered", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -798,7 +802,7 @@ describe("the creative rendering", () => {
     });
 
     it("fires the creative's tracking pixels before reporting the impression", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -812,7 +816,9 @@ describe("the creative rendering", () => {
     });
 
     it("waits for visibility as well as the render, in either order", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        const view = await render(
+            <AdZone zoneId={ZONE_ID} isVisible={false} />,
+        );
 
         await settle();
 
@@ -822,7 +828,7 @@ describe("the creative rendering", () => {
         expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
         expect(injectedScripts).toEqual([]);
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         // Now both conditions hold, so the impression is owed at this point.
         expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION);
@@ -830,15 +836,15 @@ describe("the creative rendering", () => {
     });
 
     it("reports no impression on a visibility change before the render", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
         // The ad has arrived but has not painted. Toggling visibility must not be
         // enough on its own: without the render gate this bills an impression for
         // a creative that has shown nothing.
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={false} />);
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
         expect(injectedScripts).toEqual([]);
@@ -861,7 +867,7 @@ describe("the creative rendering", () => {
             }),
         );
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -901,13 +907,13 @@ describe("the creative rendering", () => {
             }),
         );
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
         // The load event lands, scheduling a settle for ad-1...
         await act(async () => {
-            fireEvent(screen.getByTestId("ad-creative"), "load", {
+            await fireEvent(screen.getByTestId("ad-creative"), "load", {
                 nativeEvent: {},
             });
 
@@ -927,7 +933,7 @@ describe("the creative rendering", () => {
         // A tap rotates the zone. Its fetch resolves as a microtask, so displayAd
         // runs before the pending 0ms settle.
         await act(async () => {
-            tapCreative();
+            await tapCreative();
 
             await Promise.resolve();
         });
@@ -955,7 +961,7 @@ describe("the creative rendering", () => {
     it("does not call back into a zone that has unmounted", async () => {
         const onAdLoaded = jest.fn();
 
-        const view = render(
+        const view = await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -968,14 +974,14 @@ describe("the creative rendering", () => {
         // The load lands, scheduling the settle, and the component goes away
         // before it fires.
         await act(async () => {
-            fireEvent(screen.getByTestId("ad-creative"), "load", {
+            await fireEvent(screen.getByTestId("ad-creative"), "load", {
                 nativeEvent: {},
             });
 
             await Promise.resolve();
         });
 
-        view.unmount();
+        await view.unmount();
 
         await act(async () => {
             jest.advanceTimersByTime(1);
@@ -987,12 +993,12 @@ describe("the creative rendering", () => {
     });
 
     it("does not fire tracking pixels after the SDK is torn down", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
         await act(async () => {
-            fireEvent(screen.getByTestId("ad-creative"), "load", {
+            await fireEvent(screen.getByTestId("ad-creative"), "load", {
                 nativeEvent: {},
             });
 
@@ -1022,7 +1028,7 @@ describe("the creative rendering", () => {
     it("reports render_failed when the error arrives with no preceding load", async () => {
         serveAd(buildAd({ refresh_time: 45 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1045,7 +1051,7 @@ describe("the creative rendering", () => {
 
         serveAd(buildAd());
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -1064,7 +1070,7 @@ describe("the creative rendering", () => {
     it("reports render_failed and drops an ad whose creative will not load", async () => {
         serveAd(buildAd({ refresh_time: 45 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await failCreative();
@@ -1095,7 +1101,7 @@ describe("the creative rendering", () => {
         const onAdLoaded = jest.fn();
         const onAdLoadFailed = jest.fn();
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -1119,7 +1125,7 @@ describe("the creative rendering", () => {
     it("reports one impression and one load however many times the creative reloads", async () => {
         const onAdLoaded = jest.fn();
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -1152,7 +1158,7 @@ describe("refreshing", () => {
     it("requests the next ad once the refresh time has elapsed", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         expect(retrieveAdMock).toHaveBeenCalledTimes(1);
@@ -1167,7 +1173,7 @@ describe("refreshing", () => {
     it("clamps a refresh time below the minimum instead of hammering the API", async () => {
         serveAd(buildAd({ refresh_time: 2 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1183,7 +1189,7 @@ describe("refreshing", () => {
     it("falls back to the default when no usable refresh time is served", async () => {
         serveAd(buildAd({ refresh_time: 0 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1197,7 +1203,7 @@ describe("refreshing", () => {
     it("closes out each ad's impression exactly once as it rotates", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -1242,11 +1248,11 @@ describe("visibility", () => {
     it("does not refresh while the host reports the zone off screen", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={false} />);
 
         await advance(60_000);
 
@@ -1258,18 +1264,18 @@ describe("visibility", () => {
     it("waits out only the remaining time when the zone comes back", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
         // 10 seconds of the 30 spent on screen.
         await advance(10_000);
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={false} />);
 
         await advance(5_000);
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         // 19 more seconds: one short of the 20 that were left.
         await advance(19_000);
@@ -1282,16 +1288,16 @@ describe("visibility", () => {
     it("replaces an ad that outlived its refresh time while off screen", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={false} />);
 
         await advance(60_000);
         expect(retrieveAdMock).toHaveBeenCalledTimes(1);
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={true} />);
         await settle();
 
         // Shown for longer than its refresh time already, so it is replaced on
@@ -1300,12 +1306,12 @@ describe("visibility", () => {
     });
 
     it("ends the impression when the zone leaves the screen", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await loadCreative();
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={false} />);
 
         const ends = reportAdEvent.mock.calls.filter(
             ([event]) => event.eventType === ReportedEventType.IMPRESSION_END,
@@ -1316,13 +1322,15 @@ describe("visibility", () => {
     });
 
     it("records no impression for an ad served while the zone is off screen", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={false} />);
+        const view = await render(
+            <AdZone zoneId={ZONE_ID} isVisible={false} />,
+        );
 
         await settle();
 
         expect(reportedTypes()).not.toContain(ReportedEventType.IMPRESSION);
 
-        view.update(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await view.rerender(<AdZone zoneId={ZONE_ID} isVisible={true} />);
         await loadCreative();
 
         expect(reportedTypes()).toContain(ReportedEventType.IMPRESSION);
@@ -1331,7 +1339,7 @@ describe("visibility", () => {
     it("pauses while the app is backgrounded and resumes when it returns", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -1360,7 +1368,7 @@ describe("visibility", () => {
     it("closes out its impression when the SDK is torn down", async () => {
         serveAd(buildAd({ refresh_time: 30 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -1382,7 +1390,7 @@ describe("visibility", () => {
     });
 
     it("reports one unmount even when teardown is followed by unmounting", async () => {
-        const view = render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        const view = await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1392,7 +1400,7 @@ describe("visibility", () => {
             await Promise.resolve();
         });
 
-        view.unmount();
+        await view.unmount();
 
         // Exactly one, however the zone goes away.
         expect(
@@ -1407,7 +1415,7 @@ describe("unfilled zones", () => {
     it("reports no_ad when the API serves an ad with no ID", async () => {
         serveAd(undefined, 45);
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1439,7 +1447,7 @@ describe("unfilled zones", () => {
             },
         });
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1479,7 +1487,7 @@ describe("unfilled zones", () => {
             },
         } as any);
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1500,7 +1508,7 @@ describe("unfilled zones", () => {
     it("reports request_failed when the request itself fails", async () => {
         retrieveAdMock.mockRejectedValue(new Error("network down"));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1517,7 +1525,7 @@ describe("unfilled zones", () => {
     it("keeps retrying on a pace after a failure rather than going quiet", async () => {
         retrieveAdMock.mockRejectedValue(new Error("network down"));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1530,7 +1538,7 @@ describe("unfilled zones", () => {
     it("sends no ad or impression ID on a zone level event", async () => {
         serveAd(undefined);
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
@@ -1560,12 +1568,12 @@ describe("clicks", () => {
             }),
         );
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
         await act(async () => {
-            tapCreative();
+            await tapCreative();
 
             await Promise.resolve();
         });
@@ -1577,7 +1585,7 @@ describe("clicks", () => {
     });
 
     it("treats a drag as a scroll, not a click", async () => {
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -1588,7 +1596,7 @@ describe("clicks", () => {
         await settle();
 
         await act(async () => {
-            tapCreative(40);
+            await tapCreative(40);
 
             await Promise.resolve();
         });
@@ -1600,16 +1608,20 @@ describe("clicks", () => {
     });
 
     it("reports at most one interaction per ad, however many taps land", async () => {
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
-        // Both taps inside one act, so the replacement ad has not arrived yet. The
-        // zone keeps showing the tapped ad until it does, leaving the touch target
-        // live, and every one of those taps is the same click on the same ad.
-        act(() => {
-            tapCreative();
-            tapCreative();
+        // The replacement ad never arrives, so the zone keeps showing the tapped ad,
+        // leaving the touch target live, and every one of those taps is the same
+        // click on the same ad. Held open explicitly rather than by letting the taps
+        // out-run the fetch: fireEvent awaits act, which drains the microtask queue,
+        // so an already-resolved replacement would land between the two taps.
+        retrieveAdMock.mockReturnValueOnce(new Promise(() => undefined));
+
+        await act(async () => {
+            await tapCreative();
+            await tapCreative();
         });
 
         expect(
@@ -1640,7 +1652,7 @@ describe("clicks", () => {
             }),
         );
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -1651,7 +1663,7 @@ describe("clicks", () => {
         await settle();
 
         await act(async () => {
-            tapCreative();
+            await tapCreative();
 
             await Promise.resolve();
         });
@@ -1702,12 +1714,12 @@ describe("add to list without a zone handler", () => {
 
         // No onAddToListTriggered prop. The callback was global before zones became
         // components, so a host with one handler must not have to repeat it.
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
         await act(async () => {
-            tapCreative();
+            await tapCreative();
 
             await Promise.resolve();
         });
@@ -1737,7 +1749,7 @@ describe("add to list without a zone handler", () => {
             }),
         );
 
-        render(
+        await render(
             <AdZone
                 zoneId={ZONE_ID}
                 isVisible={true}
@@ -1748,7 +1760,7 @@ describe("add to list without a zone handler", () => {
         await settle();
 
         await act(async () => {
-            tapCreative();
+            await tapCreative();
 
             await Promise.resolve();
         });
@@ -1769,7 +1781,7 @@ describe("slow and overlapping requests", () => {
         // returning from the background does the same thing.
         serveAd(buildAd({ refresh_time: 15 }));
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -1853,7 +1865,7 @@ describe("slow and overlapping requests", () => {
                 }),
         );
 
-        const view = render(
+        const view = await render(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
         );
 
@@ -1862,7 +1874,7 @@ describe("slow and overlapping requests", () => {
 
         // Changed while the very first request is still open, so there is no
         // loaded ad yet.
-        view.update(
+        await view.rerender(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-2" />,
         );
 
@@ -1887,14 +1899,14 @@ describe("touch sensitivity", () => {
             xyDragDistanceAllowed: 100,
         });
 
-        render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
+        await render(<AdZone zoneId={ZONE_ID} isVisible={true} />);
 
         await settle();
 
         // A 40px drag is a scroll under the default 25, but a click under the 100
         // this host configured at initialize().
         await act(async () => {
-            tapCreative(40);
+            await tapCreative(40);
 
             await Promise.resolve();
         });
@@ -1921,7 +1933,7 @@ describe("changing which zone the component serves", () => {
             } as never),
         );
 
-        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+        const view = await render(<AdZone zoneId="zone-a" isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -1929,7 +1941,7 @@ describe("changing which zone the component serves", () => {
         // A host reusing the component for another zone, an unkeyed list row for
         // instance. This was ignored outright: no events either way, and zone-b
         // was never requested.
-        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+        await view.rerender(<AdZone zoneId="zone-b" isVisible={true} />);
 
         await settle();
 
@@ -1958,7 +1970,7 @@ describe("changing which zone the component serves", () => {
     it("stops showing the previous zone's ad while the new one is requested", async () => {
         serveAd(buildAd({ creative_url: "https://example.test/zone-a.html" }));
 
-        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+        const view = await render(<AdZone zoneId="zone-a" isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -1990,7 +2002,7 @@ describe("changing which zone the component serves", () => {
                 }),
         );
 
-        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+        await view.rerender(<AdZone zoneId="zone-b" isVisible={true} />);
 
         await settle();
 
@@ -2010,12 +2022,12 @@ describe("changing which zone the component serves", () => {
     });
 
     it("attributes later events to the zone now on screen, not the one it replaced", async () => {
-        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+        const view = await render(<AdZone zoneId="zone-a" isVisible={true} />);
 
         await settle();
         await loadCreative();
 
-        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+        await view.rerender(<AdZone zoneId="zone-b" isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -2088,12 +2100,12 @@ describe("changing which zone the component serves", () => {
             });
         });
 
-        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+        const view = await render(<AdZone zoneId="zone-a" isVisible={true} />);
 
         await settle();
 
         // Switched while zone-a's request is still open.
-        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+        await view.rerender(<AdZone zoneId="zone-b" isVisible={true} />);
 
         await settle();
 
@@ -2138,12 +2150,12 @@ describe("changing which zone the component serves", () => {
     });
 
     it("reports one impression per zone across a switch", async () => {
-        const view = render(<AdZone zoneId="zone-a" isVisible={true} />);
+        const view = await render(<AdZone zoneId="zone-a" isVisible={true} />);
 
         await settle();
         await loadCreative();
 
-        view.update(<AdZone zoneId="zone-b" isVisible={true} />);
+        await view.rerender(<AdZone zoneId="zone-b" isVisible={true} />);
 
         await settle();
         await loadCreative();
@@ -2163,14 +2175,14 @@ describe("changing which zone the component serves", () => {
 
 describe("recipe context changes", () => {
     it("requests a new ad when the zone's context changes", async () => {
-        const view = render(
+        const view = await render(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
         );
 
         await settle();
         expect(retrieveAdMock).toHaveBeenCalledTimes(1);
 
-        view.update(
+        await view.rerender(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-2" />,
         );
         await settle();
@@ -2182,13 +2194,13 @@ describe("recipe context changes", () => {
     });
 
     it("does not refetch when the context is unchanged", async () => {
-        const view = render(
+        const view = await render(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
         );
 
         await settle();
 
-        view.update(
+        await view.rerender(
             <AdZone zoneId={ZONE_ID} isVisible={true} contextId="recipe-1" />,
         );
         await settle();

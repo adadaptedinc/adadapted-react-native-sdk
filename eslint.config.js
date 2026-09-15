@@ -82,7 +82,7 @@ module.exports = tseslint.config(
             "@typescript-eslint/no-empty-interface": "off",
             "@typescript-eslint/no-explicit-any": "off",
             "@typescript-eslint/no-extra-non-null-assertion": "error",
-            "@typescript-eslint/no-floating-promises": "off",
+            "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-for-in-array": "error",
             "@typescript-eslint/no-misused-new": "error",
             "@typescript-eslint/no-misused-promises": "off",
