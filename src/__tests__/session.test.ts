@@ -7,7 +7,7 @@
  * window resumes the existing one.
  * @module
  */
-import { AppState, AppStateStatus, Linking } from "react-native";
+import { AppState, AppStateStatus, Linking, NativeModules } from "react-native";
 import axios from "axios";
 import base64 from "react-native-base64";
 import { AdadaptedReactNativeSdk } from "../index";
@@ -975,5 +975,42 @@ describe("teardown", () => {
         sdk.unmount();
 
         expect(remove).toHaveBeenCalled();
+    });
+});
+
+describe("a failure from the native bridge", () => {
+    it("rejects initialize rather than leaving it pending forever", async () => {
+        const failure = new Error("native bridge unavailable");
+
+        (
+            NativeModules.AdadaptedReactNativeSdk.getDeviceInfo as jest.Mock
+        ).mockRejectedValueOnce(failure);
+
+        const sdk = new AdadaptedReactNativeSdk();
+
+        let outcome = "pending";
+
+        const initializing = sdk
+            .initialize({ appId: APP_ID, apiEnv: EnvironmentTypes.ApiEnv.Dev })
+            .then(
+                () => {
+                    outcome = "resolved";
+                },
+                (error) => {
+                    outcome = error === failure ? "rejected" : "rejected-other";
+                },
+            );
+
+        // Draining the microtask queue is what tells a rejection apart from a
+        // hang. Anything that is going to settle has settled by here; a promise
+        // that never settles is still "pending", which is the bug this guards.
+        // A real timeout cannot do the job with fake timers installed.
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(outcome).toBe("rejected");
+
+        await initializing;
     });
 });

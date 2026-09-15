@@ -245,13 +245,15 @@ export class AdadaptedReactNativeSdk {
      * @returns a Promise of void.
      */
     private getDeviceInformation(): Promise<string> {
-        return new Promise<string>((resolve) => {
-            NativeModules.AdadaptedReactNativeSdk.getDeviceInfo().then(
-                (response: string) => {
-                    resolve(response);
-                },
-            );
-        });
+        // Returned directly rather than wrapped in a new Promise. That wrapper
+        // only ever captured resolve, so a rejection from the native module was
+        // never passed on: it surfaced as an unhandled rejection and left this
+        // promise pending forever, hanging initialize() instead of rejecting
+        // through the catch that is already waiting for it.
+        //
+        // no-floating-promises could not see the old bug, because NativeModules
+        // is typed any and the rule does not track promises it cannot identify.
+        return NativeModules.AdadaptedReactNativeSdk.getDeviceInfo() as Promise<string>;
     }
 
     /**
