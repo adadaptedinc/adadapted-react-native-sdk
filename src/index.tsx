@@ -908,13 +908,22 @@ export class AdadaptedReactNativeSdk {
                     this.getKeywordIntercepts();
 
                     // Intercept an initial deep link here, if needed.
-                    Linking.getInitialURL().then((url) => {
-                        if (url) {
-                            // Pass in as an object so it mimics the "url"
-                            // property of Linking.addEventListener("url").
-                            this.handleDeepLink({ url });
-                        }
-                    });
+                    Linking.getInitialURL()
+                        .then((url) => {
+                            if (url) {
+                                // Pass in as an object so it mimics the "url"
+                                // property of Linking.addEventListener("url").
+                                this.handleDeepLink({ url });
+                            }
+                        })
+                        .catch((error) => {
+                            // A deep link that cannot be read is one missed
+                            // launch, not a reason to fail initialization.
+                            console.error(
+                                "Unable to read the initial deep link.",
+                                error,
+                            );
+                        });
 
                     // Make the initial call to the Payload data server to see if
                     // the user has any outstanding items to be added to list.

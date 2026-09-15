@@ -37,7 +37,16 @@ export function ReportAdButton(props: Props): React.JSX.Element {
         <TouchableOpacity
             style={styles.buttonStyle}
             onPress={() => {
-                Linking.openURL(reportAdUrlBase.toString());
+                // Rejects when the platform has no handler for the URL, which is
+                // the feedback site being unreachable rather than anything the SDK
+                // controls, so this only needs to not surface as an unhandled
+                // rejection.
+                Linking.openURL(reportAdUrlBase.toString()).catch((error) => {
+                    console.error(
+                        `Unable to open the report URL for ad "${props.adId}".`,
+                        error,
+                    );
+                });
             }}
         >
             <Image source={require("../images/ReportIcon.png")} />
