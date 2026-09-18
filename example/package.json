@@ -36,5 +36,8 @@
     "@react-native/metro-config": "0.87.1",
     "@react-native/typescript-config": "0.87.1",
     "@types/react": "^19.0.0"
+  },
+  "overrides": {
+    "metro-config": "^0.87.1"
   }
 }
