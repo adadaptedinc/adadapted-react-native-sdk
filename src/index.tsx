@@ -219,7 +219,7 @@ export class AdadaptedReactNativeSdk {
     }
 
     /**
-     * @inheritDoc
+     * Creates the SDK pointed at the production APIs; `initialize()` may change that.
      */
     constructor() {
         this.apiEnv = EnvironmentTypes.ApiEnv.Prod;

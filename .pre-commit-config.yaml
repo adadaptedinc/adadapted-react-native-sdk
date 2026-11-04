@@ -13,7 +13,7 @@ repos:
             always_run: true
             stages: [pre-commit]
 
-          - id: eslint
+          - id: lint
             name: Lint Validation
             entry: npm run lint
             language: system

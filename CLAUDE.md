@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm test                    # Run all Jest tests
 npm run test-coverage       # Run tests with coverage reporting
-npm run lint                # Run ESLint
+npm run lint                # Run oxlint (type-aware, via oxlint-tsgolint)
 npm run compile             # TypeScript type-check (no emit) — the SDK AND the example app
 npm run prettier-fix        # Auto-format with Prettier
 npm run prepare             # Build to lib/ (commonjs, module, typescript targets)
@@ -108,3 +108,13 @@ and the unit tests. CI runs the same validation on every push and pull request.
   `tsconfig.json` still includes them so they are type-checked.
 - New dependencies of the SDK must also be installed in `example/`: its
   `metro.config.js` maps every SDK dependency name to `example/node_modules`.
+
+## Linting notes
+
+- Linting is **oxlint**, configured in `.oxlintrc.json`, not ESLint. Type-aware rules
+  (`typescript/no-floating-promises` and friends) run through `oxlint-tsgolint`, which
+  is built on TypeScript 7 and reads `tsconfig.json` with TypeScript 7's rules — so an
+  option TypeScript 7 removed is a lint error even while `tsc` still accepts it.
+- Rules oxlint has no native version of run as JS plugins: `@stylistic/eslint-plugin`
+  for quotes, semicolons and comment spacing, and `eslint-plugin-jsdoc` aliased as
+  `jsdoc-js/`. Existing `eslint-disable` comments are honoured by oxlint.

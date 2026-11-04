@@ -89,6 +89,12 @@
             "automerge": false,
             "labels": ["deps", "infra", "github-actions", "major"],
             "reviewers": ["jeramyadadapted", "steveadadapted"]
+        },
+        {
+            "matchManagers": ["npm"],
+            "matchPackageNames": ["oxlint", "oxlint-tsgolint"],
+            "groupName": "oxlint",
+            "groupSlug": "oxlint"
         }
     ]
 }
