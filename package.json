@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "prettier-fix": "prettier --write \"*.{ts,tsx,js,jsx,json,css,scss,md}\" \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\" \"example/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
-    "lint": "eslint --version && eslint ./",
+    "lint": "oxlint --version && oxlint",
     "compile": "tsc --version && tsc --project tsconfig.json --noEmit --noErrorTruncation --pretty && tsc --project example/tsconfig.json --noEmit --noErrorTruncation --pretty",
     "test-coverage": "rm -rf coverage && jest --coverage",
     "enable-pre-commit": "pre-commit install",
@@ -65,39 +65,26 @@
     "react-native-webview": "*"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.0.0",
-    "@eslint/js": "^9.0.0",
     "@react-native/babel-preset": "^0.88.0",
     "@react-native/jest-preset": "^0.88.0",
     "@react-native/typescript-config": "^0.88.0",
+    "@stylistic/eslint-plugin": "^5.10.0",
     "@testing-library/react-native": "^14.0.0",
     "@types/jest": "^30.0.0",
     "@types/react": "^19.0.0",
     "@types/react-native-base64": "^0.2.2",
-    "@typescript-eslint/eslint-plugin": "^8.59.0",
-    "@typescript-eslint/parser": "^8.59.0",
     "babel-jest": "^30.4.1",
-    "eslint": "^9.0.0",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jest": "^29.15.0",
     "eslint-plugin-jsdoc": "^65.0.0",
-    "eslint-plugin-n": "^18.0.0",
-    "eslint-plugin-prefer-arrow": "1.2.3",
-    "eslint-plugin-promise": "^7.3.0",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-native": "^5.0.0",
-    "globals": "^17.0.0",
     "jest": "^30.3.0",
     "jest-environment-node": "^30.4.1",
+    "oxlint": "^1.91.0",
+    "oxlint-tsgolint": "^7.0.2005",
     "prettier": "^3.8.3",
     "react": "^19.0.0",
     "react-native": "^0.88.0",
     "react-native-builder-bob": "^0.44.0",
     "react-native-webview": "^13.16.1",
-    "ts-jest": "^29.4.9",
-    "typescript": "^6.0.0",
-    "typescript-eslint": "^8.59.0"
+    "typescript": "^6.0.0"
   },
   "jest": {
     "preset": "@react-native/jest-preset",
@@ -157,10 +144,6 @@
       "<rootDir>/jest.setup.ts"
     ]
   },
-  "eslintIgnore": [
-    "node_modules/",
-    "lib/"
-  ],
   "source": "src/index.tsx",
   "react-native-builder-bob": {
     "source": "src",

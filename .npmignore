@@ -1,7 +1,6 @@
 .idea
 .npmrc
 .vscode
-.eslintrc.json
 .gitlab-ci.yml
 .prettierrc.json
 .pre-commit-config.yaml
@@ -13,7 +12,7 @@
 gha-creds-*.json
 jest.setup.js
 jest.config.js
-eslint.config.mjs
+.oxlintrc.json
 webpack.config.js
 renovate.json
 CLAUDE.md
